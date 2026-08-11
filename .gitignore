@@ -1,6 +1,7 @@
 .env
 .env.*
 !.env.example
+.t480-milestones.local.json
 
 # Local runtime data and generated backups
 postgres/backup/*.sql

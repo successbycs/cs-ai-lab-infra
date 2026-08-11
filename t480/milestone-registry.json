@@ -1,0 +1,121 @@
+{
+  "version": 1,
+  "milestones": [
+    {
+      "id": "M0",
+      "name": "T16 control path proven",
+      "objective": "Prove the T16 can use its Windows PowerShell and SSH configuration to run a harmless command in T480 Ubuntu WSL and return structured output.",
+      "depends_on": [],
+      "checks": [
+        {
+          "id": "powerShell_available",
+          "description": "T16 PowerShell and Windows OpenSSH are callable from the execution environment."
+        },
+        {
+          "id": "ssh_key_auth",
+          "description": "T16 authenticates to the T480 using an SSH key without a password prompt."
+        },
+        {
+          "id": "wsl_round_trip",
+          "description": "A harmless Ubuntu WSL command on the T480 returns output to the T16."
+        },
+        {
+          "id": "adapter_health",
+          "description": "The T16 adapter executes the real T480 Windows health operation and returns host data.",
+          "real_world_execution": true
+        }
+      ]
+    },
+    {
+      "id": "M1",
+      "name": "Docker runtime proven",
+      "objective": "Install and verify Docker Engine and the Compose plugin in T480 Ubuntu.",
+      "execution_prompt": "t480/prompts/m1-docker-runtime.md",
+      "depends_on": ["M0"],
+      "execution_steps": [
+        {
+          "id": "baseline",
+          "action": "Run the read-only Docker status operation.",
+          "purpose": "Confirm whether Docker already exists and avoid overwriting a runtime."
+        },
+        {
+          "id": "package_source",
+          "action": "Add Docker's authenticated Ubuntu package source.",
+          "purpose": "Install supported Docker packages for Ubuntu 26.04 and amd64."
+        },
+        {
+          "id": "package_install",
+          "action": "Install Docker Engine, container runtime, Buildx, and Compose.",
+          "purpose": "Provide the runtime required for the lab's Compose services."
+        },
+        {
+          "id": "service_and_access",
+          "action": "Enable and start Docker, then add the Ubuntu chris user to the Docker group.",
+          "purpose": "Make Docker available after WSL starts and usable by the lab operator."
+        },
+        {
+          "id": "real_world_verification",
+          "action": "Run Docker, Compose, service, and hello-world checks in a fresh Ubuntu session.",
+          "purpose": "Prove real container execution rather than package presence alone."
+        }
+      ],
+      "checks": [
+        {
+          "id": "docker_engine",
+          "description": "Docker Engine responds in a fresh Ubuntu session."
+        },
+        {
+          "id": "compose_plugin",
+          "description": "Docker Compose plugin responds in a fresh Ubuntu session."
+        },
+        {
+          "id": "container_execution",
+          "description": "A hello-world container runs successfully.",
+          "real_world_execution": true
+        }
+      ]
+    },
+    {
+      "id": "M2",
+      "name": "Lab stack operational",
+      "objective": "Run the repository's PostgreSQL and n8n stack privately on the T480.",
+      "depends_on": ["M1"],
+      "checks": [
+        {
+          "id": "repository_present",
+          "description": "The intended repository revision is present on the T480."
+        },
+        {
+          "id": "compose_valid",
+          "description": "Docker Compose resolves the local configuration successfully."
+        },
+        {
+          "id": "services_healthy",
+          "description": "PostgreSQL and n8n are running and the repository health check passes.",
+          "real_world_execution": true
+        }
+      ]
+    },
+    {
+      "id": "M3",
+      "name": "Recovery proven",
+      "objective": "Prove the lab can create and verify a synthetic PostgreSQL backup and restore path.",
+      "depends_on": ["M2"],
+      "checks": [
+        {
+          "id": "backup_created",
+          "description": "A PostgreSQL backup is created outside the container."
+        },
+        {
+          "id": "restore_tested",
+          "description": "A synthetic restore is completed into the intended test target.",
+          "real_world_execution": true
+        },
+        {
+          "id": "data_verified",
+          "description": "Expected synthetic data is verified after restore."
+        }
+      ]
+    }
+  ]
+}

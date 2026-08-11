@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "tools": [
+    {
+      "id": "t480_wsl_lab",
+      "name": "T480 WSL Lab",
+      "category": "runtime_profile",
+      "status": "draft",
+      "trust_level": "first_party",
+      "source_type": "ssh_windows_wsl_bridge",
+      "description": "Governed SSH access from the T16 to fixed Windows and Ubuntu operations on the T480.",
+      "adapter": {
+        "path": "scripts/t480_adapter.py",
+        "entrypoint": "python3 scripts/t480_adapter.py"
+      },
+      "supported_control_transports": ["ssh_windows_wsl"],
+      "default_control_transport": "ssh_windows_wsl",
+      "mcp_mode": "not_supported",
+      "secrets_required": ["SSH key available through the local SSH agent or configuration"],
+      "artifacts": ["structured command result"],
+      "verification": [
+        "Run preflight before execution.",
+        "Run verify against the selected operation after execution.",
+        "Require explicit operator approval before a mutating operation.",
+        "Promote this tool to approved only after a successful T480 preflight and health operation."
+      ]
+    }
+  ]
+}
