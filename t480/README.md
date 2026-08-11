@@ -13,6 +13,11 @@ This MVP adopts the Autonomous Framework's adapter and tool-registry conventions
 - `wsl_status` — WSL state and installed distributions.
 - `docker_status` — Docker/Compose availability inside Ubuntu.
 - `docker_preflight` — potentially conflicting Docker/container-runtime packages inside Ubuntu.
+- `docker_install_diagnostics` — package-source and package-manager evidence after an installation failure.
+- `docker_repository_probe` — reachability of Docker's signed repository.
+- `wsl_stdin_probe` — safe validation of the quote-free WSL script transport.
+- `docker_runtime_evidence` — active service, package, Engine, Compose, and daemon access in a fresh session.
+- `docker_hello_world` — real-container M1 proof; requires explicit approval.
 - `docker_install` — install Docker Engine and Compose; requires explicit approval.
 
 ## MVP adapter
@@ -40,6 +45,10 @@ The PowerShell process is deliberately non-interactive and its output returns to
 For the current broad bootstrap phase, use the reusable [adapter execution prompt](prompts/adapter-execution.md). It applies the Autonomous Framework's preflight, approval, verification, and evidence model while the execution surface is intentionally wider than the future named-operation adapter.
 
 Track real-machine progress with the lightweight [milestone system](milestones.md). It keeps milestone definitions in Git and local evidence outside Git.
+
+Process improvements discovered while operating the real machines are recorded in the tracked [execution process log](process-log.md), without private connection details or raw host output.
+
+Each adapter invocation also appends local audit metadata to the ignored `.t480-execution.local.jsonl` file: operation, approval state, UTC timing, exit status, and hashes and byte counts for stdout/stderr. It intentionally does not retain raw host output or connection details.
 
 ## Security rules
 

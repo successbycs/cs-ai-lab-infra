@@ -11,10 +11,11 @@ python3 scripts/t480_milestones.py status
 python3 scripts/t480_milestones.py show --id M1
 python3 scripts/t480_milestones.py start --id M0
 python3 scripts/t480_milestones.py record-check --id M0 --check powerShell_available --result pass --evidence 'PowerShell and ssh.exe available on T16'
+python3 scripts/t480_milestones.py add-evidence --id M1 --evidence 'Operator observed the M1 container proof directly.'
 python3 scripts/t480_milestones.py prove --id M0
 ```
 
-`status` is read-only. `show` displays a milestone's ordered execution plan, acceptance checks, and current state. `start` records local progress. `record-check` records the result and concise evidence for one defined check. `prove` refuses to mark a milestone proven until all its checks have recorded a passing result and its dependencies are proven. Command results display UTC timestamps; individual evidence records retain their own `recorded_at` timestamp.
+`status` is read-only. `show` displays a milestone's ordered execution plan, acceptance checks, and current state. `start` records local progress. `record-check` records the result and concise evidence for one defined check. `add-evidence` adds an operator-observed supplementary proof without changing a milestone's status. `prove` refuses to mark a milestone proven until all its checks have recorded a passing result and its dependencies are proven. Command results display UTC timestamps; individual evidence records retain their own `recorded_at` timestamp.
 
 ## Milestone sequence
 

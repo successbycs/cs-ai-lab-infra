@@ -31,6 +31,7 @@ Execution protocol
 7. Verify each successful mutation with a separate, read-only command. Report the relevant output and any remaining uncertainty.
 8. Before a mutation, check whether the target state already exists and prefer an idempotent command. State the rollback, recovery, or backup path; if none exists, say so explicitly.
 9. Emit concise evidence after each operation: timestamp, target, intent, command class, privilege level, exit status, verification result, rollback notes, and artifacts changed. Keep evidence local and do not commit host-specific details or secrets.
+10. Treat shell quoting and transport behavior as part of the execution contract. Prefer direct WSL invocations for simple operations; send multi-step WSL scripts through standard input to `bash -s`. If a transport defect changes a proposed mutating command, record the process improvement and obtain fresh approval for the corrected command group.
 
 Approval classes
 

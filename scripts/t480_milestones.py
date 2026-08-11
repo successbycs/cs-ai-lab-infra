@@ -95,7 +95,7 @@ def display_status(definitions: dict[str, dict[str, Any]], current_state: dict[s
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Record evidence-backed T480 lab milestone progress.")
-    parser.add_argument("command", choices=["status", "show", "start", "record-check", "prove"])
+    parser.add_argument("command", choices=["status", "show", "start", "record-check", "add-evidence", "prove"])
     parser.add_argument("--id", help="Milestone ID, for example M0.")
     parser.add_argument("--check", help="Acceptance-check ID.")
     parser.add_argument("--result", choices=sorted(VALID_RESULTS), help="Check result.")
@@ -122,6 +122,7 @@ def main() -> int:
                     "status": current_state["milestones"].get(args.id, {}).get("status", "planned"),
                     "execution_steps": milestone.get("execution_steps", []),
                     "checks": milestone["checks"],
+                    "operator_evidence": current_state["milestones"].get(args.id, {}).get("evidence", []),
                 },
                 indent=2,
             )
@@ -135,6 +136,12 @@ def main() -> int:
     if args.command == "start":
         local["status"] = "in_progress"
         local["started_at"] = now()
+    elif args.command == "add-evidence":
+        if not args.evidence:
+            raise SystemExit("add-evidence requires --evidence.")
+        local.setdefault("evidence", []).append(
+            {"evidence": args.evidence, "recorded_at": now(), "operator_observed": True}
+        )
     elif args.command == "record-check":
         check_ids = {check["id"] for check in milestone["checks"]}
         if not args.check or args.check not in check_ids or not args.result or not args.evidence:

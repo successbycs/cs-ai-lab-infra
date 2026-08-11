@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import hashlib
 import json
 import os
 import shutil
@@ -24,6 +25,21 @@ from typing import Any
 TOOL_ID = "t480_wsl_lab"
 SSH_TARGET_ENV = "T480_SSH_TARGET"
 LOCAL_CONFIG_PATH = Path(__file__).resolve().parent.parent / ".env.t480.local"
+EXECUTION_LOG_PATH = Path(__file__).resolve().parent.parent / ".t480-execution.local.jsonl"
+
+DOCKER_INSTALL_SCRIPT = """set -euo pipefail
+apt-get update
+apt-get install -y ca-certificates curl
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+chmod a+r /etc/apt/keyrings/docker.asc
+. /etc/os-release
+printf 'Types: deb\\nURIs: https://download.docker.com/linux/ubuntu\\nSuites: %s\\nComponents: stable\\nArchitectures: %s\\nSigned-By: /etc/apt/keyrings/docker.asc\\n' "${UBUNTU_CODENAME:-$VERSION_CODENAME}" "$(dpkg --print-architecture)" > /etc/apt/sources.list.d/docker.sources
+apt-get update
+apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+systemctl enable --now docker
+usermod -aG docker chris
+"""
 
 # The command text is private to this adapter. Callers choose an operation ID,
 # never a command or arguments.
@@ -56,7 +72,7 @@ OPERATIONS: dict[str, dict[str, Any]] = {
         "approval_required": False,
         "command": (
             "$ErrorActionPreference = 'Stop'; "
-            "wsl.exe -d Ubuntu -- bash -lc 'docker --version && docker compose version && docker compose ps'"
+            "wsl.exe -d Ubuntu -- bash -lc 'docker --version && docker compose version && docker info >/dev/null && echo docker-daemon-ok'"
         ),
     },
     "docker_preflight": {
@@ -67,21 +83,49 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "docker-buildx podman-docker containerd runc 2>/dev/null || true'"
         ),
     },
-    "docker_install": {
-        "approval_required": True,
+    "docker_install_diagnostics": {
+        "approval_required": False,
         "command": (
             "$ErrorActionPreference = 'Stop'; "
-            "wsl.exe -d Ubuntu -u root -- bash -lc 'set -euo pipefail; "
-            "apt-get update; apt-get install -y ca-certificates curl; "
-            "install -m 0755 -d /etc/apt/keyrings; "
-            "curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc; "
-            "chmod a+r /etc/apt/keyrings/docker.asc; . /etc/os-release; "
-            "printf \"Types: deb\\nURIs: https://download.docker.com/linux/ubuntu\\nSuites: %s\\nComponents: stable\\nArchitectures: %s\\nSigned-By: /etc/apt/keyrings/docker.asc\\n\" "
-            "\"${UBUNTU_CODENAME:-$VERSION_CODENAME}\" \"$(dpkg --print-architecture)\" "
-            "> /etc/apt/sources.list.d/docker.sources; apt-get update; "
-            "apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin; "
-            "systemctl enable --now docker; usermod -aG docker chris'"
+            "wsl.exe -d Ubuntu -- bash -lc 'set -e; "
+            "echo ---docker-source---; test -f /etc/apt/sources.list.d/docker.sources && "
+            "cat /etc/apt/sources.list.d/docker.sources || echo absent; "
+            "echo ---docker-packages---; apt-cache policy docker-ce docker-ce-cli containerd.io || true; "
+            "echo ---recent-apt-log---; test -f /var/log/apt/term.log && tail -n 80 /var/log/apt/term.log || true'"
         ),
+    },
+    "docker_repository_probe": {
+        "approval_required": False,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "wsl.exe -d Ubuntu -- curl --fail --silent --show-error --location --max-time 20 "
+            "--output /dev/null --write-out 'HTTP %{http_code}' https://download.docker.com/linux/ubuntu/gpg"
+        ),
+    },
+    "wsl_stdin_probe": {
+        "approval_required": False,
+        "wsl_script": "printf 'wsl-stdin-ok\\n'\n",
+    },
+    "docker_runtime_evidence": {
+        "approval_required": False,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "systemctl is-active docker\n"
+            "apt-cache policy docker-ce | sed -n '1,4p'\n"
+            "docker --version\n"
+            "docker compose version\n"
+            "docker info >/dev/null\n"
+            "echo docker-daemon-ok\n"
+        ),
+    },
+    "docker_hello_world": {
+        "approval_required": True,
+        "wsl_script": "set -euo pipefail\ndocker run --rm hello-world\n",
+    },
+    "docker_install": {
+        "approval_required": True,
+        "wsl_script": DOCKER_INSTALL_SCRIPT,
+        "wsl_user": "root",
     },
 }
 
@@ -137,6 +181,44 @@ def ssh_command(target: str, powershell_command: str) -> list[str]:
             "$target, $remoteCommand); & ssh.exe @sshArguments"
         ),
     ]
+
+
+def wsl_bash_script_command(script: str, user: str | None = None) -> str:
+    """Send an exact UTF-8 script to WSL without CRLF or nested-script issues."""
+    encoded_script = base64.b64encode(script.encode("utf-8")).decode("ascii")
+    user_argument = " -u root" if user == "root" else ""
+    return (
+        "$ErrorActionPreference = 'Stop'; "
+        f"'{encoded_script}' | wsl.exe -d Ubuntu{user_argument} -- bash -c 'base64 -d | bash'"
+    )
+
+
+def digest(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def append_execution_log(command_name: str, operation_id: str | None, payload: dict[str, Any]) -> None:
+    """Keep local audit metadata without retaining private host output."""
+    result = payload.get("result") or payload.get("remote_check") or {}
+    entry = {
+        "logged_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "tool_id": TOOL_ID,
+        "command": command_name,
+        "operation": operation_id,
+        "approval_required": payload.get("approval_required"),
+        "approved": payload.get("approved"),
+        "started_at": result.get("started_at"),
+        "finished_at": result.get("finished_at"),
+        "duration_ms": result.get("duration_ms"),
+        "exit_code": result.get("exit_code"),
+        "ok": payload.get("ok", result.get("ok")),
+        "stdout_bytes": len(result.get("stdout", "")),
+        "stderr_bytes": len(result.get("stderr", "")),
+        "stdout_sha256": digest(result.get("stdout", "")),
+        "stderr_sha256": digest(result.get("stderr", "")),
+    }
+    with EXECUTION_LOG_PATH.open("a", encoding="utf-8") as log_file:
+        log_file.write(json.dumps(entry, separators=(",", ":")) + "\n")
 
 
 def run_command(command: list[str]) -> dict[str, Any]:
@@ -211,7 +293,8 @@ def execute(operation_id: str, approved: bool) -> dict[str, Any]:
         raise RuntimeError(f"Unknown operation: {operation_id}")
     if details["approval_required"] and not approved:
         raise PermissionError(f"{operation_id} requires --approve after explicit operator approval.")
-    result = run_command(ssh_command(configured_target(), details["command"]))
+    command = details.get("command") or wsl_bash_script_command(details["wsl_script"], details.get("wsl_user"))
+    result = run_command(ssh_command(configured_target(), command))
     return {
         "tool_id": TOOL_ID,
         "operation": operation_id,
@@ -247,6 +330,7 @@ def main(argv: list[str] | None = None) -> int:
         if not args.operation:
             raise SystemExit("--operation is required for execute and verify")
         payload = execute(args.operation, args.approve) if args.command == "execute" else verify(args.operation)
+    append_execution_log(args.command, args.operation, payload)
     print(json.dumps(payload, indent=2))
     if args.command == "describe-requirements":
         return 0

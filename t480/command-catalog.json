@@ -33,6 +33,36 @@
       "execution": "adapter_owned"
     },
     {
+      "id": "docker_install_diagnostics",
+      "purpose": "Inspect Docker package-source and package-manager evidence after an installation failure.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "docker_repository_probe",
+      "purpose": "Confirm that Ubuntu can reach Docker's signed repository before installation.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "wsl_stdin_probe",
+      "purpose": "Prove the adapter can send an exact script to Ubuntu standard input without nested-shell quoting.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "docker_runtime_evidence",
+      "purpose": "Verify the active Docker service, installed package, Engine, Compose, and daemon access in a fresh Ubuntu session.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "docker_hello_world",
+      "purpose": "Run Docker's hello-world image as the required real-container proof for M1.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
       "id": "docker_install",
       "purpose": "Install Docker Engine and the Compose plugin in Ubuntu, then grant the fixed Ubuntu user Docker access.",
       "approval_required": true,
