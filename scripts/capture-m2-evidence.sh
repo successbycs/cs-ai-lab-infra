@@ -40,10 +40,13 @@ run_probe() {
   fi
 }
 
+run_probe configured_images docker compose config --images
+run_probe image_ids docker compose images
 run_probe compose_ps docker compose ps
 run_probe health_check ./scripts/health-check.sh
 run_probe n8n_health curl --fail --silent --show-error --max-time 10 http://127.0.0.1:5678/healthz
 run_probe postgres_pgvector docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT current_database(), current_user, extname FROM pg_extension WHERE extname = 'vector';"
+run_probe postgres_vector_distance docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT '[1,0,0]'::vector <-> '[0,1,0]'::vector AS l2_distance;"
 
 {
   printf 'milestone=M2\n'
@@ -54,7 +57,7 @@ run_probe postgres_pgvector docker compose exec -T postgres psql -v ON_ERROR_STO
 
 (
   cd "$bundle_dir"
-  sha256sum manifest.txt compose_ps.txt health_check.txt n8n_health.txt postgres_pgvector.txt > SHA256SUMS
+  sha256sum manifest.txt configured_images.txt image_ids.txt compose_ps.txt health_check.txt n8n_health.txt postgres_pgvector.txt postgres_vector_distance.txt > SHA256SUMS
 )
 
 printf 'M2 evidence bundle: %s\n' "$bundle_dir"

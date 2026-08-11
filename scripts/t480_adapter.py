@@ -134,6 +134,9 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "echo ---docker---\n"
             "docker --version\n"
             "docker compose version\n"
+            "echo ---deployment-prerequisites---\n"
+            "command -v git\n"
+            "command -v openssl\n"
             "echo ---deployment-path---\n"
             "if [ -d /home/chris/projects/cs-ai-lab-infra ]; then\n"
             "  echo present\n"
@@ -143,6 +146,33 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "fi\n"
             "echo ---existing-lab-containers---\n"
             "docker ps -a --filter label=com.docker.compose.project=cs-ai-lab --format '{{.Names}} {{.Status}}'\n"
+        ),
+    },
+    "m2_deploy": {
+        "approval_required": True,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "repository_url='https://github.com/successbycs/cs-ai-lab-infra.git'\n"
+            "deployment_root='/home/chris/projects/cs-ai-lab-infra'\n"
+            "if [[ -e \"$deployment_root\" ]]; then\n"
+            "  printf 'Refusing M2 deployment: target already exists: %s\\n' \"$deployment_root\" >&2\n"
+            "  exit 4\n"
+            "fi\n"
+            "mkdir -p /home/chris/projects\n"
+            "git clone --branch main --depth 1 \"$repository_url\" \"$deployment_root\"\n"
+            "cd \"$deployment_root\"\n"
+            "umask 077\n"
+            "cp .env.example .env\n"
+            "postgres_password=\"$(openssl rand -hex 32)\"\n"
+            "n8n_encryption_key=\"$(openssl rand -hex 32)\"\n"
+            "sed -i \"s/CHANGE_ME_TO_A_LONG_UNIQUE_PASSWORD/$postgres_password/\" .env\n"
+            "sed -i \"s/CHANGE_ME_TO_A_LONG_RANDOM_VALUE/$n8n_encryption_key/\" .env\n"
+            "chmod 600 .env\n"
+            "./scripts/bootstrap.sh\n"
+            "docker compose config --quiet\n"
+            "docker compose pull\n"
+            "docker compose up -d --wait --wait-timeout 180\n"
+            "git rev-parse HEAD\n"
         ),
     },
     "docker_install": {

@@ -19,6 +19,7 @@ This MVP adopts the Autonomous Framework's adapter and tool-registry conventions
 - `docker_runtime_evidence` — active service, package, Engine, Compose, and daemon access in a fresh session.
 - `docker_hello_world` — real-container M1 proof; requires explicit approval.
 - `m2_preflight` — capacity, runtime, deployment-path, and existing-container checks before M2.
+- `m2_deploy` — controlled M2 clone, local-secret generation, image pull, and stack startup; requires explicit approval.
 - `docker_install` — install Docker Engine and Compose; requires explicit approval.
 
 ## MVP adapter
