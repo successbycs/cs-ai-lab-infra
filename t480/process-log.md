@@ -23,3 +23,5 @@ Milestone JSON is a local progress ledger, not real-world proof. Beginning with 
 ## 2026-08-11 — Recovery proof isolates production data
 
 M3 uses a purpose-built recovery drill rather than the live n8n database. It creates a uniquely named synthetic source database, a distinct synthetic restore database, and a host-side compressed backup. Its evidence bundle records the commands' non-secret output and hashes; the independent verifier checks both the bundle and the backup plus an exact post-restore synthetic result. Synthetic artifacts are retained for inspection, and any cleanup requires separate explicit approval.
+
+The first approved M3 drill completed and its independently verified raw evidence bundle is retained locally on the T480. The milestone ledger records the bundle fingerprint as an index only; it does not replace the bundle or verifier output.

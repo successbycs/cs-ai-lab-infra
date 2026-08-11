@@ -221,6 +221,26 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "git rev-parse HEAD\n"
         ),
     },
+    "m3_recovery_proof": {
+        "approval_required": True,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "cd /home/chris/projects/cs-ai-lab-infra\n"
+            "./scripts/m3-recovery-proof.sh\n"
+        ),
+    },
+    "m3_latest_evidence_manifest": {
+        "approval_required": False,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "cd /home/chris/projects/cs-ai-lab-infra\n"
+            "bundle_dir=\"$(find evidence/M3 -mindepth 1 -maxdepth 1 -type d -printf '%f\\n' | sort | tail -n 1)\"\n"
+            "[[ -n \"$bundle_dir\" ]] || { printf 'No M3 evidence bundle exists.\\n' >&2; exit 4; }\n"
+            "bundle_path=\"evidence/M3/$bundle_dir\"\n"
+            "./scripts/verify-m3-recovery-evidence.sh \"$bundle_path\"\n"
+            "sha256sum \"$bundle_path/SHA256SUMS\"\n"
+        ),
+    },
     "docker_install": {
         "approval_required": True,
         "wsl_script": DOCKER_INSTALL_SCRIPT,

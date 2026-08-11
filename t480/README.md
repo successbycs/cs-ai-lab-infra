@@ -23,6 +23,8 @@ This MVP adopts the Autonomous Framework's adapter and tool-registry conventions
 - `m2_deploy_diagnostics` — non-secret Compose, image, and container checks after a failed M2 deployment.
 - `m2_latest_evidence_manifest` — reverify the newest M2 evidence bundle and return its fingerprint.
 - `repository_update` — fast-forward a clean existing T480 checkout to `origin/main`; requires explicit approval.
+- `m3_recovery_proof` — run the isolated M3 synthetic database backup and restore drill; requires explicit approval.
+- `m3_latest_evidence_manifest` — reverify the newest M3 recovery evidence bundle and return its fingerprint.
 - `docker_install` — install Docker Engine and Compose; requires explicit approval.
 
 ## MVP adapter
