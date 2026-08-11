@@ -207,6 +207,20 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "sha256sum \"$bundle_path/SHA256SUMS\"\n"
         ),
     },
+    "repository_update": {
+        "approval_required": True,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "repository_root='/home/chris/projects/cs-ai-lab-infra'\n"
+            "cd \"$repository_root\"\n"
+            "git diff --quiet || { printf 'Refusing update: tracked working-tree changes exist.\\n' >&2; exit 4; }\n"
+            "git diff --cached --quiet || { printf 'Refusing update: staged changes exist.\\n' >&2; exit 4; }\n"
+            "test -z \"$(git status --porcelain --untracked-files=normal)\" || { printf 'Refusing update: untracked files exist.\\n' >&2; exit 4; }\n"
+            "git fetch origin main\n"
+            "git merge --ff-only origin/main\n"
+            "git rev-parse HEAD\n"
+        ),
+    },
     "docker_install": {
         "approval_required": True,
         "wsl_script": DOCKER_INSTALL_SCRIPT,

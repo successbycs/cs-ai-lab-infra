@@ -22,6 +22,7 @@ This MVP adopts the Autonomous Framework's adapter and tool-registry conventions
 - `m2_deploy` — controlled M2 clone, local-secret generation, image pull, and stack startup; requires explicit approval.
 - `m2_deploy_diagnostics` — non-secret Compose, image, and container checks after a failed M2 deployment.
 - `m2_latest_evidence_manifest` — reverify the newest M2 evidence bundle and return its fingerprint.
+- `repository_update` — fast-forward a clean existing T480 checkout to `origin/main`; requires explicit approval.
 - `docker_install` — install Docker Engine and Compose; requires explicit approval.
 
 ## MVP adapter
