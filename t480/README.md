@@ -53,6 +53,8 @@ For the current broad bootstrap phase, use the reusable [adapter execution promp
 
 Track real-machine progress with the lightweight [milestone system](milestones.md). It keeps milestone definitions in Git and local evidence outside Git.
 
+For a durable handoff after a paused session, start with [the next-session note](next-session.md). It records the next approved operational step without storing secrets.
+
 Process improvements discovered while operating the real machines are recorded in the tracked [execution process log](process-log.md), without private connection details or raw host output.
 
 Each adapter invocation also appends local audit metadata to the ignored `.t480-execution.local.jsonl` file: operation, approval state, UTC timing, exit status, and hashes and byte counts for stdout/stderr. It intentionally does not retain raw host output or connection details.
