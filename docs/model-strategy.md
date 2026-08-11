@@ -1,0 +1,7 @@
+# Model strategy
+
+Ollama is the initial local runtime because it makes CPU-friendly experimentation accessible. It does not define the architecture. Applications should use a small provider interface/configuration so a task can run against Ollama, llama.cpp or Hugging Face tooling, a dedicated embedding/reranking server, vLLM on future GPU infrastructure, cloud-hosted open models, or a commercial API.
+
+Choose models by task and evidence, not loyalty. Small quantised local models may be appropriate for classification, extraction, embeddings, reranking, or simple summaries. Complex account strategy, high-stakes customer communication, difficult tool use, and large-context reasoning may justify a frontier model plus human approval. Quantisation reduces memory use by storing weights at lower precision; measure the quality/latency trade-off rather than assuming it is acceptable.
+
+Evaluate configuration combinations—model, version, quantisation, prompt, task, and provider—on repeatable synthetic CS cases. Record quality, structured-output validity, grounded/cited RAG behaviour, tool reliability, latency, RAM, estimated cost, failure modes, and needed human review. Future test sets should cover message classification, churn-risk signals, field extraction, call/account summaries, next-best action, and grounded retrieval. Escalate uncertain, low-confidence, or high-impact work rather than automating it silently.

@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+
+# Local runtime data and generated backups
+postgres/backup/*.sql
+postgres/backup/*.sql.gz
+postgres/backup/*.dump
+!postgres/backup/.gitkeep
+
+# Editor and OS files
+.DS_Store
+.vscode/

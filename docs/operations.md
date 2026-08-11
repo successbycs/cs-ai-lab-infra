@@ -1,0 +1,7 @@
+# Operations
+
+Run all commands from the repository root. First copy `.env.example` to `.env` and replace every placeholder. Inspect the resolved configuration with `docker compose config`, start the default services with `docker compose up -d`, and check them with `./scripts/health-check.sh`.
+
+Use `docker compose ps` for status and `docker compose logs -f <service>` for troubleshooting. `docker compose down` stops and removes containers and the network but preserves named volumes. Do not add `-v` unless you deliberately intend to erase persistent data.
+
+`./scripts/update.sh` pulls and verifies the deliberately pinned images; it does not restart services. To upgrade, first edit `compose.yaml` to a reviewed version tag and matching digest, then run the script and `docker compose up -d` when ready. Back up PostgreSQL before impactful updates with `./scripts/backup.sh`.
