@@ -121,8 +121,20 @@ Ubuntu is the default available distribution.
 - [x] Started installation with `wsl --install -d Ubuntu`.
 - [x] Installed the Windows Virtual Machine Platform feature.
 - [x] Installed the Windows Subsystem for Linux feature.
-- [ ] Ubuntu distribution download and installation in progress.
-- [ ] Restart requirement to be confirmed after installation completes.
+- [x] Downloaded and installed the Ubuntu distribution.
+- [x] Confirmed that Windows requires a restart before the changes take effect.
+- [x] Rebooted the T480.
+- [x] Completed Ubuntu's first-run user setup.
+- [x] Confirmed that an Ubuntu shell is available on the T480.
+- [x] Confirmed Ubuntu 26.04 LTS is installed.
+- [x] Confirmed WSL can access 8 logical CPU threads.
+- [x] Confirmed `systemd` is enabled in Ubuntu.
+- [x] Created and verified `C:\Users\OEM\.wslconfig` with a 20 GB memory cap, 6 CPU threads, 4 GB swap, and localhost forwarding.
+- [x] Restarted WSL and confirmed 6 CPU threads, 4 GB swap, and `systemd` are active.
+- [x] Verified 15.8 GB physical RAM; the initial 32 GB hardware assumption was incorrect.
+- [x] Reduced the WSL memory cap to 10 GB and restarted WSL.
+- [x] Confirmed the final WSL runtime: 9.7 GiB RAM, 6 CPU threads, 4 GB swap, and `systemd`.
+- [ ] Inspect CPU architecture, disk, memory, and WSL runtime before installing Docker.
 
 Command used in the T480 SSH session:
 
@@ -130,7 +142,50 @@ Command used in the T480 SSH session:
 wsl --install -d Ubuntu
 ```
 
-Do not interrupt the installation while Ubuntu is downloading. Once it completes, capture the final message before restarting or continuing.
+Installation completed successfully and Windows reported that a restart is required before the changes take effect.
+
+After reboot, Ubuntu required a first launch with:
+
+```bat
+wsl -d Ubuntu
+```
+
+The initial Ubuntu user was created interactively. Do not record the Linux password in this repository.
+
+## Next: inspect Ubuntu readiness
+
+Run these read-only commands inside the Ubuntu shell, one at a time:
+
+```bash
+whoami
+cat /etc/os-release
+uname -m
+free -h
+df -h /
+```
+
+These confirm the Linux account, Ubuntu release, CPU architecture, available memory, and available disk before Docker is installed.
+
+### Current capacity constraint
+
+- [x] Reported approximately 30 GB free on the T480's base Windows drive.
+- [x] Removed Visual Studio Community 2022.
+- [x] Rechecked storage after removal: 68.8 GB free on C: (34.7 GB recovered).
+- [x] Removed 8 GB of unneeded videos and rechecked storage: 80.2 GB free on C:.
+- [x] Reached the minimum free-space target for the initial Docker stack.
+- [ ] Reclaim additional storage before downloading local models; 100 GB free remains the preferred target.
+
+Thirty GB is enough to explore Ubuntu itself, but is not enough headroom for durable Docker images, PostgreSQL data, backups, and model files. The Visual Studio removal and video cleanup raised free space to 80.2 GB, which is enough for the initial Docker stack. Reach 100 GB free before downloading local models or accumulating substantial backups.
+
+### Storage audit findings
+
+- [x] Scanned high-level Windows storage categories.
+- [x] Scanned the Windows user profile.
+- [x] Identified `AppData` as the main user-profile storage area (47.3 GB reported).
+- [x] Identified `Videos` (9.8 GB), `Downloads` (2.6 GB), `.gradle` (1.3 GB), and `.rustup` (0.6 GB) as additional candidates for review.
+- [ ] Inspect the real `AppData\Local` subfolders before removing application data.
+
+Important: `Local Settings` and `Application Data` are Windows compatibility junctions into `AppData`; their reported sizes overlap with `AppData` and must not be added together or deleted as separate folders.
 
 Run these read-only commands in the SSH session (`cmd.exe`):
 

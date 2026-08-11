@@ -34,6 +34,8 @@ Persistent state is held in named Docker volumes. The database is intentionally 
 
 Track the real T480 setup journey in the [provisioning log](docs/t480-provisioning-log.md). It records commands and verified outcomes without storing credentials or private network details.
 
+The future automation boundary is documented in the [T480 operations contract](t480/README.md): a small allowlisted read-only command catalog that can be consumed by a remote adapter without giving an AI unrestricted shell access.
+
 ## Quick lifecycle (on the future T480)
 
 ```bash

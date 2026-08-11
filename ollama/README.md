@@ -19,6 +19,6 @@ This keeps model files in the `ollama_models` named volume and makes the service
 
 ## T480 expectations
 
-The 32 GB RAM, CPU-only T480 is best for small, quantised models and embedding workloads. Start with roughly 2–8B parameter models in a suitable quantisation, then measure actual latency and memory use. Quantisation stores weights with fewer bits, reducing RAM and often improving CPU practicality at some potential quality cost. Treat embedding and reranking models as separate, task-specific choices.
+The 16 GB RAM, CPU-only T480 is best for small, quantised models and embedding workloads. Start with roughly 2–4B parameter models in a suitable quantisation, then measure actual latency and memory use. Quantisation stores weights with fewer bits, reducing RAM and often improving CPU practicality at some potential quality cost. Treat embedding and reranking models as separate, task-specific choices.
 
 Keep model artefacts separate from application code and never hard-code a model or Ollama URL into applications. Use a provider/model configuration layer so an application can move between Ollama, another local runtime, self-hosted cloud inference, and commercial APIs.

@@ -1,0 +1,34 @@
+{
+  "schema_version": "t480.operations.v1",
+  "scope": "read_only",
+  "operations": [
+    {
+      "id": "health",
+      "purpose": "Inspect the T480 Windows host identity and installed memory.",
+      "approval_required": false
+    },
+    {
+      "id": "storage",
+      "purpose": "Inspect Windows filesystem capacity and free space.",
+      "approval_required": false
+    },
+    {
+      "id": "wsl_status",
+      "purpose": "Inspect WSL status and installed distributions.",
+      "approval_required": false
+    },
+    {
+      "id": "docker_status",
+      "purpose": "Inspect Docker and Docker Compose availability in Ubuntu.",
+      "approval_required": false
+    }
+  ],
+  "prohibited": [
+    "arbitrary_command_execution",
+    "password_based_automation",
+    "unapproved_installation",
+    "unapproved_deletion",
+    "unapproved_restart",
+    "public_network_exposure"
+  ]
+}
