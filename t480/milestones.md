@@ -25,7 +25,7 @@ python3 scripts/t480_milestones.py prove --id M0
 | --- | --- |
 | M0 | T16 control path proven |
 | M1 | Docker runtime proven — [execution prompt](prompts/m1-docker-runtime.md) |
-| M2 | Lab stack operational |
-| M3 | Recovery proven |
+| M2 | Lab stack operational — [execution prompt](prompts/m2-lab-stack.md) |
+| M3 | Recovery proven — [execution prompt](prompts/m3-recovery.md) |
 
 Do not record passwords, keys, private IP addresses, or unredacted service data in evidence text.

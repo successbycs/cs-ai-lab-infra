@@ -175,6 +175,38 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "git rev-parse HEAD\n"
         ),
     },
+    "m2_deploy_diagnostics": {
+        "approval_required": False,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "cd /home/chris/projects/cs-ai-lab-infra\n"
+            "echo ---revision---\n"
+            "git rev-parse --short HEAD\n"
+            "echo ---env-permissions---\n"
+            "stat -c '%a %n' .env\n"
+            "echo ---compose-validation---\n"
+            "docker compose config --quiet\n"
+            "echo valid\n"
+            "echo ---configured-images---\n"
+            "docker compose config --images\n"
+            "echo ---local-images---\n"
+            "docker compose images\n"
+            "echo ---containers---\n"
+            "docker compose ps -a\n"
+        ),
+    },
+    "m2_latest_evidence_manifest": {
+        "approval_required": False,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "cd /home/chris/projects/cs-ai-lab-infra\n"
+            "bundle_dir=\"$(find evidence/M2 -mindepth 1 -maxdepth 1 -type d -printf '%f\\n' | sort | tail -n 1)\"\n"
+            "[[ -n \"$bundle_dir\" ]] || { printf 'No M2 evidence bundle exists.\\n' >&2; exit 4; }\n"
+            "bundle_path=\"evidence/M2/$bundle_dir\"\n"
+            "./scripts/verify-m2-evidence.sh \"$bundle_path\"\n"
+            "sha256sum \"$bundle_path/SHA256SUMS\"\n"
+        ),
+    },
     "docker_install": {
         "approval_required": True,
         "wsl_script": DOCKER_INSTALL_SCRIPT,

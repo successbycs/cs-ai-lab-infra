@@ -20,6 +20,8 @@ This MVP adopts the Autonomous Framework's adapter and tool-registry conventions
 - `docker_hello_world` — real-container M1 proof; requires explicit approval.
 - `m2_preflight` — capacity, runtime, deployment-path, and existing-container checks before M2.
 - `m2_deploy` — controlled M2 clone, local-secret generation, image pull, and stack startup; requires explicit approval.
+- `m2_deploy_diagnostics` — non-secret Compose, image, and container checks after a failed M2 deployment.
+- `m2_latest_evidence_manifest` — reverify the newest M2 evidence bundle and return its fingerprint.
 - `docker_install` — install Docker Engine and Compose; requires explicit approval.
 
 ## MVP adapter

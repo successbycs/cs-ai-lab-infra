@@ -19,3 +19,7 @@ Process changes:
 ## 2026-08-11 — Evidence bundles are the proof
 
 Milestone JSON is a local progress ledger, not real-world proof. Beginning with M2, proof is a raw evidence bundle captured on the T480 by an operator-visible command and validated by a separate verifier. The ledger can reference the bundle only after verification; it cannot establish success on its own.
+
+## 2026-08-11 — Recovery proof isolates production data
+
+M3 uses a purpose-built recovery drill rather than the live n8n database. It creates a uniquely named synthetic source database, a distinct synthetic restore database, and a host-side compressed backup. Its evidence bundle records the commands' non-secret output and hashes; the independent verifier checks both the bundle and the backup plus an exact post-restore synthetic result. Synthetic artifacts are retained for inspection, and any cleanup requires separate explicit approval.

@@ -101,6 +101,7 @@
       "id": "M3",
       "name": "Recovery proven",
       "objective": "Prove the lab can create and verify a synthetic PostgreSQL backup and restore path.",
+      "execution_prompt": "t480/prompts/m3-recovery.md",
       "depends_on": ["M2"],
       "checks": [
         {
