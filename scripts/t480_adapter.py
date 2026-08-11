@@ -122,6 +122,29 @@ OPERATIONS: dict[str, dict[str, Any]] = {
         "approval_required": True,
         "wsl_script": "set -euo pipefail\ndocker run --rm hello-world\n",
     },
+    "m2_preflight": {
+        "approval_required": False,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "echo ---identity---\n"
+            "whoami\n"
+            "pwd\n"
+            "echo ---capacity---\n"
+            "df -h /\n"
+            "echo ---docker---\n"
+            "docker --version\n"
+            "docker compose version\n"
+            "echo ---deployment-path---\n"
+            "if [ -d /home/chris/projects/cs-ai-lab-infra ]; then\n"
+            "  echo present\n"
+            "  git -C /home/chris/projects/cs-ai-lab-infra rev-parse --short HEAD 2>/dev/null || true\n"
+            "else\n"
+            "  echo absent\n"
+            "fi\n"
+            "echo ---existing-lab-containers---\n"
+            "docker ps -a --filter label=com.docker.compose.project=cs-ai-lab --format '{{.Names}} {{.Status}}'\n"
+        ),
+    },
     "docker_install": {
         "approval_required": True,
         "wsl_script": DOCKER_INSTALL_SCRIPT,

@@ -79,6 +79,7 @@
       "id": "M2",
       "name": "Lab stack operational",
       "objective": "Run the repository's PostgreSQL and n8n stack privately on the T480.",
+      "execution_prompt": "t480/prompts/m2-lab-stack.md",
       "depends_on": ["M1"],
       "checks": [
         {
@@ -91,7 +92,7 @@
         },
         {
           "id": "services_healthy",
-          "description": "PostgreSQL and n8n are running and the repository health check passes.",
+          "description": "A T480-captured and independently verified evidence bundle proves PostgreSQL, pgvector, and n8n are healthy.",
           "real_world_execution": true
         }
       ]

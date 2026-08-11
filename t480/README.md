@@ -18,6 +18,7 @@ This MVP adopts the Autonomous Framework's adapter and tool-registry conventions
 - `wsl_stdin_probe` — safe validation of the quote-free WSL script transport.
 - `docker_runtime_evidence` — active service, package, Engine, Compose, and daemon access in a fresh session.
 - `docker_hello_world` — real-container M1 proof; requires explicit approval.
+- `m2_preflight` — capacity, runtime, deployment-path, and existing-container checks before M2.
 - `docker_install` — install Docker Engine and Compose; requires explicit approval.
 
 ## MVP adapter

@@ -3,6 +3,11 @@
 !.env.example
 .t480-milestones.local.json
 .t480-execution.local.jsonl
+.n8n-execution.local.jsonl
+.postgres-pgvector-execution.local.jsonl
+
+# Real-machine milestone evidence is local operational data, not Git source.
+evidence/
 
 # Local runtime data and generated backups
 postgres/backup/*.sql

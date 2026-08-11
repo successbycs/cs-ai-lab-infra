@@ -15,3 +15,7 @@ Process changes:
 - Record the observed partial state and verification result locally, then prove a milestone only from fresh real-world evidence.
 - Append local, redacted metadata for every adapter invocation, including UTC timing, result status, and output hashes rather than raw host output.
 - Keep verification scope-specific: a Docker runtime check must not require a Compose project file; stack validation belongs to M2.
+
+## 2026-08-11 — Evidence bundles are the proof
+
+Milestone JSON is a local progress ledger, not real-world proof. Beginning with M2, proof is a raw evidence bundle captured on the T480 by an operator-visible command and validated by a separate verifier. The ledger can reference the bundle only after verification; it cannot establish success on its own.

@@ -24,6 +24,50 @@
         "Require explicit operator approval before a mutating operation.",
         "Promote this tool to approved only after a successful T480 preflight and health operation."
       ]
+    },
+    {
+      "id": "n8n_t480",
+      "name": "T480 n8n Workflow Adapter",
+      "category": "workflow",
+      "status": "draft",
+      "trust_level": "first_party",
+      "source_type": "ssh_windows_wsl_n8n_api_bridge",
+      "description": "AF-derived adapter for importing, activating, listing, and inspecting workflows in the private n8n instance on the T480.",
+      "adapter": {
+        "path": "scripts/n8n_adapter.py",
+        "entrypoint": "python3 scripts/n8n_adapter.py"
+      },
+      "supported_control_transports": ["t16_ssh_to_t480_loopback_api"],
+      "default_control_transport": "t16_ssh_to_t480_loopback_api",
+      "secrets_required": ["T480-local n8n API key file; never a T16 or Git-tracked secret"],
+      "artifacts": ["n8n workflow records", "redacted local execution metadata"],
+      "verification": [
+        "Run preflight after M2 starts n8n and an operator creates the T480-local API key.",
+        "Import a bounded test workflow only with explicit approval.",
+        "Capture an operator-visible workflow execution and raw evidence bundle before promoting the tool."
+      ]
+    },
+    {
+      "id": "postgres_pgvector_t480",
+      "name": "T480 PostgreSQL + pgvector Adapter",
+      "category": "database",
+      "status": "draft",
+      "trust_level": "first_party",
+      "source_type": "ssh_windows_wsl_docker_psql_bridge",
+      "description": "AF-Supabase-modelled adapter for the private PostgreSQL and pgvector service on the T480.",
+      "adapter": {
+        "path": "scripts/postgres_pgvector_adapter.py",
+        "entrypoint": "python3 scripts/postgres_pgvector_adapter.py"
+      },
+      "supported_control_transports": ["t16_ssh_to_t480_docker_psql"],
+      "default_control_transport": "t16_ssh_to_t480_docker_psql",
+      "secrets_required": ["T480-local Compose .env; never a T16 or Git-tracked database password"],
+      "artifacts": ["reviewed migration files", "T480 evidence bundles", "redacted local execution metadata"],
+      "verification": [
+        "Run preflight and inspect after M2 deployment.",
+        "Run vector-probe to prove the installed pgvector extension executes a real distance calculation.",
+        "Apply only a reviewed migration file with explicit approval and capture independent T480 evidence."
+      ]
     }
   ]
 }

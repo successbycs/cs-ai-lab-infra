@@ -4,6 +4,8 @@ The lab uses a small evidence-first milestone system. A milestone is not proven 
 
 The tracked [milestone registry](milestone-registry.json) defines the work and acceptance checks. The ignored `.t480-milestones.local.json` file records real-machine results, so private host details and command output do not enter Git.
 
+For M2 and later, the ledger is not proof. Run the milestone-specific capture script directly on the T480 to create a local raw evidence bundle, then run its verifier. The ledger records only a reference to the resulting bundle and operator observation.
+
 ## Commands
 
 ```bash
