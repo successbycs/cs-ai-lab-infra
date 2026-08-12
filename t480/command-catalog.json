@@ -21,6 +21,18 @@
       "execution": "adapter_owned"
     },
     {
+      "id": "power_policy_status",
+      "purpose": "Inspect the active Windows power plan's sleep, hibernation, and lid-close policy without changing it.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "power_policy_ac_always_on",
+      "purpose": "Set the active Windows power plan to never sleep or hibernate on AC power and ignore lid close on AC power; battery policy is unchanged.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
       "id": "wsl_status",
       "purpose": "Inspect WSL status and installed distributions.",
       "approval_required": false,

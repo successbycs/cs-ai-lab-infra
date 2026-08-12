@@ -72,6 +72,32 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "'{\"restart_scheduled\":true,\"delay_seconds\":10}'"
         ),
     },
+    "power_policy_status": {
+        "approval_required": False,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "$scheme = (powercfg /getactivescheme) -join ' '; "
+            "$sleep = (powercfg /query SCHEME_CURRENT SUB_SLEEP STANDBYIDLE) -join '\n'; "
+            "$hibernate = (powercfg /query SCHEME_CURRENT SUB_SLEEP HIBERNATEIDLE) -join '\n'; "
+            "$lid = (powercfg /query SCHEME_CURRENT SUB_BUTTONS LIDACTION) -join '\n'; "
+            "[pscustomobject]@{ active_scheme = $scheme; sleep = $sleep; hibernate = $hibernate; lid_action = $lid } | ConvertTo-Json -Compress"
+        ),
+    },
+    "power_policy_ac_always_on": {
+        "approval_required": True,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "powercfg /change standby-timeout-ac 0; "
+            "powercfg /change hibernate-timeout-ac 0; "
+            "powercfg /setacvalueindex SCHEME_CURRENT SUB_BUTTONS LIDACTION 0; "
+            "powercfg /setactive SCHEME_CURRENT; "
+            "$scheme = (powercfg /getactivescheme) -join ' '; "
+            "$sleep = (powercfg /query SCHEME_CURRENT SUB_SLEEP STANDBYIDLE) -join '\n'; "
+            "$hibernate = (powercfg /query SCHEME_CURRENT SUB_SLEEP HIBERNATEIDLE) -join '\n'; "
+            "$lid = (powercfg /query SCHEME_CURRENT SUB_BUTTONS LIDACTION) -join '\n'; "
+            "[pscustomobject]@{ active_scheme = $scheme; sleep = $sleep; hibernate = $hibernate; lid_action = $lid } | ConvertTo-Json -Compress"
+        ),
+    },
     "wsl_status": {
         "approval_required": False,
         "command": "$ErrorActionPreference = 'Stop'; wsl.exe --status; wsl.exe --list --verbose",
