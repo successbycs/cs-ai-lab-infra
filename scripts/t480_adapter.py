@@ -123,7 +123,7 @@ OPERATIONS: dict[str, dict[str, Any]] = {
         "command": (
             "$ErrorActionPreference = 'Stop'; "
             "$arguments = '-d Ubuntu -- bash -lc \"for attempt in $(seq 1 30); do docker info >/dev/null 2>&1 && break; sleep 2; done; "
-            "docker info >/dev/null; cd /home/chris/projects/cs-ai-lab-infra; docker compose up -d n8n; exec sleep infinity\"'; "
+            "docker info >/dev/null; cd /home/chris/projects/cs-ai-lab-infra; docker compose up -d n8n; exec tail -f /dev/null\"'; "
             "$action = New-ScheduledTaskAction -Execute 'wsl.exe' -Argument $arguments; "
             "$trigger = New-ScheduledTaskTrigger -AtLogOn; "
             "Register-ScheduledTask -TaskName 'CS AI Lab Start' -Action $action -Trigger $trigger "
