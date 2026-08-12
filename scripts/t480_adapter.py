@@ -297,6 +297,23 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "docker compose ps n8n postgres\n"
         ),
     },
+    "lab_runtime_diagnostics": {
+        "approval_required": False,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "cd /home/chris/projects/cs-ai-lab-infra\n"
+            "echo ---compose-status---\n"
+            "docker compose ps -a\n"
+            "echo ---docker-memory---\n"
+            "free -h\n"
+            "echo ---n8n-logs---\n"
+            "docker compose logs --tail 80 n8n\n"
+            "echo ---postgres-logs---\n"
+            "docker compose logs --tail 80 postgres\n"
+            "echo ---ollama-logs---\n"
+            "docker compose --profile ollama logs --tail 80 ollama\n"
+        ),
+    },
     "m2_latest_evidence_manifest": {
         "approval_required": False,
         "wsl_script": (

@@ -123,6 +123,12 @@
       "execution": "adapter_owned"
     },
     {
+      "id": "lab_runtime_diagnostics",
+      "purpose": "Inspect private lab container status, memory availability, and recent n8n, PostgreSQL, and Ollama logs after a runtime failure.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
       "id": "m2_latest_evidence_manifest",
       "purpose": "Verify the newest T480 M2 evidence bundle and return its manifest fingerprint.",
       "approval_required": false,
