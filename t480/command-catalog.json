@@ -141,6 +141,24 @@
       "execution": "adapter_owned"
     },
     {
+      "id": "n8n_upgrade_preflight",
+      "purpose": "Capture non-secret installed n8n image and version, reviewed target image, private binding, health, and capacity before an approved n8n upgrade.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "n8n_upgrade_backup",
+      "purpose": "Create and integrity-check a fresh host-side PostgreSQL backup before an approved n8n upgrade.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "n8n_upgrade",
+      "purpose": "Pull and deploy only the reviewed digest-pinned n8n 1.123.65 image, then report version and private service health.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
       "id": "m2_latest_evidence_manifest",
       "purpose": "Verify the newest T480 M2 evidence bundle and return its manifest fingerprint.",
       "approval_required": false,

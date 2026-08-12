@@ -349,6 +349,52 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "docker compose --profile ollama logs --tail 80 ollama\n"
         ),
     },
+    "n8n_upgrade_preflight": {
+        "approval_required": False,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "cd /home/chris/projects/cs-ai-lab-infra\n"
+            "echo ---current-container-image---\n"
+            "docker compose images n8n\n"
+            "echo ---reviewed-target-image---\n"
+            "docker compose config --images | grep '^n8nio/n8n:'\n"
+            "echo ---current-version---\n"
+            "docker compose exec -T n8n n8n --version </dev/null\n"
+            "echo ---private-port-binding---\n"
+            "docker compose ps n8n --format json\n"
+            "echo ---service-health---\n"
+            "docker compose ps n8n postgres\n"
+            "echo ---capacity---\n"
+            "df -h /\n"
+        ),
+    },
+    "n8n_upgrade_backup": {
+        "approval_required": True,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "cd /home/chris/projects/cs-ai-lab-infra\n"
+            "./scripts/backup.sh\n"
+            "backup_file=\"$(find postgres/backup -maxdepth 1 -type f -name '*.sql.gz' -printf '%T@ %p\\n' | sort -nr | head -n 1 | cut -d' ' -f2-)\"\n"
+            "[[ -n \"$backup_file\" && -f \"$backup_file\" ]] || { printf 'No PostgreSQL backup was created.\\n' >&2; exit 4; }\n"
+            "gzip -t \"$backup_file\"\n"
+            "printf 'backup_file=%s\\n' \"$backup_file\"\n"
+            "sha256sum \"$backup_file\"\n"
+        ),
+    },
+    "n8n_upgrade": {
+        "approval_required": True,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "cd /home/chris/projects/cs-ai-lab-infra\n"
+            "expected_image='n8nio/n8n:1.123.65@sha256:8554136778e759f208205d13bf52ce0c782c43fefd72ecaab2b88285d7bc8046'\n"
+            "configured_image=\"$(docker compose config --images | grep '^n8nio/n8n:' | head -n 1)\"\n"
+            "[[ \"$configured_image\" == \"$expected_image\" ]] || { printf 'Refusing upgrade: reviewed n8n image does not match Compose configuration.\\n' >&2; exit 4; }\n"
+            "docker compose pull n8n n8n_files_init\n"
+            "docker compose up -d --wait --wait-timeout 180 n8n\n"
+            "docker compose exec -T n8n n8n --version </dev/null\n"
+            "docker compose ps n8n postgres\n"
+        ),
+    },
     "m2_latest_evidence_manifest": {
         "approval_required": False,
         "wsl_script": (

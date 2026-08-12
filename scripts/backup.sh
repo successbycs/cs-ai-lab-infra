@@ -21,7 +21,7 @@ temporary_file="${backup_file}.partial"
 
 trap 'rm -f "$temporary_file"' EXIT
 printf 'Creating PostgreSQL backup: %s\n' "$backup_file"
-docker compose exec -T postgres pg_dump --clean --if-exists --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" | gzip > "$temporary_file"
+docker compose exec -T postgres pg_dump --clean --if-exists --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" </dev/null | gzip > "$temporary_file"
 mv "$temporary_file" "$backup_file"
 trap - EXIT
 printf 'Backup complete: %s\n' "$backup_file"
