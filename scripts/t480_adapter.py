@@ -126,9 +126,11 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "$scriptPath = Join-Path $stateDir 'start-wsl-lab.ps1'; "
             "$script = @'\n"
             "$ErrorActionPreference = 'Stop'\n"
-            "$logPath = Join-Path $env:ProgramData 'CSAILab\\start-wsl-lab.log'\n"
-            "& wsl.exe -d Ubuntu -- bash -lc 'for attempt in $(seq 1 30); do docker info >/dev/null 2>&1 && break; sleep 2; done; docker info >/dev/null; cd /home/chris/projects/cs-ai-lab-infra; docker compose up -d n8n; exec tail -f /dev/null' *>> $logPath\n"
-            "exit $LASTEXITCODE\n"
+            "$stateDir = Join-Path $env:ProgramData 'CSAILab'\n"
+            "$stdoutPath = Join-Path $stateDir 'wsl-keepalive.stdout.log'\n"
+            "$stderrPath = Join-Path $stateDir 'wsl-keepalive.stderr.log'\n"
+            "$bashCommand = 'for attempt in $(seq 1 30); do docker info >/dev/null 2>&1 && break; sleep 2; done; docker info >/dev/null; cd /home/chris/projects/cs-ai-lab-infra; docker compose up -d n8n; exec tail -f /dev/null'\n"
+            "Start-Process -FilePath 'wsl.exe' -ArgumentList ('-d Ubuntu -- bash -lc \"' + $bashCommand + '\"') -WindowStyle Hidden -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath\n"
             "'@; Set-Content -Path $scriptPath -Value $script -Encoding utf8; "
             "$action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument ('-NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"' + $scriptPath + '\"'); "
             "$trigger = New-ScheduledTaskTrigger -AtLogOn; "
@@ -160,12 +162,14 @@ OPERATIONS: dict[str, dict[str, Any]] = {
         "approval_required": False,
         "command": (
             "$ErrorActionPreference = 'Stop'; "
-            "$logPath = Join-Path $env:ProgramData 'CSAILab\\start-wsl-lab.log'; "
+            "$stdoutPath = Join-Path $env:ProgramData 'CSAILab\\wsl-keepalive.stdout.log'; "
+            "$stderrPath = Join-Path $env:ProgramData 'CSAILab\\wsl-keepalive.stderr.log'; "
             "$scriptPath = Join-Path $env:ProgramData 'CSAILab\\start-wsl-lab.ps1'; "
             "Get-ScheduledTaskInfo -TaskName 'CS AI Lab Start' | Select-Object LastRunTime,LastTaskResult | ConvertTo-Json -Compress; "
             "Get-ScheduledTask -TaskName 'CS AI Lab Start' | Select-Object -ExpandProperty Actions | Select-Object Execute,Arguments | ConvertTo-Json -Compress; "
             "if (Test-Path $scriptPath) { Get-Content $scriptPath } else { 'startup-script-absent' }; "
-            "if (Test-Path $logPath) { Get-Content -Tail 80 $logPath } else { 'startup-log-absent' }"
+            "if (Test-Path $stdoutPath) { Get-Content -Tail 80 $stdoutPath } else { 'startup-stdout-absent' }; "
+            "if (Test-Path $stderrPath) { Get-Content -Tail 80 $stderrPath } else { 'startup-stderr-absent' }"
         ),
     },
     "docker_runtime_evidence": {
