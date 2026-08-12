@@ -106,6 +106,39 @@ OPERATIONS: dict[str, dict[str, Any]] = {
         "approval_required": False,
         "wsl_script": "printf 'wsl-stdin-ok\\n'\n",
     },
+    "startup_status": {
+        "approval_required": False,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "$task = Get-ScheduledTask -TaskName 'CS AI Lab Start' -ErrorAction SilentlyContinue; "
+            "if ($null -eq $task) { '[{\"present\":false}]' } else { "
+            "$info = Get-ScheduledTaskInfo -TaskName 'CS AI Lab Start'; "
+            "[pscustomobject]@{ present = $true; state = $task.State.ToString(); "
+            "last_run_time = $info.LastRunTime.ToUniversalTime().ToString('o'); "
+            "last_task_result = $info.LastTaskResult } | ConvertTo-Json -Compress }"
+        ),
+    },
+    "startup_enable": {
+        "approval_required": True,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "$arguments = '-d Ubuntu -- bash -lc \"for attempt in $(seq 1 30); do docker info >/dev/null 2>&1 && break; sleep 2; done; "
+            "docker info >/dev/null; cd /home/chris/projects/cs-ai-lab-infra; docker compose up -d n8n\"'; "
+            "$action = New-ScheduledTaskAction -Execute 'wsl.exe' -Argument $arguments; "
+            "$trigger = New-ScheduledTaskTrigger -AtLogOn; "
+            "Register-ScheduledTask -TaskName 'CS AI Lab Start' -Action $action -Trigger $trigger "
+            "-Description 'Starts T480 Ubuntu WSL, waits for Docker, and starts the private n8n lab stack at sign-in.' -Force | Out-Null; "
+            "Get-ScheduledTask -TaskName 'CS AI Lab Start' | Select-Object TaskName,State | ConvertTo-Json -Compress"
+        ),
+    },
+    "startup_disable": {
+        "approval_required": True,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "Unregister-ScheduledTask -TaskName 'CS AI Lab Start' -Confirm:$false -ErrorAction SilentlyContinue; "
+            "'{\"removed\":true}'"
+        ),
+    },
     "docker_runtime_evidence": {
         "approval_required": False,
         "wsl_script": (

@@ -16,6 +16,9 @@ This MVP adopts the Autonomous Framework's adapter and tool-registry conventions
 - `docker_install_diagnostics` — package-source and package-manager evidence after an installation failure.
 - `docker_repository_probe` — reachability of Docker's signed repository.
 - `wsl_stdin_probe` — safe validation of the quote-free WSL script transport.
+- `startup_status` — inspect the Windows sign-in task for the private n8n lab stack.
+- `startup_enable` — create or update the Windows sign-in task that starts Ubuntu, Docker, PostgreSQL, and n8n; requires explicit approval.
+- `startup_disable` — remove that Windows sign-in task; requires explicit approval.
 - `docker_runtime_evidence` — active service, package, Engine, Compose, and daemon access in a fresh session.
 - `docker_hello_world` — real-container M1 proof; requires explicit approval.
 - `ollama_embeddings_status` — private Ollama container and installed embedding models.
