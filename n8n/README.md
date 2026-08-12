@@ -25,4 +25,4 @@ The adapter logs only timestamps, result metadata, and output hashes to ignored 
 
 ## Live file-write test
 
-`workflows/live-file-write-test.json` is a bounded smoke test. It accepts only a private loopback POST, creates a timestamped random-text file, and writes it only to `/home/node/.n8n-files/n8n-live-test.txt`. That location is backed by the dedicated `n8n_files` named volume. The governed `run-live-file-test` adapter command requires explicit approval and independently checks that the file is non-empty.
+`workflows/live-file-write-test.json` is a bounded smoke test. It accepts only a private loopback POST, creates a timestamped random-text file, and writes it only to `/home/node/.n8n-files/n8n-live-test.txt`. That location is backed by the dedicated `n8n_files` named volume; the short-lived `n8n_files_init` service assigns that volume to n8n's non-root user before n8n starts. The governed `run-live-file-test` adapter command requires explicit approval and independently checks that the file is non-empty.
