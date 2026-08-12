@@ -131,7 +131,7 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "docker compose --profile ollama ps ollama\n"
             "if docker compose --profile ollama ps --status running --services | grep -qx ollama; then\n"
             "  echo ---ollama-models---\n"
-            "  docker compose exec -T ollama ollama list\n"
+            "  docker compose exec -T ollama ollama list || true\n"
             "else\n"
             "  echo ollama-not-running\n"
             "fi\n"
