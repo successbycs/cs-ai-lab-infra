@@ -118,6 +118,70 @@
           "description": "Expected synthetic data is verified after restore."
         }
       ]
+    },
+    {
+      "id": "M5",
+      "name": "Hands-off maintenance and recovery proven",
+      "objective": "Prove the T16 can govern a planned T480 maintenance cycle, including an unattended Windows restart, boot-time recovery of the private PostgreSQL and n8n stack, Windows Update control, and BIOS-update readiness without storing Windows credentials or enabling automatic logon.",
+      "execution_prompt": "t480/prompts/m5-hands-off-maintenance.md",
+      "depends_on": ["M3"],
+      "execution_steps": [
+        {
+          "id": "maintenance_preflight",
+          "action": "Capture T480 power, storage, BitLocker recovery, Windows Update, BIOS version, Docker, database-backup freshness, and service-health state without making changes.",
+          "purpose": "Refuse unsafe maintenance before any restart, firmware action, or service disruption."
+        },
+        {
+          "id": "boot_startup_configuration",
+          "action": "Configure a Windows boot-triggered Scheduled Task running as Local System to start Ubuntu WSL, wait for Docker, and start the private PostgreSQL plus n8n Compose services. Do not use Windows automatic logon.",
+          "purpose": "Make the lab recover after restart without an interactive Windows user session."
+        },
+        {
+          "id": "unattended_restart_drill",
+          "action": "With explicit approval, restart the T480 from the T16 and poll for its return over the existing authenticated control path.",
+          "purpose": "Prove the real boot-time recovery path instead of assuming a registered task works."
+        },
+        {
+          "id": "windows_update_control",
+          "action": "Set and verify a defined maintenance window and active-hours policy, then run one governed Windows quality-update cycle or record authoritative proof that no applicable quality update is pending.",
+          "purpose": "Keep security updates current without unplanned interruption of the lab."
+        },
+        {
+          "id": "firmware_readiness",
+          "action": "Use Lenovo's supported update tooling to capture the current and offered BIOS versions, release information, AC/battery state, and BitLocker recovery readiness. Do not install firmware as part of this milestone.",
+          "purpose": "Make a later explicit BIOS-update decision safe and evidence-based."
+        },
+        {
+          "id": "evidence_capture",
+          "action": "Capture the raw T480 maintenance outputs and independently verify the bundle from the T480 before updating the milestone ledger.",
+          "purpose": "Keep the ledger as an index while retaining real-machine proof."
+        }
+      ],
+      "checks": [
+        {
+          "id": "boot_task_verified",
+          "description": "A T480-captured task definition proves a boot trigger, Local System principal, fixed startup action, and no automatic Windows logon dependency."
+        },
+        {
+          "id": "unattended_restart_recovered",
+          "description": "After an approved T16-initiated Windows restart and without interactive Windows logon, the T16 reconnects and a T480-captured check proves Docker active plus PostgreSQL and n8n healthy.",
+          "real_world_execution": true
+        },
+        {
+          "id": "windows_update_governed",
+          "description": "T480 evidence proves the configured maintenance window and active hours, and records either a completed quality-update/restart cycle or an authoritative no-applicable-quality-update result followed by service health verification.",
+          "real_world_execution": true
+        },
+        {
+          "id": "bios_update_ready",
+          "description": "T480 evidence records current and offered Lenovo BIOS versions, release reference, AC/battery readiness, BitLocker recovery readiness, and an explicit decision to defer or separately approve any BIOS install."
+        },
+        {
+          "id": "maintenance_evidence_verified",
+          "description": "A raw T480 evidence bundle is independently verified and its manifest fingerprint is recorded in the local ledger.",
+          "real_world_execution": true
+        }
+      ]
     }
   ]
 }

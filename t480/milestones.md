@@ -27,5 +27,7 @@ python3 scripts/t480_milestones.py prove --id M0
 | M1 | Docker runtime proven — [execution prompt](prompts/m1-docker-runtime.md) |
 | M2 | Lab stack operational — [execution prompt](prompts/m2-lab-stack.md) |
 | M3 | Recovery proven — [execution prompt](prompts/m3-recovery.md) |
+| M4 | First governed n8n workflow — reserved in [next-session](next-session.md) |
+| M5 | Hands-off maintenance and recovery proven — [execution prompt](prompts/m5-hands-off-maintenance.md) |
 
 Do not record passwords, keys, private IP addresses, or unredacted service data in evidence text.
