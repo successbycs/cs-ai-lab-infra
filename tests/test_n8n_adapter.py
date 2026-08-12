@@ -31,6 +31,14 @@ class N8nAdapterTests(unittest.TestCase):
         self.assertIn("X-N8N-API-KEY", script)
         self.assertNotIn("N8N_API_KEY=", script)
 
+    def test_file_api_script_uses_deployed_workflow_file(self):
+        script = n8n_adapter.api_file_script(
+            "POST", "/workflows", "/home/chris/projects/cs-ai-lab-infra/n8n/workflows/test.json", "a" * 64
+        )
+        self.assertIn('--data-binary @"$workflow_file"', script)
+        self.assertIn("sha256sum", script)
+        self.assertNotIn("n8n-api-key", script.split("key_file=")[0])
+
 
 if __name__ == "__main__":
     unittest.main()

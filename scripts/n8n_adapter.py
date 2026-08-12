@@ -29,6 +29,7 @@ LOG_PATH = ROOT / ".n8n-execution.local.jsonl"
 TOOL_ID = "n8n_t480"
 DEFAULT_BASE_URL = "http://127.0.0.1:5678"
 DEFAULT_KEY_FILE = "/home/chris/.config/cs-ai-lab/n8n-api-key"
+REMOTE_WORKFLOW_ROOT = "/home/chris/projects/cs-ai-lab-infra/n8n/workflows"
 
 
 def now() -> str:
@@ -95,6 +96,39 @@ def api_request(method: str, path: str, payload: dict[str, Any] | None = None) -
     return result_json(result), result
 
 
+def api_file_script(method: str, path: str, remote_file: str, expected_sha256: str) -> str:
+    """Submit an already-deployed workflow without expanding it into the SSH command line."""
+    if not path.startswith("/") or ".." in path:
+        raise ValueError("n8n API path must be an absolute API-relative path without '..'.")
+    remote_path = Path(remote_file)
+    if not remote_path.is_relative_to(Path(REMOTE_WORKFLOW_ROOT)) or remote_path.suffix != ".json":
+        raise ValueError("Remote workflow file must be inside the deployed n8n/workflows directory.")
+    settings = config()
+    return f"""set -euo pipefail
+key_file={shell_quote(settings['key_file'])}
+base_url={shell_quote(settings['base_url'])}
+workflow_file={shell_quote(remote_file)}
+expected_sha256={shell_quote(expected_sha256)}
+if [[ ! -r "$key_file" || ! -r "$workflow_file" ]]; then
+  printf 'n8n API key or deployed workflow file is absent or unreadable on T480.\\n' >&2
+  exit 3
+fi
+test "$(sha256sum "$workflow_file" | awk '{{print $1}}')" = "$expected_sha256"
+curl --fail-with-body --silent --show-error --max-time 60 \\
+  -X {shell_quote(method.upper())} \\
+  -H 'accept: application/json' \\
+  -H 'content-type: application/json' \\
+  -H "X-N8N-API-KEY: $(<"$key_file")" \\
+  --data-binary @"$workflow_file" \\
+  "$base_url/api/v1{path}"
+"""
+
+
+def api_file_request(method: str, path: str, remote_file: str, expected_sha256: str) -> tuple[dict[str, Any], dict[str, Any]]:
+    result = execute_remote(api_file_script(method, path, remote_file, expected_sha256))
+    return result_json(result), result
+
+
 def resolve_workflow(value: str) -> Path:
     candidate = (ROOT / value).resolve() if not Path(value).is_absolute() else Path(value).resolve()
     if not candidate.is_relative_to(WORKFLOW_ROOT.resolve()):
@@ -135,16 +169,18 @@ def list_workflows() -> tuple[list[dict[str, Any]], dict[str, Any]]:
 
 
 def upsert_workflow(workflow_file: str, activate: bool) -> tuple[dict[str, Any], dict[str, Any]]:
-    _, workflow = load_workflow(workflow_file)
+    local_file, workflow = load_workflow(workflow_file)
+    remote_file = str(Path(REMOTE_WORKFLOW_ROOT) / local_file.name)
+    expected_sha256 = hashlib.sha256(local_file.read_bytes()).hexdigest()
     workflows, _ = list_workflows()
     existing = next((item for item in workflows if item.get("name") == workflow["name"]), None)
     if existing:
         workflow_id = str(existing.get("id") or "").strip()
         if not workflow_id:
             raise RuntimeError("Existing n8n workflow had no id.")
-        response, result = api_request("PUT", f"/workflows/{workflow_id}", workflow_api_payload(workflow))
+        response, result = api_file_request("PUT", f"/workflows/{workflow_id}", remote_file, expected_sha256)
     else:
-        response, result = api_request("POST", "/workflows", workflow_api_payload(workflow))
+        response, result = api_file_request("POST", "/workflows", remote_file, expected_sha256)
     if activate:
         workflow_id = str(response.get("id") or "").strip()
         if not workflow_id:
