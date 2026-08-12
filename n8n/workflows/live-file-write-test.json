@@ -33,8 +33,9 @@
     },
     {
       "parameters": {
-        "operation": "text",
-        "textInputField": "content",
+                "operation": "toText",
+                "sourceProperty": "content",
+                "binaryPropertyName": "data",
         "options": {
           "fileName": "n8n-live-test.txt"
         }
@@ -51,7 +52,7 @@
     {
       "parameters": {
         "operation": "write",
-        "fileName": "={{ $json.file_path }}",
+                "fileName": "={{ $('Create Random Test Text').item.json.file_path }}",
         "dataPropertyName": "data",
         "options": {}
       },
@@ -67,7 +68,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { file_path: $json.file_path, content: $json.content } }}",
+                "responseBody": "={{ { file_path: $('Create Random Test Text').item.json.file_path, content: $('Create Random Test Text').item.json.content } }}",
         "options": {}
       },
       "id": "76dba2b2-ef39-442e-ba57-33309111d7c6",
