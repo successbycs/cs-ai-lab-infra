@@ -12,7 +12,7 @@ python3 scripts/postgres_pgvector_adapter.py inspect
 python3 scripts/postgres_pgvector_adapter.py vector-probe
 ```
 
-Schema changes must be reviewed `.sql` files in `postgres/migrations/` and require approval:
+Schema changes must be reviewed `.sql` files in `postgres/migrations/` and require approval. Before applying one, the adapter confirms the T480's deployed file has the same SHA-256 hash as the reviewed local file, then streams that file to `psql` inside the container:
 
 ```bash
 python3 scripts/postgres_pgvector_adapter.py apply-migration --migration-file 001_example.sql --approve

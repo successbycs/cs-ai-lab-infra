@@ -55,21 +55,21 @@ set +a
 
 def preflight() -> dict[str, Any]:
     result = remote_script("""docker compose ps postgres
-docker compose exec -T postgres pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+docker compose exec -T postgres pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" </dev/null
 """)
     return {"tool_id": TOOL_ID, "operation": "preflight", "result": result, "ok": result["ok"]}
 
 
 def inspect() -> dict[str, Any]:
     result = remote_script("""docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc \
-  "SELECT current_database(), current_user, extname FROM pg_extension WHERE extname = 'vector';"
+  "SELECT current_database(), current_user, extname FROM pg_extension WHERE extname = 'vector';" </dev/null
 """)
     return {"tool_id": TOOL_ID, "operation": "inspect", "result": result, "ok": result["ok"]}
 
 
 def vector_probe() -> dict[str, Any]:
     result = remote_script("""docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc \
-  "SELECT '[1,0,0]'::vector <-> '[0,1,0]'::vector AS l2_distance;"
+  "SELECT '[1,0,0]'::vector <-> '[0,1,0]'::vector AS l2_distance;" </dev/null
 """)
     return {"tool_id": TOOL_ID, "operation": "vector_probe", "result": result, "ok": result["ok"]}
 
@@ -86,9 +86,13 @@ def resolve_migration(value: str) -> str:
 
 def apply_migration(filename: str) -> dict[str, Any]:
     safe_name = resolve_migration(filename)
+    expected_sha256 = hashlib.sha256((MIGRATIONS_ROOT / safe_name).read_bytes()).hexdigest()
     result = remote_script(f"""migration_file="postgres/migrations/{safe_name}"
 [[ -f "$migration_file" ]] || {{ printf 'Migration is absent on T480: %s\\n' "$migration_file" >&2; exit 4; }}
-docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f "$migration_file"
+expected_sha256="{expected_sha256}"
+actual_sha256="$(sha256sum "$migration_file" | head -c 64)"
+[[ "$actual_sha256" == "$expected_sha256" ]] || {{ printf 'Migration hash differs from reviewed T16 file.\\n' >&2; exit 5; }}
+docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" < "$migration_file"
 """)
     return {"tool_id": TOOL_ID, "operation": "apply_migration", "migration": safe_name, "result": result, "ok": result["ok"]}
 
