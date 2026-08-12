@@ -69,6 +69,12 @@
       "execution": "adapter_owned"
     },
     {
+      "id": "startup_diagnostics",
+      "purpose": "Inspect the private Windows startup task result and its non-secret local WSL startup log.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
       "id": "startup_disable",
       "purpose": "Remove the Windows sign-in task that starts the private T480 n8n lab stack.",
       "approval_required": true,

@@ -19,6 +19,7 @@ This MVP adopts the Autonomous Framework's adapter and tool-registry conventions
 - `startup_status` — inspect the Windows sign-in task for the private n8n lab stack.
 - `startup_enable` — create or update the Windows sign-in task that starts Ubuntu, Docker, PostgreSQL, and n8n and keeps WSL alive; requires explicit approval.
 - `startup_run` — start that task immediately and check the local n8n health endpoint; requires explicit approval.
+- `startup_diagnostics` — inspect the startup task result and its non-secret local log.
 - `startup_disable` — remove that Windows sign-in task; requires explicit approval.
 - `docker_runtime_evidence` — active service, package, Engine, Compose, and daemon access in a fresh session.
 - `docker_hello_world` — real-container M1 proof; requires explicit approval.

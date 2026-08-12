@@ -122,9 +122,15 @@ OPERATIONS: dict[str, dict[str, Any]] = {
         "approval_required": True,
         "command": (
             "$ErrorActionPreference = 'Stop'; "
-            "$arguments = '-d Ubuntu -- bash -lc \"for attempt in $(seq 1 30); do docker info >/dev/null 2>&1 && break; sleep 2; done; "
-            "docker info >/dev/null; cd /home/chris/projects/cs-ai-lab-infra; docker compose up -d n8n; exec tail -f /dev/null\"'; "
-            "$action = New-ScheduledTaskAction -Execute 'wsl.exe' -Argument $arguments; "
+            "$stateDir = Join-Path $env:ProgramData 'CSAILab'; New-Item -ItemType Directory -Force -Path $stateDir | Out-Null; "
+            "$scriptPath = Join-Path $stateDir 'start-wsl-lab.ps1'; "
+            "$script = @'\n"
+            "$ErrorActionPreference = 'Stop'\n"
+            "$logPath = Join-Path $env:ProgramData 'CSAILab\\start-wsl-lab.log'\n"
+            "& wsl.exe -d Ubuntu -- bash -lc 'for attempt in $(seq 1 30); do docker info >/dev/null 2>&1 && break; sleep 2; done; docker info >/dev/null; cd /home/chris/projects/cs-ai-lab-infra; docker compose up -d n8n; exec tail -f /dev/null' *>> $logPath\n"
+            "exit $LASTEXITCODE\n"
+            "'@; Set-Content -Path $scriptPath -Value $script -Encoding utf8; "
+            "$action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument ('-NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"' + $scriptPath + '\"'); "
             "$trigger = New-ScheduledTaskTrigger -AtLogOn; "
             "Register-ScheduledTask -TaskName 'CS AI Lab Start' -Action $action -Trigger $trigger "
             "-Description 'Starts T480 Ubuntu WSL, waits for Docker, starts the private n8n lab stack, and keeps WSL alive at sign-in.' -Force | Out-Null; "
@@ -148,6 +154,15 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "$ErrorActionPreference = 'Stop'; "
             "Unregister-ScheduledTask -TaskName 'CS AI Lab Start' -Confirm:$false -ErrorAction SilentlyContinue; "
             "'{\"removed\":true}'"
+        ),
+    },
+    "startup_diagnostics": {
+        "approval_required": False,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "$logPath = Join-Path $env:ProgramData 'CSAILab\\start-wsl-lab.log'; "
+            "Get-ScheduledTaskInfo -TaskName 'CS AI Lab Start' | Select-Object LastRunTime,LastTaskResult | ConvertTo-Json -Compress; "
+            "if (Test-Path $logPath) { Get-Content -Tail 80 $logPath } else { 'startup-log-absent' }"
         ),
     },
     "docker_runtime_evidence": {
