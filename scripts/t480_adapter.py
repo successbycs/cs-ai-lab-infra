@@ -135,6 +135,13 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "else\n"
             "  echo ollama-not-running\n"
             "fi\n"
+            "echo ---installation-job---\n"
+            "if [ -f /home/chris/.local/state/cs-ai-lab/ollama-embeddings-install.pid ] && "
+            "kill -0 \"$(cat /home/chris/.local/state/cs-ai-lab/ollama-embeddings-install.pid)\" 2>/dev/null; then\n"
+            "  echo running\n"
+            "else\n"
+            "  echo not-running\n"
+            "fi\n"
         ),
     },
     "ollama_embeddings_install": {
@@ -142,12 +149,21 @@ OPERATIONS: dict[str, dict[str, Any]] = {
         "wsl_script": (
             "set -euo pipefail\n"
             "cd /home/chris/projects/cs-ai-lab-infra\n"
-            "docker compose --profile ollama config --quiet\n"
-            "docker compose --profile ollama pull ollama\n"
-            "docker compose --profile ollama up -d --wait --wait-timeout 180 ollama\n"
-            "docker compose exec -T ollama ollama pull bge-m3\n"
-            "docker compose exec -T ollama ollama pull mxbai-embed-large\n"
-            "docker compose exec -T ollama ollama list\n"
+            "state_dir=/home/chris/.local/state/cs-ai-lab\n"
+            "mkdir -p \"$state_dir\"\n"
+            "job_pid_file=\"$state_dir/ollama-embeddings-install.pid\"\n"
+            "if [ -f \"$job_pid_file\" ] && kill -0 \"$(cat \"$job_pid_file\")\" 2>/dev/null; then\n"
+            "  echo ollama-embeddings-install-already-running\n"
+            "  exit 0\n"
+            "fi\n"
+            "nohup bash -c 'set -euo pipefail; cd /home/chris/projects/cs-ai-lab-infra; "
+            "docker compose --profile ollama config --quiet; docker compose --profile ollama pull ollama; "
+            "docker compose --profile ollama up -d --wait --wait-timeout 180 ollama; "
+            "docker compose exec -T ollama ollama pull bge-m3; "
+            "docker compose exec -T ollama ollama pull mxbai-embed-large' "
+            ">/dev/null 2>&1 &\n"
+            "echo $! > \"$job_pid_file\"\n"
+            "echo ollama-embeddings-install-started\n"
         ),
     },
     "m2_preflight": {
