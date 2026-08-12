@@ -23,3 +23,7 @@ docker compose --profile ollama up -d
 ```
 
 Alternatively, install Ollama natively on the host as described in [Ollama guidance](../ollama/README.md). Start with a small, quantised model and measure its behaviour; do not preload models merely because they are available.
+
+## Windows host power policy
+
+For the WSL-hosted T480 runtime, configure the active Windows plan while on AC power to never sleep, never use timed hibernation, and take no action when its lid closes. Use the governed `power_policy_status` operation to inspect this policy and `power_policy_ac_always_on` only with explicit approval to apply it. These operations do not alter battery-mode settings. The policy is an availability safeguard, not a substitute for the boot-triggered no-logon startup task required by M5.

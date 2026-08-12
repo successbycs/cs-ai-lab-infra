@@ -132,6 +132,11 @@
           "purpose": "Refuse unsafe maintenance before any restart, firmware action, or service disruption."
         },
         {
+          "id": "ac_power_policy",
+          "action": "Read the active Windows power plan and, with approval, set AC sleep and timed hibernation to never plus lid-close to no action; leave DC settings unchanged.",
+          "purpose": "Prevent ordinary mains-powered idle or lid use from stopping the WSL-hosted lab while keeping battery conservation independent."
+        },
+        {
           "id": "boot_startup_configuration",
           "action": "Configure a Windows boot-triggered Scheduled Task running as Local System to start Ubuntu WSL, wait for Docker, and start the private PostgreSQL plus n8n Compose services. Do not use Windows automatic logon.",
           "purpose": "Make the lab recover after restart without an interactive Windows user session.",
@@ -178,6 +183,10 @@
           "id": "wsl_liveness_verified",
           "description": "T480 evidence proves the interim or final startup task keeps WSL alive and n8n plus PostgreSQL remain healthy for at least five minutes after the T16 startup command has completed.",
           "real_world_execution": true
+        },
+        {
+          "id": "ac_power_policy_verified",
+          "description": "T480 evidence proves that the active plan has AC sleep and timed hibernation disabled and records the AC lid-close policy without changing battery settings."
         },
         {
           "id": "unattended_restart_recovered",

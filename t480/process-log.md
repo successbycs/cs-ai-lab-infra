@@ -25,3 +25,7 @@ Milestone JSON is a local progress ledger, not real-world proof. Beginning with 
 M3 uses a purpose-built recovery drill rather than the live n8n database. It creates a uniquely named synthetic source database, a distinct synthetic restore database, and a host-side compressed backup. Its evidence bundle records the commands' non-secret output and hashes; the independent verifier checks both the bundle and the backup plus an exact post-restore synthetic result. Synthetic artifacts are retained for inspection, and any cleanup requires separate explicit approval.
 
 The first approved M3 drill completed and its independently verified raw evidence bundle is retained locally on the T480. The milestone ledger records the bundle fingerprint as an index only; it does not replace the bundle or verifier output.
+
+## 2026-08-12 — AC power policy is governed separately from startup recovery
+
+The T480's active Windows plan was configured so that, on AC power, it does not sleep, does not use timed hibernation, and ignores lid-close events. Battery-mode settings were left unchanged. The control path now exposes separate fixed read and approval-gated apply operations, rather than permitting a free-form power command. This availability policy protects against normal desk use but must not be represented as no-logon reboot recovery; M5 still requires a boot-triggered Local System WSL task and a real reboot drill.

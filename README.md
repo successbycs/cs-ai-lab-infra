@@ -20,7 +20,7 @@ VS Code, Codex, Git ──push──> source of truth ──pull──> Docker C
 * Ollama is optional in Compose; native-host Ollama is the recommended first T480 setup.
 ```
 
-The T16 is the development workstation. The T480 is a persistent, private runtime. GitHub carries versioned configuration between them. Individual Customer Success applications live in their own repositories and consume this platform through networked services and environment configuration.
+The T16 is the development workstation. The T480 is a persistent, private runtime. GitHub carries versioned configuration between them. Individual Customer Success applications live in their own repositories and consume this platform through networked services and environment configuration. When on mains power, the T480's active Windows plan is configured not to sleep or hibernate and to ignore lid-close events; its battery policy remains independent.
 
 ## v1 services
 

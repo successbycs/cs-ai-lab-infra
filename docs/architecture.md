@@ -2,6 +2,8 @@
 
 The T16 is the interactive development machine; the T480 is the private, persistent Docker runtime. GitHub is the versioned hand-off point. This repository defines shared platform services; each agent, RAG assistant, or mobile backend belongs in its own application repository.
 
+On AC power, the T480's active Windows power plan is configured for no sleep, no timed hibernation, and no lid-close action. This protects the runtime from ordinary desk use while preserving separate battery-saving settings. It does not itself prove no-logon recovery after a Windows reboot; that remains an M5 boot-task requirement.
+
 ## Service boundaries
 
 PostgreSQL is reusable platform infrastructure for relational data, metadata, and vectors through pgvector. The included generic init script enables the `vector` extension only; it does not create product or customer schemas. Applications own their schemas and migrations.

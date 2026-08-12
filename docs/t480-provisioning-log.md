@@ -2,7 +2,16 @@
 
 This is the running record for preparing the T480 as the private AI Lab server. It records safe operational evidence, commands, and next steps. Do not add passwords, private keys, API keys, or the home-network IP address to this file.
 
-Last updated: 2026-08-11
+Last updated: 2026-08-12
+
+## Completed: AC-powered availability policy
+
+- [x] Confirmed the active Windows Balanced plan already disables AC sleep.
+- [x] Changed AC timed hibernation from three hours to never.
+- [x] Set the AC lid-close action to do nothing.
+- [x] Preserved the existing battery (DC) sleep and hibernation policy.
+
+The fixed T480 adapter operation `power_policy_ac_always_on` applies this policy with explicit approval; `power_policy_status` reads it back. This avoids ordinary AC idle or lid-close events interrupting WSL/Docker. It does not replace M5's required boot-triggered Local System task for no-logon recovery after a Windows restart.
 
 ## Completed: network discovery
 
