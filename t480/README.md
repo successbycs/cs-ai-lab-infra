@@ -20,6 +20,7 @@ This MVP adopts the Autonomous Framework's adapter and tool-registry conventions
 - `docker_hello_world` — real-container M1 proof; requires explicit approval.
 - `ollama_embeddings_status` — private Ollama container and installed embedding models.
 - `ollama_embeddings_install` — start private Ollama and install `bge-m3` and `mxbai-embed-large`; requires explicit approval.
+- `ollama_embeddings_diagnostics` — non-secret completion or failure detail for the model installation.
 - `m2_preflight` — capacity, runtime, deployment-path, and existing-container checks before M2.
 - `m2_deploy` — controlled M2 clone, local-secret generation, image pull, and stack startup; requires explicit approval.
 - `m2_deploy_diagnostics` — non-secret Compose, image, and container checks after a failed M2 deployment.

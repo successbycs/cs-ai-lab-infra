@@ -170,6 +170,18 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "echo ollama-embeddings-install-started\n"
         ),
     },
+    "ollama_embeddings_diagnostics": {
+        "approval_required": False,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "log_file=/home/chris/.local/state/cs-ai-lab/ollama-embeddings-install.log\n"
+            "if [ -f \"$log_file\" ]; then\n"
+            "  tail -n 80 \"$log_file\"\n"
+            "else\n"
+            "  echo no-ollama-embedding-install-log\n"
+            "fi\n"
+        ),
+    },
     "m2_preflight": {
         "approval_required": False,
         "wsl_script": (

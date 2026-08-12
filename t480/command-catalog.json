@@ -75,6 +75,12 @@
       "execution": "adapter_owned"
     },
     {
+      "id": "ollama_embeddings_diagnostics",
+      "purpose": "Inspect the non-secret completion or failure detail from the approved Ollama embedding-model installation.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
       "id": "m2_preflight",
       "purpose": "Inspect T480 Ubuntu capacity, Docker, the intended deployment path, and existing lab containers before M2 deployment.",
       "approval_required": false,
