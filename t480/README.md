@@ -10,6 +10,7 @@ This MVP adopts the Autonomous Framework's adapter and tool-registry conventions
 
 - `health` — Windows hostname, operating system, and installed memory.
 - `storage` — filesystem capacity and free space.
+- `windows_restart` — schedule a controlled Windows restart; requires explicit approval.
 - `wsl_status` — WSL state and installed distributions.
 - `docker_status` — Docker/Compose availability inside Ubuntu.
 - `docker_preflight` — potentially conflicting Docker/container-runtime packages inside Ubuntu.

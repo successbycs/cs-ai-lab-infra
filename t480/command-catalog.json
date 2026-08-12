@@ -15,6 +15,12 @@
       "execution": "adapter_owned"
     },
     {
+      "id": "windows_restart",
+      "purpose": "Schedule a controlled T480 Windows restart after explicit operator approval; callers must poll the control path afterward.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
       "id": "wsl_status",
       "purpose": "Inspect WSL status and installed distributions.",
       "approval_required": false,

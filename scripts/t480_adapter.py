@@ -64,6 +64,14 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "@{Name='free_gib'; Expression={[math]::Round($_.FreeSpace / 1GB, 1)}} | ConvertTo-Json -Compress"
         ),
     },
+    "windows_restart": {
+        "approval_required": True,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "shutdown.exe /r /t 10 /f /d p:4:1 /c 'Approved CS AI Lab operator reboot'; "
+            "'{\"restart_scheduled\":true,\"delay_seconds\":10}'"
+        ),
+    },
     "wsl_status": {
         "approval_required": False,
         "command": "$ErrorActionPreference = 'Stop'; wsl.exe --status; wsl.exe --list --verbose",
