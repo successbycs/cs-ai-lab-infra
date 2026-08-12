@@ -122,7 +122,7 @@
     {
       "id": "M5",
       "name": "Hands-off maintenance and recovery proven",
-      "objective": "Prove the T16 can govern a planned T480 maintenance cycle, including an unattended Windows restart, boot-time recovery of the private PostgreSQL and n8n stack, Windows Update control, and BIOS-update readiness without storing Windows credentials or enabling automatic logon.",
+      "objective": "Prove the T16 can govern a planned T480 maintenance cycle, including an unattended Windows restart, boot-time recovery of the private PostgreSQL and n8n stack, Windows Update control, and BIOS-update readiness without storing Windows credentials or enabling automatic logon. The boot task uses passwordless S4U because Windows WSL does not support Local System.",
       "execution_prompt": "t480/prompts/m5-hands-off-maintenance.md",
       "depends_on": ["M3"],
       "execution_steps": [
@@ -138,7 +138,7 @@
         },
         {
           "id": "boot_startup_configuration",
-          "action": "Configure a Windows boot-triggered Scheduled Task running as Local System to start Ubuntu WSL, wait for Docker, and start the private PostgreSQL plus n8n Compose services. Do not use Windows automatic logon.",
+          "action": "Configure a Windows boot-triggered Scheduled Task using the registered WSL user's passwordless S4U logon type to start Ubuntu WSL, wait for Docker, and start the private PostgreSQL plus n8n Compose services. Do not use Windows automatic logon or stored credentials.",
           "purpose": "Make the lab recover after restart without an interactive Windows user session.",
           "subtasks": [
             {
@@ -148,7 +148,7 @@
             },
             {
               "id": "boot_task_hardening",
-              "action": "Replace the interim sign-in task with the final boot-triggered Local System task after confirming the Windows/WSL user-context design supports the registered Ubuntu distribution.",
+              "action": "Replace the interim sign-in task with the final boot-triggered passwordless S4U task after proving the registered Ubuntu distribution is visible in that user context.",
               "success_criteria": "The final task starts at boot without automatic logon, keeps WSL alive, and starts only the private PostgreSQL plus n8n services."
             }
           ]
@@ -177,7 +177,7 @@
       "checks": [
         {
           "id": "boot_task_verified",
-          "description": "A T480-captured task definition proves a boot trigger, Local System principal, fixed startup action, and no automatic Windows logon dependency."
+          "description": "A T480-captured task definition proves a boot trigger, passwordless S4U principal for the registered WSL user, fixed startup action, and no automatic Windows logon or stored-credential dependency."
         },
         {
           "id": "wsl_liveness_verified",

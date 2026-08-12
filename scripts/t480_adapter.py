@@ -98,6 +98,96 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "[pscustomobject]@{ active_scheme = $scheme; sleep = $sleep; hibernate = $hibernate; lid_action = $lid } | ConvertTo-Json -Compress"
         ),
     },
+    "m5_maintenance_preflight": {
+        "approval_required": False,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "$os = Get-CimInstance Win32_OperatingSystem; "
+            "$bios = Get-CimInstance Win32_BIOS; "
+            "$battery = Get-CimInstance Win32_Battery -ErrorAction SilentlyContinue | "
+            "Select-Object BatteryStatus,EstimatedChargeRemaining; "
+            "$updateSettings = Get-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\WindowsUpdate\\UX\\Settings' -ErrorAction SilentlyContinue; "
+            "$rebootRequired = (Test-Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Component Based Servicing\\RebootPending') -or (Test-Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\WindowsUpdate\\Auto Update\\RebootRequired'); "
+            "$bitlocker = try { Get-BitLockerVolume | Select-Object MountPoint,ProtectionStatus,VolumeStatus } catch { @([pscustomobject]@{ error = $_.Exception.Message }) }; "
+            "$scheme = (powercfg /getactivescheme) -join ' '; "
+            "$sleep = ((powercfg /query SCHEME_CURRENT SUB_SLEEP STANDBYIDLE) | Select-String 'Current AC Power Setting Index').ToString().Trim(); "
+            "$hibernate = ((powercfg /query SCHEME_CURRENT SUB_SLEEP HIBERNATEIDLE) | Select-String 'Current AC Power Setting Index').ToString().Trim(); "
+            "$wsl = (wsl.exe --list --verbose) -join '\n'; "
+            "$lab = (wsl.exe -d Ubuntu -- bash -lc 'cd /home/chris/projects/cs-ai-lab-infra && docker compose ps; latest=$(ls -1t postgres/backup/*.sql.gz 2>/dev/null | head -n1 | xargs -r basename); printf ""latest_backup=%s\\n"" ""$latest""; curl --silent --show-error --max-time 10 http://127.0.0.1:5678/healthz') -join '\n'; "
+            "[pscustomobject]@{ uptime_since_utc = $os.LastBootUpTime.ToUniversalTime().ToString('o'); bios = $bios.SMBIOSBIOSVersion; battery = $battery; reboot_required = $rebootRequired; active_hours_start = $updateSettings.ActiveHoursStart; active_hours_end = $updateSettings.ActiveHoursEnd; smart_active_hours = $updateSettings.SmartActiveHoursState; bitlocker = $bitlocker; active_scheme = $scheme; ac_sleep = $sleep; ac_hibernate = $hibernate; wsl = $wsl; lab = $lab } | ConvertTo-Json -Depth 4 -Compress"
+        ),
+    },
+    "m5_boot_startup_compatibility": {
+        "approval_required": False,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "$distro = (wsl.exe --list --verbose) -join '\n'; "
+            "$task = Get-ScheduledTask -TaskName 'CS AI Lab Start' -ErrorAction SilentlyContinue; "
+            "$taskSummary = if ($null -eq $task) { $null } else { [pscustomobject]@{ state = $task.State.ToString(); principal = $task.Principal.UserId; logon_type = $task.Principal.LogonType.ToString(); triggers = (($task.Triggers | ForEach-Object { $_.CimClass.CimClassName }) -join ',') } }; "
+            "[pscustomobject]@{ wsl_executable = [bool](Get-Command wsl.exe -ErrorAction SilentlyContinue); current_user_distributions = $distro; existing_startup_task = $taskSummary } | ConvertTo-Json -Depth 4 -Compress"
+        ),
+    },
+    "m5_boot_system_wsl_probe": {
+        "approval_required": True,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "$stateDir = Join-Path $env:ProgramData 'CSAILab'; New-Item -ItemType Directory -Force -Path $stateDir | Out-Null; "
+            "$scriptPath = Join-Path $stateDir 'm5-system-wsl-probe.ps1'; $outputPath = Join-Path $stateDir 'm5-system-wsl-probe.txt'; $taskName = 'CS AI Lab M5 System WSL Probe'; "
+            "$script = '$ErrorActionPreference = ''Continue''; whoami | Out-File -FilePath ''' + $outputPath + ''' -Encoding utf8; wsl.exe --list --verbose 2>&1 | Out-File -FilePath ''' + $outputPath + ''' -Encoding utf8 -Append'; "
+            "$payload = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($script)); "
+            "$action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument ('-NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand ' + $payload); "
+            "$trigger = New-ScheduledTaskTrigger -Once -At ((Get-Date).AddMinutes(1)); "
+            "$principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest; "
+            "Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Force | Out-Null; "
+            "Start-ScheduledTask -TaskName $taskName; Start-Sleep -Seconds 8; "
+            "$info = Get-ScheduledTaskInfo -TaskName $taskName; $output = if (Test-Path $outputPath) { Get-Content -Raw $outputPath } else { 'probe-output-absent' }; "
+            "Unregister-ScheduledTask -TaskName $taskName -Confirm:$false; Remove-Item -Force $scriptPath,$outputPath -ErrorAction SilentlyContinue; "
+            "[pscustomobject]@{ task_last_result = $info.LastTaskResult; system_wsl_output = $output; task_removed = -not (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue) } | ConvertTo-Json -Compress"
+        ),
+    },
+    "m5_boot_s4u_wsl_probe": {
+        "approval_required": True,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "$stateDir = Join-Path $env:ProgramData 'CSAILab'; New-Item -ItemType Directory -Force -Path $stateDir | Out-Null; "
+            "$outputPath = Join-Path $stateDir 'm5-s4u-wsl-probe.txt'; $taskName = 'CS AI Lab M5 S4U WSL Probe'; "
+            "$script = '$ErrorActionPreference = ''Continue''; whoami | Out-File -FilePath ''' + $outputPath + ''' -Encoding utf8; wsl.exe --list --verbose 2>&1 | Out-File -FilePath ''' + $outputPath + ''' -Encoding utf8 -Append'; "
+            "$payload = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($script)); "
+            "$action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument ('-NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand ' + $payload); "
+            "$trigger = New-ScheduledTaskTrigger -Once -At ((Get-Date).AddMinutes(1)); "
+            "$principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType S4U -RunLevel Highest; "
+            "Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Force | Out-Null; "
+            "Start-ScheduledTask -TaskName $taskName; Start-Sleep -Seconds 8; "
+            "$info = Get-ScheduledTaskInfo -TaskName $taskName; $output = if (Test-Path $outputPath) { Get-Content -Raw $outputPath } else { 'probe-output-absent' }; "
+            "Unregister-ScheduledTask -TaskName $taskName -Confirm:$false; Remove-Item -Force $outputPath -ErrorAction SilentlyContinue; "
+            "[pscustomobject]@{ task_last_result = $info.LastTaskResult; s4u_wsl_output = $output; task_removed = -not (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue) } | ConvertTo-Json -Compress"
+        ),
+    },
+    "m5_boot_startup_enable": {
+        "approval_required": True,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "$stateDir = Join-Path $env:ProgramData 'CSAILab'; New-Item -ItemType Directory -Force -Path $stateDir | Out-Null; "
+            "$taskName = 'CS AI Lab Start'; $rollbackPath = Join-Path $stateDir 'CS-AI-Lab-Start.pre-m5.xml'; "
+            "$existing = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue; if ($null -ne $existing) { Export-ScheduledTask -TaskName $taskName | Set-Content -Path $rollbackPath -Encoding utf8 }; "
+            "$bashCommand = 'for attempt in $(seq 1 30); do docker info >/dev/null 2>&1 && break; sleep 2; done; docker info >/dev/null; cd /home/chris/projects/cs-ai-lab-infra; docker compose up -d n8n; exec tail -f /dev/null'; "
+            "$bashPayload = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($bashCommand)); "
+            "$launcher = '$ErrorActionPreference = ''Stop''; $arguments = ''-d Ubuntu -- bash -c ""echo ' + $bashPayload + ' | base64 -d | bash""''; Start-Process -FilePath ''wsl.exe'' -ArgumentList $arguments -WindowStyle Hidden'; "
+            "$payload = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($launcher)); "
+            "$action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument ('-NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand ' + $payload); "
+            "$trigger = New-ScheduledTaskTrigger -AtStartup; $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType S4U -RunLevel Highest; "
+            "$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Seconds 0) -MultipleInstances IgnoreNew; "
+            "Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Description 'Starts the private Ubuntu WSL n8n and PostgreSQL lab at Windows boot using passwordless S4U; WSL stays alive.' -Force | Out-Null; "
+            "$task = Get-ScheduledTask -TaskName $taskName; [pscustomobject]@{ task_name = $task.TaskName; principal = $task.Principal.UserId; logon_type = $task.Principal.LogonType.ToString(); triggers = (($task.Triggers | ForEach-Object { $_.CimClass.CimClassName }) -join ','); rollback_saved = Test-Path $rollbackPath } | ConvertTo-Json -Compress"
+        ),
+    },
+    "m5_boot_startup_status": {
+        "approval_required": False,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; $task = Get-ScheduledTask -TaskName 'CS AI Lab Start'; $info = Get-ScheduledTaskInfo -TaskName 'CS AI Lab Start'; "
+            "[pscustomobject]@{ principal = $task.Principal.UserId; logon_type = $task.Principal.LogonType.ToString(); triggers = (($task.Triggers | ForEach-Object { $_.CimClass.CimClassName }) -join ','); state = $task.State.ToString(); last_result = $info.LastTaskResult } | ConvertTo-Json -Compress"
+        ),
+    },
     "wsl_status": {
         "approval_required": False,
         "command": "$ErrorActionPreference = 'Stop'; wsl.exe --status; wsl.exe --list --verbose",

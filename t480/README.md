@@ -13,6 +13,10 @@ This MVP adopts the Autonomous Framework's adapter and tool-registry conventions
 - `windows_restart` — schedule a controlled Windows restart; requires explicit approval.
 - `power_policy_status` — inspect active Windows sleep, hibernation, and lid-close policy.
 - `power_policy_ac_always_on` — prevent sleep/hibernation and ignore lid close while on AC power; battery behaviour is unchanged; requires explicit approval.
+- `m5_maintenance_preflight` — capture non-secret maintenance readiness, including update/BIOS/power state and private lab health.
+- `m5_boot_startup_compatibility` — inspect current WSL distribution visibility and startup-task context before boot-task changes.
+- `m5_boot_system_wsl_probe` — temporary, self-cleaning Local System WSL visibility test; requires explicit approval.
+- `m5_boot_s4u_wsl_probe` — temporary, self-cleaning passwordless S4U WSL visibility test; requires explicit approval.
 - `wsl_status` — WSL state and installed distributions.
 - `docker_status` — Docker/Compose availability inside Ubuntu.
 - `docker_preflight` — potentially conflicting Docker/container-runtime packages inside Ubuntu.

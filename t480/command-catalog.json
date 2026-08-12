@@ -33,6 +33,42 @@
       "execution": "adapter_owned"
     },
     {
+      "id": "m5_maintenance_preflight",
+      "purpose": "Capture non-secret T480 maintenance readiness: uptime, BIOS, battery, BitLocker state, Windows Update restart state and active hours, AC power policy, WSL, private lab health, and backup freshness.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "m5_boot_startup_compatibility",
+      "purpose": "Inspect the current Windows WSL distribution visibility and existing lab startup task before creating a boot-triggered Local System task.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "m5_boot_system_wsl_probe",
+      "purpose": "Create, run, read, and remove a temporary Local System task that reports whether that Windows account can see the Ubuntu WSL distribution; requires explicit approval.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "m5_boot_s4u_wsl_probe",
+      "purpose": "Create, run, read, and remove a temporary passwordless S4U task that reports whether the registered Windows user can start Ubuntu WSL without interactive logon; requires explicit approval.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "m5_boot_startup_enable",
+      "purpose": "Replace the interim sign-in task with a boot-triggered passwordless S4U task that starts the fixed private Ubuntu WSL n8n/PostgreSQL action and preserves the prior task XML for rollback; requires explicit approval.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "m5_boot_startup_status",
+      "purpose": "Inspect the final M5 boot-triggered S4U task's principal, logon type, trigger, state, and latest result.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
       "id": "wsl_status",
       "purpose": "Inspect WSL status and installed distributions.",
       "approval_required": false,
