@@ -389,8 +389,8 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "expected_image='n8nio/n8n:1.123.65@sha256:8554136778e759f208205d13bf52ce0c782c43fefd72ecaab2b88285d7bc8046'\n"
             "configured_image=\"$(docker compose config --images | grep '^n8nio/n8n:' | head -n 1)\"\n"
             "[[ \"$configured_image\" == \"$expected_image\" ]] || { printf 'Refusing upgrade: reviewed n8n image does not match Compose configuration.\\n' >&2; exit 4; }\n"
-            "docker compose pull n8n n8n_files_init\n"
-            "docker compose up -d --wait --wait-timeout 180 n8n\n"
+            "docker compose pull n8n n8n_files_init </dev/null\n"
+            "docker compose up -d --wait --wait-timeout 180 n8n </dev/null\n"
             "docker compose exec -T n8n n8n --version </dev/null\n"
             "docker compose ps n8n postgres\n"
         ),
