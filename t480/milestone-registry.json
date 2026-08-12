@@ -182,6 +182,74 @@
           "real_world_execution": true
         }
       ]
+    },
+    {
+      "id": "M6",
+      "name": "Governed n8n upgrade proven",
+      "objective": "Implement and prove a repeatable, approval-gated n8n security-upgrade lifecycle that moves the T480 from the vulnerable 1.118.1 image to a reviewed, digest-pinned 1.x release at or above 1.121.0, without exposing n8n or losing workflow data.",
+      "execution_prompt": "t480/prompts/m6-n8n-upgrade.md",
+      "depends_on": ["M3"],
+      "execution_steps": [
+        {
+          "id": "release_and_security_review",
+          "action": "Capture the installed n8n version, the target release notes, applicable security advisory, breaking-change assessment, and the exact official image digest selected for the target 1.x version.",
+          "purpose": "Make the upgrade decision reviewable and prevent mutable-tag deployments."
+        },
+        {
+          "id": "backup_and_rollback_preflight",
+          "action": "Create and independently verify a fresh PostgreSQL backup, record the current image digest as rollback reference, verify free capacity, and prove n8n plus PostgreSQL are healthy before changes.",
+          "purpose": "Protect workflow and credential data before n8n database migrations run."
+        },
+        {
+          "id": "governed_upgrade_operation",
+          "action": "Implement a fixed approval-gated adapter operation that verifies preflight evidence, pulls the selected image, recreates only n8n, waits for health, and returns non-secret version and image evidence. It must not accept a caller-supplied image, command, or tag.",
+          "purpose": "Provide a safe repeatable upgrade mechanism rather than ad hoc Docker commands."
+        },
+        {
+          "id": "post_upgrade_validation",
+          "action": "Verify n8n version, image digest, loopback-only port binding, PostgreSQL readiness, and a bounded synthetic workflow execution through the n8n adapter.",
+          "purpose": "Prove the new image works with the real lab data path, not just that a container started."
+        },
+        {
+          "id": "rollback_exercise",
+          "action": "Document the rollback decision point and execute a controlled rollback only if post-upgrade validation fails. If validation passes, retain the verified backup and rollback image reference without downgrading a migrated database.",
+          "purpose": "Avoid unsafe downgrade assumptions while retaining a recoverable failure path."
+        },
+        {
+          "id": "recurring_review_control",
+          "action": "Add a read-only release/advisory status check and a recurring maintenance reminder or workflow that reports, but never auto-installs, new n8n security updates.",
+          "purpose": "Detect future releases while preserving explicit human approval for changes."
+        }
+      ],
+      "checks": [
+        {
+          "id": "target_reviewed_and_pinned",
+          "description": "Evidence identifies the prior and target n8n versions, the reviewed advisory/release rationale, applicable breaking changes, and the exact target OCI digest."
+        },
+        {
+          "id": "backup_and_rollback_ready",
+          "description": "A fresh independently verified PostgreSQL backup and the prior image digest are retained before the n8n container is changed."
+        },
+        {
+          "id": "n8n_security_upgrade_completed",
+          "description": "A real T480 deployment runs a reviewed digest-pinned n8n 1.x image at version 1.121.0 or later, and n8n is healthy with its port still bound only to 127.0.0.1.",
+          "real_world_execution": true
+        },
+        {
+          "id": "workflow_execution_verified",
+          "description": "A bounded synthetic workflow executes successfully after the upgrade, with T480-captured raw execution evidence and no production credentials or customer data in the proof.",
+          "real_world_execution": true
+        },
+        {
+          "id": "future_update_detection_configured",
+          "description": "A read-only recurring release/advisory review reports pending n8n updates without downloading, installing, or activating an image."
+        },
+        {
+          "id": "upgrade_evidence_verified",
+          "description": "A raw T480 evidence bundle covering backup, upgrade, health, and workflow validation is independently verified before the milestone ledger is marked proven.",
+          "real_world_execution": true
+        }
+      ]
     }
   ]
 }
