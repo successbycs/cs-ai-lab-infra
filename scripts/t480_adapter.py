@@ -123,12 +123,23 @@ OPERATIONS: dict[str, dict[str, Any]] = {
         "command": (
             "$ErrorActionPreference = 'Stop'; "
             "$arguments = '-d Ubuntu -- bash -lc \"for attempt in $(seq 1 30); do docker info >/dev/null 2>&1 && break; sleep 2; done; "
-            "docker info >/dev/null; cd /home/chris/projects/cs-ai-lab-infra; docker compose up -d n8n\"'; "
+            "docker info >/dev/null; cd /home/chris/projects/cs-ai-lab-infra; docker compose up -d n8n; exec sleep infinity\"'; "
             "$action = New-ScheduledTaskAction -Execute 'wsl.exe' -Argument $arguments; "
             "$trigger = New-ScheduledTaskTrigger -AtLogOn; "
             "Register-ScheduledTask -TaskName 'CS AI Lab Start' -Action $action -Trigger $trigger "
-            "-Description 'Starts T480 Ubuntu WSL, waits for Docker, and starts the private n8n lab stack at sign-in.' -Force | Out-Null; "
+            "-Description 'Starts T480 Ubuntu WSL, waits for Docker, starts the private n8n lab stack, and keeps WSL alive at sign-in.' -Force | Out-Null; "
             "Get-ScheduledTask -TaskName 'CS AI Lab Start' | Select-Object TaskName,State | ConvertTo-Json -Compress"
+        ),
+    },
+    "startup_run": {
+        "approval_required": True,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "Start-ScheduledTask -TaskName 'CS AI Lab Start'; "
+            "Start-Sleep -Seconds 10; "
+            "$task = Get-ScheduledTask -TaskName 'CS AI Lab Start'; "
+            "[pscustomobject]@{ task_state = $task.State.ToString(); "
+            "n8n_health = (Invoke-WebRequest -UseBasicParsing -TimeoutSec 10 http://127.0.0.1:5678/healthz).StatusCode } | ConvertTo-Json -Compress"
         ),
     },
     "startup_disable": {

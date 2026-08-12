@@ -58,7 +58,13 @@
     },
     {
       "id": "startup_enable",
-      "purpose": "Create or update a Windows sign-in task that starts Ubuntu WSL, waits for Docker, and starts PostgreSQL plus n8n privately.",
+      "purpose": "Create or update a Windows sign-in task that starts Ubuntu WSL, waits for Docker, starts PostgreSQL plus n8n privately, and keeps WSL alive.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "startup_run",
+      "purpose": "Run the private lab startup task immediately and verify the local n8n health endpoint.",
       "approval_required": true,
       "execution": "adapter_owned"
     },

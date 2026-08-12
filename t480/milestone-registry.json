@@ -134,7 +134,19 @@
         {
           "id": "boot_startup_configuration",
           "action": "Configure a Windows boot-triggered Scheduled Task running as Local System to start Ubuntu WSL, wait for Docker, and start the private PostgreSQL plus n8n Compose services. Do not use Windows automatic logon.",
-          "purpose": "Make the lab recover after restart without an interactive Windows user session."
+          "purpose": "Make the lab recover after restart without an interactive Windows user session.",
+          "subtasks": [
+            {
+              "id": "wsl_liveness_correction",
+              "action": "Correct the interim Windows sign-in task so its WSL action remains alive after starting Docker and n8n, instead of exiting immediately and allowing WSL to stop all containers.",
+              "success_criteria": "After the T16 command ends, n8n remains reachable at the T480-local health endpoint for at least five minutes and Compose reports n8n plus PostgreSQL healthy."
+            },
+            {
+              "id": "boot_task_hardening",
+              "action": "Replace the interim sign-in task with the final boot-triggered Local System task after confirming the Windows/WSL user-context design supports the registered Ubuntu distribution.",
+              "success_criteria": "The final task starts at boot without automatic logon, keeps WSL alive, and starts only the private PostgreSQL plus n8n services."
+            }
+          ]
         },
         {
           "id": "unattended_restart_drill",
@@ -161,6 +173,11 @@
         {
           "id": "boot_task_verified",
           "description": "A T480-captured task definition proves a boot trigger, Local System principal, fixed startup action, and no automatic Windows logon dependency."
+        },
+        {
+          "id": "wsl_liveness_verified",
+          "description": "T480 evidence proves the interim or final startup task keeps WSL alive and n8n plus PostgreSQL remain healthy for at least five minutes after the T16 startup command has completed.",
+          "real_world_execution": true
         },
         {
           "id": "unattended_restart_recovered",
