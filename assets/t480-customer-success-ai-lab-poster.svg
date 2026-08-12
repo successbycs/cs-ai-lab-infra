@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1200" height="1680" viewBox="0 0 1200 1680">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#071a35"/><stop offset=".55" stop-color="#083c59"/><stop offset="1" stop-color="#0a263f"/></linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#103c5c"/><stop offset="1" stop-color="#08263f"/></linearGradient>
+    <linearGradient id="teal" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#69f0df"/><stop offset="1" stop-color="#3f9cf3"/></linearGradient>
+    <filter id="shadow"><feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#001221" flood-opacity=".5"/></filter>
+    <style>
+      .title{font-family:Ubuntu,DejaVu Sans,sans-serif;font-weight:800;fill:#f7fbff;letter-spacing:1px}.sub{font-family:Ubuntu,DejaVu Sans,sans-serif;font-weight:500;fill:#b9d9e8}.h{font-family:Ubuntu,DejaVu Sans,sans-serif;font-weight:700;fill:#f7fbff}.p{font-family:Ubuntu,DejaVu Sans,sans-serif;font-weight:400;fill:#c8e0eb}.tiny{font-family:Ubuntu,DejaVu Sans,sans-serif;font-weight:500;fill:#9fc4d6}.accent{font-family:Ubuntu,DejaVu Sans,sans-serif;font-weight:700;fill:#64e9db}
+    </style>
+  </defs>
+  <rect width="1200" height="1680" fill="url(#bg)"/>
+  <path d="M0 222H160l36 36h164m840-20H1014l-34 34H810M0 570h125l35-35h135M1200 592h-140l-35-35H880M0 1300h160l32 32h120M1200 1290h-160l-32 32H880" fill="none" stroke="#1a6a88" stroke-width="3" opacity=".55"/>
+  <text x="72" y="105" class="title" font-size="60">CUSTOMER SUCCESS AI LAB</text>
+  <text x="74" y="150" class="sub" font-size="25">A private, local-first platform for learning, building and operating responsible AI workflows</text>
+  <rect x="72" y="188" width="1056" height="330" rx="28" fill="#08263f" stroke="#2b8fa6" stroke-width="2" filter="url(#shadow)"/>
+  <image xlink:href="customer-success-ai-lab-t480.png" x="772" y="205" width="300" height="285" preserveAspectRatio="xMidYMid slice"/>
+  <text x="112" y="255" class="accent" font-size="20">THE PURPOSE</text>
+  <text x="112" y="305" class="h" font-size="36">Turn a modest T480 into a</text>
+  <text x="112" y="349" class="h" font-size="36">safe proving ground for</text>
+  <text x="112" y="393" class="h" font-size="36">Customer Success AI.</text>
+  <text x="112" y="444" class="p" font-size="22">Experiment locally. Build reusable patterns.</text>
+  <text x="112" y="476" class="p" font-size="22">Keep customer-facing decisions human-led.</text>
+
+  <text x="72" y="580" class="title" font-size="31">THE PLATFORM</text>
+  <path d="M170 688H1030" stroke="#55e5dc" stroke-width="4" opacity=".8"/>
+  <circle cx="170" cy="688" r="54" fill="#0a4661" stroke="#66eee0" stroke-width="3"/><text x="170" y="681" class="h" font-size="20" text-anchor="middle">T16</text><text x="170" y="710" class="tiny" font-size="15" text-anchor="middle">Build + govern</text>
+  <circle cx="430" cy="688" r="54" fill="#0a4661" stroke="#66eee0" stroke-width="3"/><text x="430" y="681" class="h" font-size="20" text-anchor="middle">GIT</text><text x="430" y="710" class="tiny" font-size="15" text-anchor="middle">Versioned config</text>
+  <circle cx="700" cy="688" r="54" fill="#0a4661" stroke="#66eee0" stroke-width="3"/><text x="700" y="681" class="h" font-size="20" text-anchor="middle">T480</text><text x="700" y="710" class="tiny" font-size="15" text-anchor="middle">Private runtime</text>
+  <circle cx="1030" cy="688" r="54" fill="#0a4661" stroke="#66eee0" stroke-width="3"/><text x="1030" y="681" class="h" font-size="18" text-anchor="middle">CS APPS</text><text x="1030" y="710" class="tiny" font-size="15" text-anchor="middle">Separate solutions</text>
+  <text x="72" y="785" class="title" font-size="31">CORE CAPABILITIES</text>
+  <g filter="url(#shadow)">
+    <rect x="72" y="820" width="510" height="165" rx="22" fill="url(#card)" stroke="#2a7895"/><circle cx="126" cy="876" r="27" fill="#164d70"/><text x="126" y="882" class="h" font-size="14" text-anchor="middle">FLOW</text><text x="174" y="865" class="h" font-size="25">n8n workflows</text><text x="174" y="900" class="p" font-size="18">Automation, approvals, schedules and</text><text x="174" y="925" class="p" font-size="18">repeatable operational experiments.</text>
+    <rect x="618" y="820" width="510" height="165" rx="22" fill="url(#card)" stroke="#2a7895"/><circle cx="672" cy="876" r="27" fill="#164d70"/><text x="672" y="882" class="h" font-size="16" text-anchor="middle">DB</text><text x="720" y="865" class="h" font-size="25">PostgreSQL + pgvector</text><text x="720" y="900" class="p" font-size="18">Reusable customer context, structured data</text><text x="720" y="925" class="p" font-size="18">and vector search foundations.</text>
+    <rect x="72" y="1010" width="510" height="165" rx="22" fill="url(#card)" stroke="#2a7895"/><circle cx="126" cy="1066" r="27" fill="#164d70"/><text x="126" y="1072" class="h" font-size="16" text-anchor="middle">AI</text><text x="174" y="1055" class="h" font-size="25">Local AI models</text><text x="174" y="1090" class="p" font-size="18">Ollama plus local embedding models for</text><text x="174" y="1115" class="p" font-size="18">practical evaluation and experimentation.</text>
+    <rect x="618" y="1010" width="510" height="165" rx="22" fill="url(#card)" stroke="#2a7895"/><circle cx="672" cy="1066" r="27" fill="#164d70"/><text x="672" y="1072" class="h" font-size="13" text-anchor="middle">GOV</text><text x="720" y="1055" class="h" font-size="25">Governed operations</text><text x="720" y="1090" class="p" font-size="18">Fixed adapter actions, approval gates,</text><text x="720" y="1115" class="p" font-size="18">evidence, health checks and pinned images.</text>
+  </g>
+
+  <rect x="72" y="1215" width="1056" height="215" rx="26" fill="#062238" stroke="#35b8b3" stroke-width="2"/>
+  <text x="110" y="1264" class="title" font-size="28">PRIVATE, RESILIENT, REPEATABLE</text>
+  <g transform="translate(111 1300)"><circle cx="20" cy="20" r="20" fill="#2a8e8c"/><text x="20" y="27" class="h" font-size="22" text-anchor="middle">✓</text><text x="54" y="14" class="h" font-size="20">Private by design</text><text x="54" y="40" class="p" font-size="15">n8n is loopback-only; the database stays inside Docker.</text></g>
+  <g transform="translate(111 1360)"><circle cx="20" cy="20" r="20" fill="#2a8e8c"/><text x="20" y="27" class="h" font-size="22" text-anchor="middle">✓</text><text x="54" y="14" class="h" font-size="20">Recovery tested</text><text x="54" y="40" class="p" font-size="15">Host-side backups and a synthetic restore drill are proven.</text></g>
+  <g transform="translate(630 1300)"><circle cx="20" cy="20" r="20" fill="#2a8e8c"/><text x="20" y="27" class="h" font-size="22" text-anchor="middle">✓</text><text x="54" y="14" class="h" font-size="20">Hands-off restart</text><text x="54" y="40" class="p" font-size="15">A boot-triggered S4U task starts WSL + services after reboot.</text></g>
+  <g transform="translate(630 1360)"><circle cx="20" cy="20" r="20" fill="#2a8e8c"/><text x="20" y="27" class="h" font-size="22" text-anchor="middle">✓</text><text x="54" y="14" class="h" font-size="20">Upgrade discipline</text><text x="54" y="40" class="p" font-size="15">Reviewed digests, backups and post-upgrade workflow checks.</text></g>
+
+  <text x="72" y="1507" class="title" font-size="29">THE CUSTOMER SUCCESS VALUE</text>
+  <text x="72" y="1555" class="h" font-size="23">Learn faster  ·  Experiment safely  ·  Build reusable AI workflows</text>
+  <text x="72" y="1594" class="p" font-size="19">A practical path from local prototypes to credible, governed Customer Success operating models.</text>
+  <line x1="72" y1="1628" x2="1128" y2="1628" stroke="#2b7691" stroke-width="2"/>
+  <text x="72" y="1656" class="tiny" font-size="16">Customer Success AI Lab Infrastructure  •  Local-first  •  Cloud-portable  •  Built for responsible experimentation</text>
+</svg>
