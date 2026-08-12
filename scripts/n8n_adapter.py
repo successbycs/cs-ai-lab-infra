@@ -202,9 +202,10 @@ if [[ -r "$key_file" ]]; then echo api-key-present; else echo api-key-absent; ex
 
 def run_live_file_test() -> tuple[dict[str, Any], dict[str, Any]]:
     script = """set -euo pipefail
-response="$(curl --fail-with-body --silent --show-error --max-time 60 -X POST http://127.0.0.1:5678/webhook/n8n-live-file-test)"
+curl --fail-with-body --silent --show-error --max-time 60 -X POST http://127.0.0.1:5678/webhook/n8n-live-file-test >/dev/null
 file_size="$(docker compose -f /home/chris/projects/cs-ai-lab-infra/compose.yaml exec -T n8n sh -lc 'test -s /home/node/.n8n-files/n8n-live-test.txt && wc -c < /home/node/.n8n-files/n8n-live-test.txt')"
-printf '{"workflow_response":%s,"file_size_bytes":%s}\\n' "$response" "$file_size"
+file_sha256="$(docker compose -f /home/chris/projects/cs-ai-lab-infra/compose.yaml exec -T n8n sh -lc 'sha256sum /home/node/.n8n-files/n8n-live-test.txt | awk '\''{print $1}'\''')"
+printf '{"file_size_bytes":%s,"file_sha256":"%s"}\\n' "$file_size" "$file_sha256"
 """
     result = execute_remote(script)
     return result_json(result), result
