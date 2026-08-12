@@ -161,7 +161,10 @@ OPERATIONS: dict[str, dict[str, Any]] = {
         "command": (
             "$ErrorActionPreference = 'Stop'; "
             "$logPath = Join-Path $env:ProgramData 'CSAILab\\start-wsl-lab.log'; "
+            "$scriptPath = Join-Path $env:ProgramData 'CSAILab\\start-wsl-lab.ps1'; "
             "Get-ScheduledTaskInfo -TaskName 'CS AI Lab Start' | Select-Object LastRunTime,LastTaskResult | ConvertTo-Json -Compress; "
+            "Get-ScheduledTask -TaskName 'CS AI Lab Start' | Select-Object -ExpandProperty Actions | Select-Object Execute,Arguments | ConvertTo-Json -Compress; "
+            "if (Test-Path $scriptPath) { Get-Content $scriptPath } else { 'startup-script-absent' }; "
             "if (Test-Path $logPath) { Get-Content -Tail 80 $logPath } else { 'startup-log-absent' }"
         ),
     },
