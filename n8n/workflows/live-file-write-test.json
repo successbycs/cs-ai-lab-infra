@@ -1,0 +1,129 @@
+{
+  "name": "Lab Live File Write Test",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "n8n-live-file-test",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a5f60522-5741-4b14-b5ec-d7dc2d6b4627",
+      "name": "Private Test Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const content = `n8n live file test\\ncreated_at=${new Date().toISOString()}\\nrandom=${Math.random().toString(36).slice(2, 14)}\\n`;\nreturn [{ json: { content, file_path: '/home/node/.n8n-files/n8n-live-test.txt' } }];"
+      },
+      "id": "775162f9-57e7-4638-9cd9-168a7d8039a1",
+      "name": "Create Random Test Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "textInputField": "content",
+        "options": {
+          "fileName": "n8n-live-test.txt"
+        }
+      },
+      "id": "55ca6301-f9ac-4767-9301-1eae9a49dbcd",
+      "name": "Convert Text to File",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "={{ $json.file_path }}",
+        "dataPropertyName": "data",
+        "options": {}
+      },
+      "id": "1c0de23c-65d3-4be3-b762-a189ea2591bc",
+      "name": "Write Test File",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { file_path: $json.file_path, content: $json.content } }}",
+        "options": {}
+      },
+      "id": "76dba2b2-ef39-442e-ba57-33309111d7c6",
+      "name": "Return Test Result",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        960,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Private Test Trigger": {
+      "main": [
+        [
+          {
+            "node": "Create Random Test Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Random Test Text": {
+      "main": [
+        [
+          {
+            "node": "Convert Text to File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert Text to File": {
+      "main": [
+        [
+          {
+            "node": "Write Test File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Test File": {
+      "main": [
+        [
+          {
+            "node": "Return Test Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {}
+}

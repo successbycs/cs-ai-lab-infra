@@ -164,6 +164,16 @@ if [[ -r "$key_file" ]]; then echo api-key-present; else echo api-key-absent; ex
     return {"tool_id": TOOL_ID, "operation": "preflight", "result": result, "ok": result["ok"]}
 
 
+def run_live_file_test() -> tuple[dict[str, Any], dict[str, Any]]:
+    script = """set -euo pipefail
+response="$(curl --fail-with-body --silent --show-error --max-time 60 -X POST http://127.0.0.1:5678/webhook/n8n-live-file-test)"
+file_size="$(docker compose -f /home/chris/projects/cs-ai-lab-infra/compose.yaml exec -T n8n sh -lc 'test -s /home/node/.n8n-files/n8n-live-test.txt && wc -c < /home/node/.n8n-files/n8n-live-test.txt')"
+printf '{"workflow_response":%s,"file_size_bytes":%s}\\n' "$response" "$file_size"
+"""
+    result = execute_remote(script)
+    return result_json(result), result
+
+
 def append_log(command: str, approved: bool, payload: dict[str, Any]) -> None:
     result = payload.get("result", {})
     entry = {
@@ -179,7 +189,7 @@ def append_log(command: str, approved: bool, payload: dict[str, Any]) -> None:
 
 def parser() -> argparse.ArgumentParser:
     command_parser = argparse.ArgumentParser(description="Governed n8n adapter for the T480 lab.")
-    command_parser.add_argument("command", choices=["describe-requirements", "preflight", "list-workflows", "upsert-workflow", "activate-workflow", "get-execution"])
+    command_parser.add_argument("command", choices=["describe-requirements", "preflight", "list-workflows", "upsert-workflow", "activate-workflow", "get-execution", "run-live-file-test"])
     command_parser.add_argument("--workflow-file")
     command_parser.add_argument("--workflow-id")
     command_parser.add_argument("--activate", action="store_true")
@@ -189,7 +199,7 @@ def parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
-    mutating = args.command in {"upsert-workflow", "activate-workflow"}
+    mutating = args.command in {"upsert-workflow", "activate-workflow", "run-live-file-test"}
     if mutating and not args.approve:
         raise PermissionError(f"{args.command} requires --approve after explicit operator approval.")
     if args.command == "describe-requirements":
@@ -197,7 +207,7 @@ def main(argv: list[str] | None = None) -> int:
             "tool_id": TOOL_ID,
             "source": "Autonomous-Framework operational n8n adapter at 174226df8bec1407d8e4b2aab48f184005d436bf",
             "requirements": ["M2 n8n service running on T480", "T480-local n8n API key file", "T16-to-T480 preflight passing"],
-            "mutating_commands": ["upsert-workflow", "activate-workflow"],
+            "mutating_commands": ["upsert-workflow", "activate-workflow", "run-live-file-test"],
         }
     elif args.command == "preflight":
         payload = preflight()
@@ -214,6 +224,9 @@ def main(argv: list[str] | None = None) -> int:
             raise SystemExit("--workflow-id is required for activate-workflow")
         response, result = api_request("POST", f"/workflows/{args.workflow_id}/activate")
         payload = {"tool_id": TOOL_ID, "workflow": response, "result": result, "ok": True}
+    elif args.command == "run-live-file-test":
+        response, result = run_live_file_test()
+        payload = {"tool_id": TOOL_ID, "file_test": response, "result": result, "ok": True}
     else:
         if not args.workflow_file:
             raise SystemExit("--workflow-file is required for upsert-workflow")

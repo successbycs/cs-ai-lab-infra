@@ -22,3 +22,7 @@ python3 scripts/n8n_adapter.py upsert-workflow --workflow-file n8n/workflows/<wo
 ```
 
 The adapter logs only timestamps, result metadata, and output hashes to ignored `.n8n-execution.local.jsonl`. A workflow is not proven by the log or its import result: the operator must observe an actual workflow execution and capture its raw evidence bundle.
+
+## Live file-write test
+
+`workflows/live-file-write-test.json` is a bounded smoke test. It accepts only a private loopback POST, creates a timestamped random-text file, and writes it only to `/home/node/.n8n-files/n8n-live-test.txt`. That location is backed by the dedicated `n8n_files` named volume. The governed `run-live-file-test` adapter command requires explicit approval and independently checks that the file is non-empty.

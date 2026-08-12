@@ -46,6 +46,7 @@ services:
       - "${N8N_BIND_ADDRESS}:5678:5678"
     volumes:
       - n8n_data:/home/node/.n8n
+      - n8n_files:/home/node/.n8n-files
     networks:
       - internal
     healthcheck:
@@ -79,4 +80,5 @@ networks:
 volumes:
   postgres_data:
   n8n_data:
+  n8n_files:
   ollama_models:
