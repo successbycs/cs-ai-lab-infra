@@ -63,6 +63,18 @@
       "execution": "adapter_owned"
     },
     {
+      "id": "ollama_embeddings_status",
+      "purpose": "Inspect the private Ollama container and its locally installed embedding models.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "ollama_embeddings_install",
+      "purpose": "Start the private Ollama service and install the approved bge-m3 and mxbai-embed-large embedding models into its persistent model volume.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
       "id": "m2_preflight",
       "purpose": "Inspect T480 Ubuntu capacity, Docker, the intended deployment path, and existing lab containers before M2 deployment.",
       "approval_required": false,

@@ -122,6 +122,34 @@ OPERATIONS: dict[str, dict[str, Any]] = {
         "approval_required": True,
         "wsl_script": "set -euo pipefail\ndocker run --rm hello-world\n",
     },
+    "ollama_embeddings_status": {
+        "approval_required": False,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "cd /home/chris/projects/cs-ai-lab-infra\n"
+            "echo ---ollama-container---\n"
+            "docker compose --profile ollama ps ollama\n"
+            "if docker compose --profile ollama ps --status running --services | grep -qx ollama; then\n"
+            "  echo ---ollama-models---\n"
+            "  docker compose exec -T ollama ollama list\n"
+            "else\n"
+            "  echo ollama-not-running\n"
+            "fi\n"
+        ),
+    },
+    "ollama_embeddings_install": {
+        "approval_required": True,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "cd /home/chris/projects/cs-ai-lab-infra\n"
+            "docker compose --profile ollama config --quiet\n"
+            "docker compose --profile ollama pull ollama\n"
+            "docker compose --profile ollama up -d --wait --wait-timeout 180 ollama\n"
+            "docker compose exec -T ollama ollama pull bge-m3\n"
+            "docker compose exec -T ollama ollama pull mxbai-embed-large\n"
+            "docker compose exec -T ollama ollama list\n"
+        ),
+    },
     "m2_preflight": {
         "approval_required": False,
         "wsl_script": (

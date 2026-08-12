@@ -17,6 +17,17 @@ docker compose exec ollama ollama pull <chosen-model>
 
 This keeps model files in the `ollama_models` named volume and makes the service available to other Compose services at `http://ollama:11434`. It is isolated and portable, but native host operation is the more straightforward initial learning path.
 
+## Approved first embedding models
+
+The first local retrieval evaluation uses these two models:
+
+- `bge-m3` — BGE retrieval candidate available through the supported Ollama catalogue.
+- `mxbai-embed-large` — a stronger retrieval-quality candidate, at the cost of more CPU time.
+
+They share the single `ollama_models` named volume. A Docker volume belongs to the Ollama runtime, not to an individual model: it persists both downloaded models when the Ollama container is recreated. Do not create separate volumes for each model unless an explicit isolation or retention requirement emerges.
+
+On the T480, the governed adapter operation `ollama_embeddings_install` starts the private Compose service and pulls exactly these models. It does not publish an Ollama port to the host or network.
+
 ## T480 expectations
 
 The 16 GB RAM, CPU-only T480 is best for small, quantised models and embedding workloads. Start with roughly 2–4B parameter models in a suitable quantisation, then measure actual latency and memory use. Quantisation stores weights with fewer bits, reducing RAM and often improving CPU practicality at some potential quality cost. Treat embedding and reranking models as separate, task-specific choices.
