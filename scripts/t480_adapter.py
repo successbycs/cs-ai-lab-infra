@@ -142,6 +142,9 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "else\n"
             "  echo not-running\n"
             "fi\n"
+            "echo ---installation-log---\n"
+            "test -f /home/chris/.local/state/cs-ai-lab/ollama-embeddings-install.log && "
+            "tail -n 40 /home/chris/.local/state/cs-ai-lab/ollama-embeddings-install.log || echo absent\n"
         ),
     },
     "ollama_embeddings_install": {
@@ -152,6 +155,7 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "state_dir=/home/chris/.local/state/cs-ai-lab\n"
             "mkdir -p \"$state_dir\"\n"
             "job_pid_file=\"$state_dir/ollama-embeddings-install.pid\"\n"
+            "job_log_file=\"$state_dir/ollama-embeddings-install.log\"\n"
             "if [ -f \"$job_pid_file\" ] && kill -0 \"$(cat \"$job_pid_file\")\" 2>/dev/null; then\n"
             "  echo ollama-embeddings-install-already-running\n"
             "  exit 0\n"
@@ -161,7 +165,7 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "docker compose --profile ollama up -d --wait --wait-timeout 180 ollama; "
             "docker compose exec -T ollama ollama pull bge-m3; "
             "docker compose exec -T ollama ollama pull mxbai-embed-large' "
-            ">/dev/null 2>&1 &\n"
+            ">\"$job_log_file\" 2>&1 &\n"
             "echo $! > \"$job_pid_file\"\n"
             "echo ollama-embeddings-install-started\n"
         ),
