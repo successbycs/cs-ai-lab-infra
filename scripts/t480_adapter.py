@@ -288,6 +288,15 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "docker compose ps -a\n"
         ),
     },
+    "lab_services_start": {
+        "approval_required": True,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "cd /home/chris/projects/cs-ai-lab-infra\n"
+            "docker compose up -d --wait --wait-timeout 180 n8n\n"
+            "docker compose ps n8n postgres\n"
+        ),
+    },
     "m2_latest_evidence_manifest": {
         "approval_required": False,
         "wsl_script": (

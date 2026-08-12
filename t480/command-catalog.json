@@ -117,6 +117,12 @@
       "execution": "adapter_owned"
     },
     {
+      "id": "lab_services_start",
+      "purpose": "Start the existing private PostgreSQL and n8n Compose services and wait for their health checks.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
       "id": "m2_latest_evidence_manifest",
       "purpose": "Verify the newest T480 M2 evidence bundle and return its manifest fingerprint.",
       "approval_required": false,
