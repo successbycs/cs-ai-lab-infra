@@ -39,6 +39,9 @@ class N8nAdapterTests(unittest.TestCase):
         self.assertIn("sha256sum", script)
         self.assertNotIn("n8n-api-key", script.split("key_file=")[0])
 
+    def test_parser_accepts_deactivation(self):
+        self.assertEqual(n8n_adapter.parser().parse_args(["deactivate-workflow", "--workflow-id", "test"]).command, "deactivate-workflow")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -225,7 +225,7 @@ def append_log(command: str, approved: bool, payload: dict[str, Any]) -> None:
 
 def parser() -> argparse.ArgumentParser:
     command_parser = argparse.ArgumentParser(description="Governed n8n adapter for the T480 lab.")
-    command_parser.add_argument("command", choices=["describe-requirements", "preflight", "list-workflows", "upsert-workflow", "activate-workflow", "get-execution", "run-live-file-test"])
+    command_parser.add_argument("command", choices=["describe-requirements", "preflight", "list-workflows", "upsert-workflow", "activate-workflow", "deactivate-workflow", "get-execution", "run-live-file-test"])
     command_parser.add_argument("--workflow-file")
     command_parser.add_argument("--workflow-id")
     command_parser.add_argument("--activate", action="store_true")
@@ -235,7 +235,7 @@ def parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
-    mutating = args.command in {"upsert-workflow", "activate-workflow", "run-live-file-test"}
+    mutating = args.command in {"upsert-workflow", "activate-workflow", "deactivate-workflow", "run-live-file-test"}
     if mutating and not args.approve:
         raise PermissionError(f"{args.command} requires --approve after explicit operator approval.")
     if args.command == "describe-requirements":
@@ -243,7 +243,7 @@ def main(argv: list[str] | None = None) -> int:
             "tool_id": TOOL_ID,
             "source": "Autonomous-Framework operational n8n adapter at 174226df8bec1407d8e4b2aab48f184005d436bf",
             "requirements": ["M2 n8n service running on T480", "T480-local n8n API key file", "T16-to-T480 preflight passing"],
-            "mutating_commands": ["upsert-workflow", "activate-workflow", "run-live-file-test"],
+            "mutating_commands": ["upsert-workflow", "activate-workflow", "deactivate-workflow", "run-live-file-test"],
         }
     elif args.command == "preflight":
         payload = preflight()
@@ -259,6 +259,11 @@ def main(argv: list[str] | None = None) -> int:
         if not args.workflow_id:
             raise SystemExit("--workflow-id is required for activate-workflow")
         response, result = api_request("POST", f"/workflows/{args.workflow_id}/activate")
+        payload = {"tool_id": TOOL_ID, "workflow": response, "result": result, "ok": True}
+    elif args.command == "deactivate-workflow":
+        if not args.workflow_id:
+            raise SystemExit("--workflow-id is required for deactivate-workflow")
+        response, result = api_request("POST", f"/workflows/{args.workflow_id}/deactivate")
         payload = {"tool_id": TOOL_ID, "workflow": response, "result": result, "ok": True}
     elif args.command == "run-live-file-test":
         response, result = run_live_file_test()
