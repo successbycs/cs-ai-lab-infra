@@ -785,7 +785,7 @@ OPERATIONS: dict[str, dict[str, Any]] = {
         "wsl_script": (
             "set -euo pipefail\n"
             f"cd '{TRANSCRIBER_ROOT}'\n"
-            "mapfile -t containers < <(docker compose --profile transcribe ps -q transcriber)\n"
+            "mapfile -t containers < <(docker ps -q --filter 'label=com.docker.compose.project=mp4-to-transcript' --filter 'label=com.docker.compose.service=transcriber')\n"
             "if (( ${#containers[@]} != 2 )); then printf 'Refusing duplicate cancellation: expected exactly two transcriber containers, found %s.\\n' \"${#containers[@]}\" >&2; exit 4; fi\n"
             "newest=\"$(docker inspect --format '{{.Created}} {{.Id}}' \"${containers[@]}\" | sort | tail -n 1 | awk '{print $2}')\"\n"
             "docker stop \"$newest\" >/dev/null\n"
