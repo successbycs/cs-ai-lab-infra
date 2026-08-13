@@ -13,3 +13,7 @@ The governed `startup_enable` T480 operation creates a Windows Scheduled Task na
 The active Windows Balanced plan is configured on AC power with sleep and timed hibernation disabled, plus a no-action lid-close policy. The fixed `power_policy_status` adapter operation reads these settings; `power_policy_ac_always_on` applies them with explicit approval. Battery settings are deliberately unchanged. This prevents normal AC idle or lid use from stopping WSL and Docker, but it does not provide unattended recovery after a Windows restart. That requires the boot-triggered Local System task defined in M5; the current task is sign-in triggered.
 
 `./scripts/update.sh` pulls and verifies the deliberately pinned images; it does not restart services. To upgrade, first edit `compose.yaml` to a reviewed version tag and matching digest, then run the script and `docker compose up -d` when ready. Back up PostgreSQL before impactful updates with `./scripts/backup.sh`.
+
+## On-demand MP4 transcription
+
+The MP4 transcriber is intentionally separate from this Compose stack. Its governed adapter workflow is documented in [the T480 operations contract](../t480/README.md#mp4-transcription-folder-flow). It uses no shared PostgreSQL, n8n, or Ollama service and creates no persistent transcription worker. The only durable state is its private model cache and the review artefacts produced for a requested video.

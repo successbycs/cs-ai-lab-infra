@@ -14,6 +14,7 @@ import base64
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -26,6 +27,9 @@ TOOL_ID = "t480_wsl_lab"
 SSH_TARGET_ENV = "T480_SSH_TARGET"
 LOCAL_CONFIG_PATH = Path(__file__).resolve().parent.parent / ".env.t480.local"
 EXECUTION_LOG_PATH = Path(__file__).resolve().parent.parent / ".t480-execution.local.jsonl"
+TRANSCRIBER_ROOT = "/home/chris/projects/mp4-to-transcript"
+TRANSCRIBER_INCOMING = f"{TRANSCRIBER_ROOT}/incoming"
+PORTABLE_MP4_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9 ._-]*\.mp4", re.IGNORECASE)
 
 DOCKER_INSTALL_SCRIPT = """set -euo pipefail
 apt-get update
@@ -565,6 +569,84 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "sha256sum \"$bundle_path/SHA256SUMS\"\n"
         ),
     },
+    "transcription_preflight": {
+        "approval_required": False,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            f"repository_root='{TRANSCRIBER_ROOT}'\n"
+            "test -f \"$repository_root/compose.yaml\" || { printf 'Transcriber repository is absent on the T480.\\n' >&2; exit 4; }\n"
+            "test -f \"$repository_root/.env\" || { printf 'Transcriber .env is absent on the T480.\\n' >&2; exit 4; }\n"
+            "test -d \"$repository_root/incoming\" || { printf 'Transcriber incoming directory is absent.\\n' >&2; exit 4; }\n"
+            "test -d \"$repository_root/outputs\" || { printf 'Transcriber output directory is absent.\\n' >&2; exit 4; }\n"
+            "cd \"$repository_root\"\n"
+            "docker compose --profile transcribe config --quiet\n"
+            "if docker image inspect mp4-to-transcript-transcriber >/dev/null 2>&1; then printf 'transcriber_image=present\\n'; else printf 'transcriber_image=not_present; submit will build it on demand\\n'; fi\n"
+            "printf 'incoming_count=%s\\n' \"$(find \"$repository_root/incoming\" -maxdepth 1 -type f -iname '*.mp4' -printf . | wc -c)\"\n"
+            "printf 'transcriber_preflight=ok\\n'\n"
+        ),
+    },
+    "transcription_deploy": {
+        "approval_required": True,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            f"repository_root='{TRANSCRIBER_ROOT}'\n"
+            "repository_parent='/home/chris/projects'\n"
+            "repository_url='https://github.com/successbycs/mp4-to-transcript.git'\n"
+            "mkdir -p \"$repository_parent\"\n"
+            "if [[ -d \"$repository_root/.git\" ]]; then\n"
+            "  cd \"$repository_root\"\n"
+            "  git diff --quiet && git diff --cached --quiet && test -z \"$(git status --porcelain --untracked-files=normal)\" || { printf 'Refusing deploy: transcriber checkout is not clean.\\n' >&2; exit 4; }\n"
+            "  git fetch origin main\n"
+            "  git merge --ff-only origin/main\n"
+            "else\n"
+            "  test ! -e \"$repository_root\" || { printf 'Refusing deploy: transcriber path exists but is not a Git checkout.\\n' >&2; exit 4; }\n"
+            "  git clone \"$repository_url\" \"$repository_root\"\n"
+            "  cd \"$repository_root\"\n"
+            "fi\n"
+            "test -f .env || cp .env.example .env\n"
+            "mkdir -p incoming outputs\n"
+            "docker compose --profile transcribe build\n"
+            "git rev-parse HEAD\n"
+            "printf 'transcriber_deploy=ok\\n'\n"
+        ),
+    },
+    "transcription_prepare": {
+        "approval_required": True,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            f"repository_root='{TRANSCRIBER_ROOT}'\n"
+            "test -f \"$repository_root/compose.yaml\" || { printf 'Transcriber repository is absent on the T480.\\n' >&2; exit 4; }\n"
+            "mkdir -p \"$repository_root/incoming\" \"$repository_root/outputs\"\n"
+            "cd \"$repository_root\"\n"
+            "docker compose --profile transcribe build\n"
+            "printf 'transcriber_prepared=ok\\n'\n"
+        ),
+    },
+    "transcription_model_prefetch": {
+        "approval_required": True,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            f"cd '{TRANSCRIBER_ROOT}'\n"
+            "docker compose --profile transcribe run --rm --entrypoint python -e WHISPER_LOCAL_FILES_ONLY=false transcriber -c \"from faster_whisper import WhisperModel; WhisperModel('base', device='cpu', compute_type='int8', download_root='/data/model-cache', local_files_only=False, cpu_threads=4, num_workers=1); print('transcription_model_cache=base-int8-ready')\"\n"
+        ),
+    },
+    "transcription_process_next": {
+        "approval_required": True,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            f"repository_root='{TRANSCRIBER_ROOT}'\n"
+            "cd \"$repository_root\"\n"
+            "shopt -s nullglob\n"
+            "files=(incoming/*.mp4 incoming/*.MP4)\n"
+            "if (( ${#files[@]} == 0 )); then printf 'transcription_queue=empty\\n'; exit 0; fi\n"
+            "input_file=\"${files[0]}\"\n"
+            "input_name=\"${input_file##*/}\"\n"
+            "printf 'transcription_input=%s\\n' \"$input_name\"\n"
+            "TRANSCRIPT_INPUT_DIR=./incoming docker compose --profile transcribe run --rm transcriber transcribe \"/input/$input_name\"\n"
+            "rm -- \"$input_file\"\n"
+            "printf 'transcription_input_removed_after_success=%s\\n' \"$input_name\"\n"
+        ),
+    },
     "docker_install": {
         "approval_required": True,
         "wsl_script": DOCKER_INSTALL_SCRIPT,
@@ -754,10 +836,83 @@ def verify(operation_id: str) -> dict[str, Any]:
     return payload
 
 
+def local_path_from_windows_folder(value: str) -> Path:
+    """Accept a Windows Explorer path when this adapter is called from WSL."""
+    match = re.fullmatch(r"([A-Za-z]):[\\/](.*)", value)
+    if match:
+        return Path("/mnt") / match.group(1).lower() / match.group(2).replace("\\", "/")
+    return Path(value)
+
+
+def windows_path(value: Path) -> str:
+    resolved = value.resolve()
+    parts = resolved.parts
+    if len(parts) >= 3 and parts[0] == "/" and parts[1] == "mnt" and len(parts[2]) == 1:
+        return f"{parts[2].upper()}:\\" + "\\".join(parts[3:])
+    raise ValueError("Source folder must be a Windows drive path (for example C:\\Users\\chris\\Videos).")
+
+
+def powershell_quote(value: str) -> str:
+    return "'" + value.replace("'", "''") + "'"
+
+
+def upload_mp4(target: str, source: Path) -> dict[str, Any]:
+    source_windows = windows_path(source)
+    remote_destination = f"{target}:{TRANSCRIBER_INCOMING}/"
+    command = (
+        "$ErrorActionPreference = 'Stop'; "
+        f"& scp.exe -B -o BatchMode=yes -o StrictHostKeyChecking=yes -- {powershell_quote(source_windows)} "
+        f"{powershell_quote(remote_destination)}; "
+        "if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }"
+    )
+    encoded = base64.b64encode(command.encode("utf-16-le")).decode("ascii")
+    return run_command(["powershell.exe", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded])
+
+
+def submit_transcription_folder(source_folder: str, approved: bool) -> dict[str, Any]:
+    """Serially submit direct MP4 files to the fixed private T480 inbox."""
+    if not approved:
+        raise PermissionError("submit-transcription-folder requires --approve after explicit operator approval.")
+    folder = local_path_from_windows_folder(source_folder)
+    if not folder.is_dir():
+        raise RuntimeError(f"Source folder does not exist or is not a folder: {source_folder}")
+    files = sorted(path for path in folder.iterdir() if path.is_file() and path.suffix.lower() == ".mp4")
+    if not files:
+        raise RuntimeError("No direct .mp4 files found in the source folder.")
+    unsafe = [path.name for path in files if not PORTABLE_MP4_NAME.fullmatch(path.name)]
+    if unsafe:
+        raise RuntimeError("Rename MP4 files to use only letters, numbers, spaces, dots, underscores, and hyphens: " + ", ".join(unsafe))
+
+    prepared = execute("transcription_prepare", approved=True)
+    if not prepared["result"]["ok"]:
+        return {"tool_id": TOOL_ID, "operation": "transcription_folder_submission", "approval_required": True, "approved": True, "prepare": prepared, "files": [], "ok": False}
+    preflight_result = execute("transcription_preflight", approved=False)
+    if not preflight_result["result"]["ok"]:
+        return {"tool_id": TOOL_ID, "operation": "transcription_folder_submission", "approval_required": True, "approved": True, "preflight": preflight_result, "files": [], "ok": False}
+    if "incoming_count=0" not in preflight_result["result"]["stdout"]:
+        raise RuntimeError("T480 transcription inbox is not empty; resolve its prior job before submitting another folder.")
+
+    processed: list[dict[str, Any]] = []
+    target = configured_target()
+    for source in files:
+        transfer = upload_mp4(target, source)
+        entry: dict[str, Any] = {"filename": source.name, "transfer": transfer}
+        if not transfer["ok"]:
+            processed.append(entry)
+            return {"tool_id": TOOL_ID, "operation": "transcription_folder_submission", "approval_required": True, "approved": True, "files": processed, "ok": False}
+        run = execute("transcription_process_next", approved=True)
+        entry["transcription"] = run
+        processed.append(entry)
+        if not run["result"]["ok"]:
+            return {"tool_id": TOOL_ID, "operation": "transcription_folder_submission", "approval_required": True, "approved": True, "files": processed, "ok": False}
+    return {"tool_id": TOOL_ID, "operation": "transcription_folder_submission", "approval_required": True, "approved": True, "files": processed, "ok": True}
+
+
 def parser() -> argparse.ArgumentParser:
     command_parser = argparse.ArgumentParser(description="Governed SSH/WSL adapter for the T480 AI Lab.")
-    command_parser.add_argument("command", choices=["describe-requirements", "preflight", "execute", "verify"])
+    command_parser.add_argument("command", choices=["describe-requirements", "preflight", "execute", "verify", "submit-transcription-folder"])
     command_parser.add_argument("--operation", choices=sorted(OPERATIONS), help="Fixed operation identifier.")
+    command_parser.add_argument("--source-folder", help="Windows Explorer folder containing direct MP4 files; accepted only by submit-transcription-folder.")
     command_parser.add_argument("--approve", action="store_true", help="Record explicit approval for a mutating operation.")
     return command_parser
 
@@ -769,6 +924,10 @@ def main(argv: list[str] | None = None) -> int:
         payload = requirements()
     elif args.command == "preflight":
         payload = preflight()
+    elif args.command == "submit-transcription-folder":
+        if not args.source_folder:
+            raise SystemExit("--source-folder is required for submit-transcription-folder")
+        payload = submit_transcription_folder(args.source_folder, args.approve)
     else:
         if not args.operation:
             raise SystemExit("--operation is required for execute and verify")

@@ -2,7 +2,7 @@
 
 This directory defines the fixed operations that a remote automation client may perform against the T480 AI Lab.
 
-It is deliberately **not** a general remote-shell interface. The catalog and `../scripts/t480_adapter.py` contain a fixed allowlist; neither accepts a shell command, script, or command arguments. Mutating operations require explicit approval.
+It is deliberately **not** a general remote-shell interface. The catalog and `../scripts/t480_adapter.py` contain a fixed allowlist; neither accepts a shell command, script, or arbitrary remote command arguments. `submit-transcription-folder` is the narrow exception for an explicitly operator-selected local Windows folder: its implementation accepts that one local path, transfers only direct portable-name MP4 files to a fixed private inbox, and invokes only fixed adapter operations. Mutating operations require explicit approval.
 
 This MVP adopts the Autonomous Framework's adapter and tool-registry conventions. It is not yet an Autonomous Framework backport. Connection details belong in environment variables or SSH configuration, never in this repository.
 
@@ -42,7 +42,25 @@ This MVP adopts the Autonomous Framework's adapter and tool-registry conventions
 - `repository_update` — fast-forward a clean existing T480 checkout to `origin/main`; requires explicit approval.
 - `m3_recovery_proof` — run the isolated M3 synthetic database backup and restore drill; requires explicit approval.
 - `m3_latest_evidence_manifest` — reverify the newest M3 recovery evidence bundle and return its fingerprint.
+- `transcription_preflight` — inspect the fixed private MP4 transcriber checkout, cache/image readiness, and transient inbox state.
+- `transcription_deploy` — clone or fast-forward the fixed private transcriber checkout, create local-only directories, and build its CPU-only image; requires explicit approval.
+- `transcription_prepare` — rebuild the fixed private transcriber image and local-only directories if necessary; requires explicit approval.
+- `transcription_model_prefetch` — explicitly cache the approved faster-whisper `base` model locally without handling media; requires explicit approval.
+- `transcription_process_next` — process exactly one queued MP4 through the fixed one-shot worker and remove only its successful temporary inbox copy; requires explicit approval.
 - `docker_install` — install Docker Engine and Compose; requires explicit approval.
+
+## MP4 transcription folder flow
+
+The transcriber is a separate private repository at `/home/chris/projects/mp4-to-transcript`; it does not join, start, or duplicate this lab's PostgreSQL, n8n, or Ollama services. Its CPU-only container starts only for one requested video and exits after that job.
+
+After `transcription_deploy`, `transcription_model_prefetch`, and a successful `transcription_preflight`, an operator may submit a Windows Explorer folder:
+
+```bash
+python3 scripts/t480_adapter.py submit-transcription-folder \
+  --source-folder 'C:\Users\chris\Videos\To Transcribe' --approve
+```
+
+The adapter uses the existing Windows OpenSSH client, key authentication, and strict host-key checking. It sorts direct MP4 files by filename; uploads one to the fixed T480 inbox; invokes `transcription_process_next`; and continues only after success. The Windows originals are neither moved nor deleted. A failed inbox copy remains on the T480 and blocks later batches until intentionally recovered. The review artefacts remain on the T480; no arbitrary download path is enabled.
 
 ## MVP adapter
 

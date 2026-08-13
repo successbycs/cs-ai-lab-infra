@@ -237,6 +237,36 @@
       "execution": "adapter_owned"
     },
     {
+      "id": "transcription_preflight",
+      "purpose": "Inspect the fixed private MP4 transcription checkout, its local configuration, built image, and whether its temporary inbox is empty.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "transcription_deploy",
+      "purpose": "Clone or fast-forward the fixed MP4 transcription repository, create local-only configuration and transient directories, and build its CPU-only image; requires explicit approval.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "transcription_prepare",
+      "purpose": "Build the fixed private MP4 transcription image and create its private transient inbox and output directories; requires explicit approval.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "transcription_model_prefetch",
+      "purpose": "Explicitly download only the approved faster-whisper base model into the private persistent T480 cache, without handling any media; requires explicit approval.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "transcription_process_next",
+      "purpose": "Run exactly one lexically first MP4 from the fixed private transcription inbox through the fixed one-shot CPU worker, then remove only that successful temporary inbox copy; requires explicit approval.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
       "id": "docker_install",
       "purpose": "Install Docker Engine and the Compose plugin in Ubuntu, then grant the fixed Ubuntu user Docker access.",
       "approval_required": true,
