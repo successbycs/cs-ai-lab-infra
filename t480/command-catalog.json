@@ -261,6 +261,12 @@
       "execution": "adapter_owned"
     },
     {
+      "id": "transcription_export_prepare",
+      "purpose": "Copy only completed review-required transcription job folders to the fixed private T480 Windows export directory for governed retrieval; requires explicit approval.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
       "id": "transcription_deploy",
       "purpose": "Clone or fast-forward the fixed MP4 transcription repository, create local-only configuration and transient directories, and build its CPU-only image; requires explicit approval.",
       "approval_required": true,

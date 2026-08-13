@@ -31,6 +31,9 @@ TRANSCRIBER_ROOT = "/home/chris/projects/mp4-to-transcript"
 TRANSCRIBER_INCOMING = f"{TRANSCRIBER_ROOT}/incoming"
 TRANSCRIBER_WINDOWS_STAGING = "C:/Users/chris/TranscriptionInbox"
 TRANSCRIBER_WSL_STAGING = "/mnt/c/Users/chris/TranscriptionInbox"
+TRANSCRIBER_WINDOWS_EXPORT = "C:/Users/chris/TranscriptionExports"
+TRANSCRIBER_WSL_EXPORT = "/mnt/c/Users/chris/TranscriptionExports"
+TRANSCRIBER_LOCAL_EXPORT = Path("/mnt/c/Users/chris/Videos/Transcripts")
 # The name is passed as a quoted data argument at every boundary; allow normal
 # Windows Explorer duplicate suffixes such as "Lesson (1).mp4".
 PORTABLE_MP4_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9 ._()\-]*\.mp4", re.IGNORECASE)
@@ -650,6 +653,34 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "PY\n"
         ),
     },
+    "transcription_export_prepare": {
+        "approval_required": True,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            f"cd '{TRANSCRIBER_ROOT}'\n"
+            f"export_root='{TRANSCRIBER_WSL_EXPORT}'\n"
+            "mkdir -p \"$export_root\"\n"
+            "python3 - \"$export_root\" <<'PY'\n"
+            "import json\n"
+            "import shutil\n"
+            "import sys\n"
+            "from pathlib import Path\n"
+            "export_root = Path(sys.argv[1])\n"
+            "exported = []\n"
+            "for metadata_path in sorted(Path('outputs').glob('*/job.json')):\n"
+            "    try:\n"
+            "        job = json.loads(metadata_path.read_text())\n"
+            "    except (OSError, json.JSONDecodeError):\n"
+            "        continue\n"
+            "    if job.get('status') != 'REVIEW_REQUIRED':\n"
+            "        continue\n"
+            "    destination = export_root / metadata_path.parent.name\n"
+            "    shutil.copytree(metadata_path.parent, destination, dirs_exist_ok=True)\n"
+            "    exported.append(metadata_path.parent.name)\n"
+            "print(json.dumps({'prepared_review_jobs': exported}))\n"
+            "PY\n"
+        ),
+    },
     "transcription_deploy": {
         "approval_required": True,
         "wsl_script": (
@@ -1007,9 +1038,29 @@ def submit_transcription_folder(source_folder: str, approved: bool) -> dict[str,
     return {"tool_id": TOOL_ID, "operation": "transcription_folder_submission", "approval_required": True, "approved": True, "files": processed, "skipped_completed": len(candidates) - len(files), "ok": True}
 
 
+def pull_transcription_outputs(approved: bool) -> dict[str, Any]:
+    """Copy only completed review artefacts to the fixed local Windows folder."""
+    if not approved:
+        raise PermissionError("pull-transcription-outputs requires --approve after explicit operator approval.")
+    prepared = execute("transcription_export_prepare", approved=True)
+    if not prepared["result"]["ok"]:
+        return {"tool_id": TOOL_ID, "operation": "transcription_output_pull", "approval_required": True, "approved": True, "prepare": prepared, "ok": False}
+    destination_windows = windows_path(TRANSCRIBER_LOCAL_EXPORT)
+    remote_source = f"{configured_target()}:{TRANSCRIBER_WINDOWS_EXPORT}/."
+    command = (
+        "$ErrorActionPreference = 'Stop'; "
+        f"New-Item -ItemType Directory -Force -Path {powershell_quote(destination_windows)} | Out-Null; "
+        f"& scp.exe -B -r -o BatchMode=yes -o StrictHostKeyChecking=yes -- {powershell_quote(remote_source)} {powershell_quote(destination_windows)}; "
+        "if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }"
+    )
+    encoded = base64.b64encode(command.encode("utf-16-le")).decode("ascii")
+    transfer = run_command(["powershell.exe", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded])
+    return {"tool_id": TOOL_ID, "operation": "transcription_output_pull", "approval_required": True, "approved": True, "prepare": prepared, "transfer": transfer, "destination": str(TRANSCRIBER_LOCAL_EXPORT), "ok": transfer["ok"]}
+
+
 def parser() -> argparse.ArgumentParser:
     command_parser = argparse.ArgumentParser(description="Governed SSH/WSL adapter for the T480 AI Lab.")
-    command_parser.add_argument("command", choices=["describe-requirements", "preflight", "execute", "verify", "submit-transcription-folder"])
+    command_parser.add_argument("command", choices=["describe-requirements", "preflight", "execute", "verify", "submit-transcription-folder", "pull-transcription-outputs"])
     command_parser.add_argument("--operation", choices=sorted(OPERATIONS), help="Fixed operation identifier.")
     command_parser.add_argument("--source-folder", help="Windows Explorer folder containing direct MP4 files; accepted only by submit-transcription-folder.")
     command_parser.add_argument("--approve", action="store_true", help="Record explicit approval for a mutating operation.")
@@ -1027,6 +1078,8 @@ def main(argv: list[str] | None = None) -> int:
         if not args.source_folder:
             raise SystemExit("--source-folder is required for submit-transcription-folder")
         payload = submit_transcription_folder(args.source_folder, args.approve)
+    elif args.command == "pull-transcription-outputs":
+        payload = pull_transcription_outputs(args.approve)
     else:
         if not args.operation:
             raise SystemExit("--operation is required for execute and verify")
