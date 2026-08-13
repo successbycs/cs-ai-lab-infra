@@ -29,7 +29,9 @@ LOCAL_CONFIG_PATH = Path(__file__).resolve().parent.parent / ".env.t480.local"
 EXECUTION_LOG_PATH = Path(__file__).resolve().parent.parent / ".t480-execution.local.jsonl"
 TRANSCRIBER_ROOT = "/home/chris/projects/mp4-to-transcript"
 TRANSCRIBER_INCOMING = f"{TRANSCRIBER_ROOT}/incoming"
-PORTABLE_MP4_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9 ._-]*\.mp4", re.IGNORECASE)
+# The name is passed as a quoted data argument at every boundary; allow normal
+# Windows Explorer duplicate suffixes such as "Lesson (1).mp4".
+PORTABLE_MP4_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9 ._()\-]*\.mp4", re.IGNORECASE)
 
 DOCKER_INSTALL_SCRIPT = """set -euo pipefail
 apt-get update
