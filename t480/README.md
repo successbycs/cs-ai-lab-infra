@@ -52,6 +52,7 @@ This MVP adopts the Autonomous Framework's adapter and tool-registry conventions
 - `transcription_windows_staging_prepare` — verify the fixed private Windows OpenSSH staging directory is empty before a media transfer; requires explicit approval.
 - `transcription_model_prefetch` — explicitly cache the approved faster-whisper `base` model locally without handling media; requires explicit approval.
 - `transcription_process_next` — process exactly one queued MP4 through the fixed one-shot worker and remove only its successful temporary inbox copy; requires explicit approval.
+- `transcription_process_existing_inbox` — recover exactly one retained inbox MP4 after an interrupted submission; requires explicit approval.
 - `docker_install` — install Docker Engine and Compose; requires explicit approval.
 
 ## MP4 transcription folder flow

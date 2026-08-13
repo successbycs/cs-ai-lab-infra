@@ -764,6 +764,22 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "printf 'transcription_input_removed_after_success=%s\\n' \"$input_name\"\n"
         ),
     },
+    "transcription_process_existing_inbox": {
+        "approval_required": True,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            f"cd '{TRANSCRIBER_ROOT}'\n"
+            "shopt -s nullglob\n"
+            "files=(incoming/*.mp4 incoming/*.MP4)\n"
+            "if (( ${#files[@]} != 1 )); then printf 'Expected exactly one retained inbox MP4; found %s.\\n' \"${#files[@]}\" >&2; exit 4; fi\n"
+            "input_file=\"${files[0]}\"\n"
+            "input_name=\"${input_file##*/}\"\n"
+            "printf 'transcription_recovery_input=%s\\n' \"$input_name\"\n"
+            "TRANSCRIPT_INPUT_DIR=./incoming docker compose --profile transcribe run --rm transcriber transcribe \"/input/$input_name\"\n"
+            "rm -- \"$input_file\"\n"
+            "printf 'transcription_recovery_input_removed_after_success=%s\\n' \"$input_name\"\n"
+        ),
+    },
     "docker_install": {
         "approval_required": True,
         "wsl_script": DOCKER_INSTALL_SCRIPT,
