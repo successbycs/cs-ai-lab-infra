@@ -780,6 +780,34 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "printf 'transcription_recovery_input_removed_after_success=%s\\n' \"$input_name\"\n"
         ),
     },
+    "transcription_cancel_newest_duplicate": {
+        "approval_required": True,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            f"cd '{TRANSCRIBER_ROOT}'\n"
+            "mapfile -t containers < <(docker compose --profile transcribe ps -q transcriber)\n"
+            "if (( ${#containers[@]} != 2 )); then printf 'Refusing duplicate cancellation: expected exactly two transcriber containers, found %s.\\n' \"${#containers[@]}\" >&2; exit 4; fi\n"
+            "newest=\"$(docker inspect --format '{{.Created}} {{.Id}}' \"${containers[@]}\" | sort | tail -n 1 | awk '{print $2}')\"\n"
+            "docker stop \"$newest\" >/dev/null\n"
+            "python3 - <<'PY'\n"
+            "import json\n"
+            "from datetime import datetime, timezone\n"
+            "from pathlib import Path\n"
+            "running = []\n"
+            "for path in Path('outputs').glob('*/job.json'):\n"
+            "    try: job = json.loads(path.read_text())\n"
+            "    except (OSError, json.JSONDecodeError): continue\n"
+            "    if job.get('status') == 'RUNNING': running.append((job.get('started_at', ''), path, job))\n"
+            "if len(running) < 2: raise SystemExit('Refusing metadata update: fewer than two RUNNING jobs found.')\n"
+            "_, path, job = sorted(running)[-1]\n"
+            "job['status'] = 'FAILED'\n"
+            "job['completed_at'] = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')\n"
+            "job['error_summary'] = 'Cancelled as the newer duplicate after interrupted recovery.'\n"
+            "path.write_text(json.dumps(job, indent=2, sort_keys=True) + '\\n')\n"
+            "print(json.dumps({'cancelled_duplicate_job_id': job['job_id']}))\n"
+            "PY\n"
+        ),
+    },
     "docker_install": {
         "approval_required": True,
         "wsl_script": DOCKER_INSTALL_SCRIPT,
