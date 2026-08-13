@@ -589,6 +589,20 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "printf 'transcriber_preflight=ok\\n'\n"
         ),
     },
+    "transcription_diagnostics": {
+        "approval_required": False,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            f"cd '{TRANSCRIBER_ROOT}'\n"
+            "printf '%s\\n' '--- transcriber-containers ---'\n"
+            "docker compose --profile transcribe ps -a\n"
+            "printf '%s\\n' '--- inbox ---'\n"
+            "find incoming -maxdepth 1 -type f -iname '*.mp4' -printf '%f\\n' | sort\n"
+            "printf '%s\\n' '--- latest-job ---'\n"
+            "latest_job=\"$(find outputs -mindepth 2 -maxdepth 2 -name job.json -printf '%T@ %p\\n' | sort -nr | head -n 1 | cut -d' ' -f2-)\"\n"
+            "if [[ -n \"$latest_job\" ]]; then cat \"$latest_job\"; else printf 'no_job_metadata_yet\\n'; fi\n"
+        ),
+    },
     "transcription_deploy": {
         "approval_required": True,
         "wsl_script": (

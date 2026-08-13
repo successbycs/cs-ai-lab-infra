@@ -43,6 +43,7 @@ This MVP adopts the Autonomous Framework's adapter and tool-registry conventions
 - `m3_recovery_proof` — run the isolated M3 synthetic database backup and restore drill; requires explicit approval.
 - `m3_latest_evidence_manifest` — reverify the newest M3 recovery evidence bundle and return its fingerprint.
 - `transcription_preflight` — inspect the fixed private MP4 transcriber checkout, cache/image readiness, and transient inbox state.
+- `transcription_diagnostics` — inspect transcriber containers, inbox, and the latest job metadata after an interruption or failure.
 - `transcription_deploy` — clone or fast-forward the fixed private transcriber checkout, create local-only directories, and build its CPU-only image; requires explicit approval.
 - `transcription_prepare` — rebuild the fixed private transcriber image and local-only directories if necessary; requires explicit approval.
 - `transcription_windows_staging_prepare` — verify the fixed private Windows OpenSSH staging directory is empty before a media transfer; requires explicit approval.

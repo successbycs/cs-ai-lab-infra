@@ -243,6 +243,12 @@
       "execution": "adapter_owned"
     },
     {
+      "id": "transcription_diagnostics",
+      "purpose": "Inspect fixed transcriber container state, the private inbox, and the latest non-secret job metadata after a transcription interruption or failure.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
       "id": "transcription_deploy",
       "purpose": "Clone or fast-forward the fixed MP4 transcription repository, create local-only configuration and transient directories, and build its CPU-only image; requires explicit approval.",
       "approval_required": true,
