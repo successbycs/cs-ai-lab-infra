@@ -249,6 +249,18 @@
       "execution": "adapter_owned"
     },
     {
+      "id": "transcription_completed_hashes",
+      "purpose": "Return the SHA-256 values of successfully completed private transcription jobs so a folder submission can resume without duplicate work.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "transcription_cleanup_completed_inbox",
+      "purpose": "Remove only temporary T480 inbox copies whose SHA-256 exactly matches a successfully completed review-required job; requires explicit approval.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
       "id": "transcription_deploy",
       "purpose": "Clone or fast-forward the fixed MP4 transcription repository, create local-only configuration and transient directories, and build its CPU-only image; requires explicit approval.",
       "approval_required": true,

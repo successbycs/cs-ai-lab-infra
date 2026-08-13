@@ -44,6 +44,8 @@ This MVP adopts the Autonomous Framework's adapter and tool-registry conventions
 - `m3_latest_evidence_manifest` — reverify the newest M3 recovery evidence bundle and return its fingerprint.
 - `transcription_preflight` — inspect the fixed private MP4 transcriber checkout, cache/image readiness, and transient inbox state.
 - `transcription_diagnostics` — inspect transcriber containers, inbox, and the latest job metadata after an interruption or failure.
+- `transcription_completed_hashes` — inspect completed input SHA-256 values to make a resumed folder submission idempotent.
+- `transcription_cleanup_completed_inbox` — remove only temporary inbox copies that exactly match successfully completed job hashes; requires explicit approval.
 - `transcription_deploy` — clone or fast-forward the fixed private transcriber checkout, create local-only directories, and build its CPU-only image; requires explicit approval.
 - `transcription_prepare` — rebuild the fixed private transcriber image and local-only directories if necessary; requires explicit approval.
 - `transcription_windows_staging_prepare` — verify the fixed private Windows OpenSSH staging directory is empty before a media transfer; requires explicit approval.
@@ -62,7 +64,7 @@ python3 scripts/t480_adapter.py submit-transcription-folder \
   --source-folder 'C:\Users\chris\Videos\To Transcribe' --approve
 ```
 
-The adapter uses the existing Windows OpenSSH client, key authentication, and strict host-key checking. It sorts direct MP4 files by filename; uploads one to a fixed private Windows staging directory; moves that temporary copy into the fixed T480 inbox with a governed operation; invokes `transcription_process_next`; and continues only after success. The Windows originals are neither moved nor deleted. A failed inbox copy remains on the T480 and blocks later batches until intentionally recovered. The review artefacts remain on the T480; no arbitrary download path is enabled.
+The adapter uses the existing Windows OpenSSH client, key authentication, and strict host-key checking. It sorts direct MP4 files by filename; skips sources whose SHA-256 already has a successful T480 job; uploads one to a fixed private Windows staging directory; moves that temporary copy into the fixed T480 inbox with a governed operation; invokes `transcription_process_next`; and continues only after success. The Windows originals are neither moved nor deleted. If a remote session ends between jobs, a later submission safely resumes from the first source whose SHA-256 lacks a successful job. Temporary inbox copies are deleted only when their SHA-256 exactly matches a completed job. The review artefacts remain on the T480; no arbitrary download path is enabled.
 
 ## MVP adapter
 

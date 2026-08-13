@@ -603,6 +603,53 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "if [[ -n \"$latest_job\" ]]; then cat \"$latest_job\"; else printf 'no_job_metadata_yet\\n'; fi\n"
         ),
     },
+    "transcription_completed_hashes": {
+        "approval_required": False,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            f"cd '{TRANSCRIBER_ROOT}'\n"
+            "python3 - <<'PY'\n"
+            "import json\n"
+            "from pathlib import Path\n"
+            "hashes = []\n"
+            "for path in Path('outputs').glob('*/job.json'):\n"
+            "    try:\n"
+            "        job = json.loads(path.read_text())\n"
+            "    except (OSError, json.JSONDecodeError):\n"
+            "        continue\n"
+            "    if job.get('status') == 'REVIEW_REQUIRED' and job.get('input_sha256'):\n"
+            "        hashes.append(job['input_sha256'])\n"
+            "print(json.dumps(sorted(set(hashes))))\n"
+            "PY\n"
+        ),
+    },
+    "transcription_cleanup_completed_inbox": {
+        "approval_required": True,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            f"cd '{TRANSCRIBER_ROOT}'\n"
+            "python3 - <<'PY'\n"
+            "import hashlib\n"
+            "import json\n"
+            "from pathlib import Path\n"
+            "completed = set()\n"
+            "for metadata_path in Path('outputs').glob('*/job.json'):\n"
+            "    try:\n"
+            "        job = json.loads(metadata_path.read_text())\n"
+            "    except (OSError, json.JSONDecodeError):\n"
+            "        continue\n"
+            "    if job.get('status') == 'REVIEW_REQUIRED' and job.get('input_sha256'):\n"
+            "        completed.add(job['input_sha256'])\n"
+            "removed = []\n"
+            "for media_path in sorted(Path('incoming').glob('*.mp4')) + sorted(Path('incoming').glob('*.MP4')):\n"
+            "    digest = hashlib.sha256(media_path.read_bytes()).hexdigest()\n"
+            "    if digest in completed:\n"
+            "        media_path.unlink()\n"
+            "        removed.append(media_path.name)\n"
+            "print(json.dumps({'removed_completed_inbox_copies': removed}))\n"
+            "PY\n"
+        ),
+    },
     "transcription_deploy": {
         "approval_required": True,
         "wsl_script": (
@@ -887,6 +934,14 @@ def powershell_quote(value: str) -> str:
     return "'" + value.replace("'", "''") + "'"
 
 
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def upload_mp4(target: str, source: Path) -> dict[str, Any]:
     source_windows = windows_path(source)
     remote_destination = f"{target}:{TRANSCRIBER_WINDOWS_STAGING}/"
@@ -907,9 +962,14 @@ def submit_transcription_folder(source_folder: str, approved: bool) -> dict[str,
     folder = local_path_from_windows_folder(source_folder)
     if not folder.is_dir():
         raise RuntimeError(f"Source folder does not exist or is not a folder: {source_folder}")
-    files = sorted(path for path in folder.iterdir() if path.is_file() and path.suffix.lower() == ".mp4")
+    candidates = sorted(path for path in folder.iterdir() if path.is_file() and path.suffix.lower() == ".mp4")
+    completed_result = execute("transcription_completed_hashes", approved=False)
+    if not completed_result["result"]["ok"]:
+        return {"tool_id": TOOL_ID, "operation": "transcription_folder_submission", "approval_required": True, "approved": True, "completed_hashes": completed_result, "files": [], "ok": False}
+    completed_hashes = set(json.loads(completed_result["result"]["stdout"]))
+    files = [path for path in candidates if sha256_file(path) not in completed_hashes]
     if not files:
-        raise RuntimeError("No direct .mp4 files found in the source folder.")
+        return {"tool_id": TOOL_ID, "operation": "transcription_folder_submission", "approval_required": True, "approved": True, "files": [], "skipped_completed": len(candidates), "ok": True}
     unsafe = [path.name for path in files if not PORTABLE_MP4_NAME.fullmatch(path.name)]
     if unsafe:
         raise RuntimeError("Rename MP4 files to use only letters, numbers, spaces, dots, underscores, and hyphens: " + ", ".join(unsafe))
@@ -924,7 +984,12 @@ def submit_transcription_folder(source_folder: str, approved: bool) -> dict[str,
     if not preflight_result["result"]["ok"]:
         return {"tool_id": TOOL_ID, "operation": "transcription_folder_submission", "approval_required": True, "approved": True, "preflight": preflight_result, "files": [], "ok": False}
     if "incoming_count=0" not in preflight_result["result"]["stdout"]:
-        raise RuntimeError("T480 transcription inbox is not empty; resolve its prior job before submitting another folder.")
+        cleanup = execute("transcription_cleanup_completed_inbox", approved=True)
+        if not cleanup["result"]["ok"]:
+            return {"tool_id": TOOL_ID, "operation": "transcription_folder_submission", "approval_required": True, "approved": True, "cleanup": cleanup, "files": [], "ok": False}
+        preflight_result = execute("transcription_preflight", approved=False)
+        if "incoming_count=0" not in preflight_result["result"]["stdout"]:
+            raise RuntimeError("T480 transcription inbox still contains an unfinished prior job; resolve it before submitting another folder.")
 
     processed: list[dict[str, Any]] = []
     target = configured_target()
@@ -939,7 +1004,7 @@ def submit_transcription_folder(source_folder: str, approved: bool) -> dict[str,
         processed.append(entry)
         if not run["result"]["ok"]:
             return {"tool_id": TOOL_ID, "operation": "transcription_folder_submission", "approval_required": True, "approved": True, "files": processed, "ok": False}
-    return {"tool_id": TOOL_ID, "operation": "transcription_folder_submission", "approval_required": True, "approved": True, "files": processed, "ok": True}
+    return {"tool_id": TOOL_ID, "operation": "transcription_folder_submission", "approval_required": True, "approved": True, "files": processed, "skipped_completed": len(candidates) - len(files), "ok": True}
 
 
 def parser() -> argparse.ArgumentParser:
