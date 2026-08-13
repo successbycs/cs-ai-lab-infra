@@ -674,9 +674,17 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "        continue\n"
             "    if job.get('status') != 'REVIEW_REQUIRED':\n"
             "        continue\n"
-            "    destination = export_root / metadata_path.parent.name\n"
+            "    source_filename = str(job.get('input_filename', ''))\n"
+            "    source_stem = Path(source_filename).stem\n"
+            "    if not source_stem or Path(source_stem).name != source_stem:\n"
+            "        raise ValueError(f'Unsafe source filename in job metadata: {source_filename!r}')\n"
+            "    destination = export_root / source_stem\n"
+            "    if destination.exists():\n"
+            "        existing_metadata = destination / 'job.json'\n"
+            "        if not existing_metadata.is_file() or json.loads(existing_metadata.read_text()).get('job_id') != job.get('job_id'):\n"
+            "            raise ValueError(f'Export folder collision: {destination.name}')\n"
             "    shutil.copytree(metadata_path.parent, destination, dirs_exist_ok=True)\n"
-            "    exported.append(metadata_path.parent.name)\n"
+            "    exported.append(destination.name)\n"
             "print(json.dumps({'prepared_review_jobs': exported}))\n"
             "PY\n"
         ),
@@ -1055,7 +1063,43 @@ def pull_transcription_outputs(approved: bool) -> dict[str, Any]:
     )
     encoded = base64.b64encode(command.encode("utf-16-le")).decode("ascii")
     transfer = run_command(["powershell.exe", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded])
-    return {"tool_id": TOOL_ID, "operation": "transcription_output_pull", "approval_required": True, "approved": True, "prepare": prepared, "transfer": transfer, "destination": str(TRANSCRIBER_LOCAL_EXPORT), "ok": transfer["ok"]}
+    organization = organize_local_transcription_exports() if transfer["ok"] else None
+    return {"tool_id": TOOL_ID, "operation": "transcription_output_pull", "approval_required": True, "approved": True, "prepare": prepared, "transfer": transfer, "organization": organization, "destination": str(TRANSCRIBER_LOCAL_EXPORT), "ok": transfer["ok"] and organization["ok"]}
+
+
+def organize_local_transcription_exports() -> dict[str, Any]:
+    """Replace opaque historic job-id folders with safely-derived source names."""
+    root = TRANSCRIBER_LOCAL_EXPORT
+    root.mkdir(parents=True, exist_ok=True)
+    migrated: list[dict[str, str]] = []
+    collisions: list[str] = []
+    for folder in sorted(path for path in root.iterdir() if path.is_dir()):
+        metadata_path = folder / "job.json"
+        if not metadata_path.is_file():
+            continue
+        try:
+            job = json.loads(metadata_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        source_stem = Path(str(job.get("input_filename", ""))).stem
+        if not source_stem or Path(source_stem).name != source_stem or folder.name == source_stem:
+            continue
+        destination = root / source_stem
+        if destination.exists():
+            destination_metadata = destination / "job.json"
+            try:
+                same_job = json.loads(destination_metadata.read_text(encoding="utf-8")).get("job_id") == job.get("job_id")
+            except (OSError, json.JSONDecodeError):
+                same_job = False
+            if not same_job:
+                collisions.append(folder.name)
+                continue
+            shutil.rmtree(folder)
+            migrated.append({"removed_duplicate_job_id_folder": folder.name, "source_folder": source_stem})
+            continue
+        folder.rename(destination)
+        migrated.append({"renamed_job_id_folder": folder.name, "source_folder": source_stem})
+    return {"ok": not collisions, "migrated": migrated, "collisions": collisions}
 
 
 def parser() -> argparse.ArgumentParser:
