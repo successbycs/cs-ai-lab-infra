@@ -604,6 +604,17 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "printf '%s\\n' '--- latest-job ---'\n"
             "latest_job=\"$(find outputs -mindepth 2 -maxdepth 2 -name job.json -printf '%T@ %p\\n' | sort -nr | head -n 1 | cut -d' ' -f2-)\"\n"
             "if [[ -n \"$latest_job\" ]]; then cat \"$latest_job\"; else printf 'no_job_metadata_yet\\n'; fi\n"
+            "printf '%s\\n' '--- running-jobs ---'\n"
+            "python3 - <<'PY'\n"
+            "import json\n"
+            "from pathlib import Path\n"
+            "running = []\n"
+            "for path in Path('outputs').glob('*/job.json'):\n"
+            "    try: job = json.loads(path.read_text())\n"
+            "    except (OSError, json.JSONDecodeError): continue\n"
+            "    if job.get('status') == 'RUNNING': running.append({'job_id': job.get('job_id'), 'input_filename': job.get('input_filename'), 'started_at': job.get('started_at')})\n"
+            "print(json.dumps(sorted(running, key=lambda job: (job.get('started_at') or ''))))\n"
+            "PY\n"
         ),
     },
     "transcription_completed_hashes": {
