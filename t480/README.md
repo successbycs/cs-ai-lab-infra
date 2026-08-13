@@ -45,6 +45,7 @@ This MVP adopts the Autonomous Framework's adapter and tool-registry conventions
 - `transcription_preflight` — inspect the fixed private MP4 transcriber checkout, cache/image readiness, and transient inbox state.
 - `transcription_deploy` — clone or fast-forward the fixed private transcriber checkout, create local-only directories, and build its CPU-only image; requires explicit approval.
 - `transcription_prepare` — rebuild the fixed private transcriber image and local-only directories if necessary; requires explicit approval.
+- `transcription_windows_staging_prepare` — verify the fixed private Windows OpenSSH staging directory is empty before a media transfer; requires explicit approval.
 - `transcription_model_prefetch` — explicitly cache the approved faster-whisper `base` model locally without handling media; requires explicit approval.
 - `transcription_process_next` — process exactly one queued MP4 through the fixed one-shot worker and remove only its successful temporary inbox copy; requires explicit approval.
 - `docker_install` — install Docker Engine and Compose; requires explicit approval.
@@ -60,7 +61,7 @@ python3 scripts/t480_adapter.py submit-transcription-folder \
   --source-folder 'C:\Users\chris\Videos\To Transcribe' --approve
 ```
 
-The adapter uses the existing Windows OpenSSH client, key authentication, and strict host-key checking. It sorts direct MP4 files by filename; uploads one to the fixed T480 inbox; invokes `transcription_process_next`; and continues only after success. The Windows originals are neither moved nor deleted. A failed inbox copy remains on the T480 and blocks later batches until intentionally recovered. The review artefacts remain on the T480; no arbitrary download path is enabled.
+The adapter uses the existing Windows OpenSSH client, key authentication, and strict host-key checking. It sorts direct MP4 files by filename; uploads one to a fixed private Windows staging directory; moves that temporary copy into the fixed T480 inbox with a governed operation; invokes `transcription_process_next`; and continues only after success. The Windows originals are neither moved nor deleted. A failed inbox copy remains on the T480 and blocks later batches until intentionally recovered. The review artefacts remain on the T480; no arbitrary download path is enabled.
 
 ## MVP adapter
 

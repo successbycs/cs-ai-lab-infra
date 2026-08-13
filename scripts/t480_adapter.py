@@ -29,6 +29,8 @@ LOCAL_CONFIG_PATH = Path(__file__).resolve().parent.parent / ".env.t480.local"
 EXECUTION_LOG_PATH = Path(__file__).resolve().parent.parent / ".t480-execution.local.jsonl"
 TRANSCRIBER_ROOT = "/home/chris/projects/mp4-to-transcript"
 TRANSCRIBER_INCOMING = f"{TRANSCRIBER_ROOT}/incoming"
+TRANSCRIBER_WINDOWS_STAGING = "C:/Users/chris/TranscriptionInbox"
+TRANSCRIBER_WSL_STAGING = "/mnt/c/Users/chris/TranscriptionInbox"
 # The name is passed as a quoted data argument at every boundary; allow normal
 # Windows Explorer duplicate suffixes such as "Lesson (1).mp4".
 PORTABLE_MP4_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9 ._()\-]*\.mp4", re.IGNORECASE)
@@ -624,6 +626,16 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "printf 'transcriber_prepared=ok\\n'\n"
         ),
     },
+    "transcription_windows_staging_prepare": {
+        "approval_required": True,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "New-Item -ItemType Directory -Force -Path 'C:\\Users\\chris\\TranscriptionInbox' | Out-Null; "
+            "if ((Get-ChildItem -LiteralPath 'C:\\Users\\chris\\TranscriptionInbox' -File -Filter '*.mp4').Count -ne 0) "
+            "{ throw 'Transcription Windows staging folder is not empty.' }; "
+            "'{\"transcription_windows_staging\":\"ready\"}'"
+        ),
+    },
     "transcription_model_prefetch": {
         "approval_required": True,
         "wsl_script": (
@@ -637,12 +649,15 @@ OPERATIONS: dict[str, dict[str, Any]] = {
         "wsl_script": (
             "set -euo pipefail\n"
             f"repository_root='{TRANSCRIBER_ROOT}'\n"
+            f"windows_staging='{TRANSCRIBER_WSL_STAGING}'\n"
             "cd \"$repository_root\"\n"
             "shopt -s nullglob\n"
-            "files=(incoming/*.mp4 incoming/*.MP4)\n"
-            "if (( ${#files[@]} == 0 )); then printf 'transcription_queue=empty\\n'; exit 0; fi\n"
-            "input_file=\"${files[0]}\"\n"
+            "staged_files=(\"$windows_staging\"/*.mp4 \"$windows_staging\"/*.MP4)\n"
+            "if (( ${#staged_files[@]} != 1 )); then printf 'Expected exactly one staged MP4; found %s.\\n' \"${#staged_files[@]}\" >&2; exit 4; fi\n"
+            "input_file=\"${staged_files[0]}\"\n"
             "input_name=\"${input_file##*/}\"\n"
+            "mv -- \"$input_file\" \"incoming/$input_name\"\n"
+            "input_file=\"incoming/$input_name\"\n"
             "printf 'transcription_input=%s\\n' \"$input_name\"\n"
             "TRANSCRIPT_INPUT_DIR=./incoming docker compose --profile transcribe run --rm transcriber transcribe \"/input/$input_name\"\n"
             "rm -- \"$input_file\"\n"
@@ -860,7 +875,7 @@ def powershell_quote(value: str) -> str:
 
 def upload_mp4(target: str, source: Path) -> dict[str, Any]:
     source_windows = windows_path(source)
-    remote_destination = f"{target}:{TRANSCRIBER_INCOMING}/"
+    remote_destination = f"{target}:{TRANSCRIBER_WINDOWS_STAGING}/"
     command = (
         "$ErrorActionPreference = 'Stop'; "
         f"& scp.exe -B -o BatchMode=yes -o StrictHostKeyChecking=yes -- {powershell_quote(source_windows)} "
@@ -888,6 +903,9 @@ def submit_transcription_folder(source_folder: str, approved: bool) -> dict[str,
     prepared = execute("transcription_prepare", approved=True)
     if not prepared["result"]["ok"]:
         return {"tool_id": TOOL_ID, "operation": "transcription_folder_submission", "approval_required": True, "approved": True, "prepare": prepared, "files": [], "ok": False}
+    staging = execute("transcription_windows_staging_prepare", approved=True)
+    if not staging["result"]["ok"]:
+        return {"tool_id": TOOL_ID, "operation": "transcription_folder_submission", "approval_required": True, "approved": True, "staging": staging, "files": [], "ok": False}
     preflight_result = execute("transcription_preflight", approved=False)
     if not preflight_result["result"]["ok"]:
         return {"tool_id": TOOL_ID, "operation": "transcription_folder_submission", "approval_required": True, "approved": True, "preflight": preflight_result, "files": [], "ok": False}

@@ -255,6 +255,12 @@
       "execution": "adapter_owned"
     },
     {
+      "id": "transcription_windows_staging_prepare",
+      "purpose": "Create and verify the fixed private Windows OpenSSH staging directory is empty before a governed MP4 transfer; requires explicit approval.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
       "id": "transcription_model_prefetch",
       "purpose": "Explicitly download only the approved faster-whisper base model into the private persistent T480 cache, without handling any media; requires explicit approval.",
       "approval_required": true,
