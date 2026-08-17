@@ -31,4 +31,6 @@ python3 scripts/t480_milestones.py prove --id M0
 | M5 | Hands-off maintenance and recovery proven — [execution prompt](prompts/m5-hands-off-maintenance.md) |
 | M6 | Governed n8n upgrade proven — [execution prompt](prompts/m6-n8n-upgrade.md) |
 
+M6's post-upgrade validation includes the `validation_integrity_corrections` subtask. It corrects stale M2 image evidence expectations, prevents unfiltered workflow-export metadata from reaching the n8n API, and makes the default test command reliably execute the adapter suite.
+
 Do not record passwords, keys, private IP addresses, or unredacted service data in evidence text.

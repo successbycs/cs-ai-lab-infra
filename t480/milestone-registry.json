@@ -234,7 +234,16 @@
         {
           "id": "post_upgrade_validation",
           "action": "Verify n8n version, image digest, loopback-only port binding, PostgreSQL readiness, and a bounded synthetic workflow execution through the n8n adapter.",
-          "purpose": "Prove the new image works with the real lab data path, not just that a container started."
+          "purpose": "Prove the new image works with the real lab data path, not just that a container started.",
+          "subtasks": [
+            {
+              "id": "validation_integrity_corrections",
+              "name": "Validation-integrity corrections",
+              "action": "Correct the M2 evidence verifier's pinned n8n-image assertion, ensure the n8n workflow upsert path uploads a deliberately filtered API payload rather than an arbitrary workflow export, and make the repository's default automated test command discover and execute its test suite.",
+              "success_criteria": "A fresh M2 evidence bundle for the configured n8n image verifies successfully; a regression test proves workflow metadata outside the supported import payload is not sent to the n8n API; and the documented default test command exits successfully only after discovering and running the adapter tests.",
+              "evidence": "Record the corrected image reference, test-command output with a non-zero test count, and the independent M2 evidence-verifier result. Do not include credentials, workflow secrets, or raw service data."
+            }
+          ]
         },
         {
           "id": "rollback_exercise",
@@ -265,6 +274,10 @@
           "id": "workflow_execution_verified",
           "description": "A bounded synthetic workflow executes successfully after the upgrade, with T480-captured raw execution evidence and no production credentials or customer data in the proof.",
           "real_world_execution": true
+        },
+        {
+          "id": "validation_integrity_corrected",
+          "description": "The M2 evidence verifier matches the configured digest-pinned n8n image, workflow upserts submit only the supported API payload, and the default documented test command discovers and runs the repository test suite."
         },
         {
           "id": "future_update_detection_configured",
