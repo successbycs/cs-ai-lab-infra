@@ -1,0 +1,10 @@
+{
+  "schema_version": "cs-ai-lab.t480.transport.v1",
+  "ssh_target_env": "T480_SSH_TARGET",
+  "wsl_distribution": "Ubuntu",
+  "connect_timeout_seconds": 10,
+  "command_timeout_seconds": 60,
+  "long_command_timeout_seconds": 14400,
+  "strict_host_key_checking": true,
+  "batch_mode": true
+}

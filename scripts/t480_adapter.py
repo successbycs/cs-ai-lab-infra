@@ -23,10 +23,30 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from t480_core import (
+    Operation,
+    append_execution_log as append_shared_execution_log,
+    build_ssh_command,
+    build_wsl_powershell_command,
+    execute_operation,
+    fingerprint_files,
+    load_transport_settings,
+    preflight as shared_preflight,
+    resolve_ssh_target,
+    validate_catalog,
+)
+from t480_core.core import run_command as run_shared_command
+
 TOOL_ID = "t480_wsl_lab"
 SSH_TARGET_ENV = "T480_SSH_TARGET"
-LOCAL_CONFIG_PATH = Path(__file__).resolve().parent.parent / ".env.t480.local"
-EXECUTION_LOG_PATH = Path(__file__).resolve().parent.parent / ".t480-execution.local.jsonl"
+LOCAL_CONFIG_PATH = PROJECT_ROOT / ".env.t480.local"
+EXECUTION_LOG_PATH = PROJECT_ROOT / ".t480-execution.local.jsonl"
+TRANSPORT_CONFIG_PATH = PROJECT_ROOT / "t480" / "transport-config.json"
+TRANSPORT_SETTINGS = load_transport_settings(TRANSPORT_CONFIG_PATH)
 TRANSCRIBER_ROOT = "/home/chris/projects/mp4-to-transcript"
 TRANSCRIBER_INCOMING = f"{TRANSCRIBER_ROOT}/incoming"
 TRANSCRIBER_WINDOWS_STAGING = "C:/Users/chris/TranscriptionInbox"
@@ -827,25 +847,38 @@ OPERATIONS: dict[str, dict[str, Any]] = {
 }
 
 CATALOG_PATH = Path(__file__).resolve().parent.parent / "t480" / "command-catalog.json"
+CONFIGURATION_FINGERPRINT = fingerprint_files([TRANSPORT_CONFIG_PATH, CATALOG_PATH])
 
 
 def validate_contract() -> None:
     """Refuse execution if the published contract and adapter have diverged."""
-    with CATALOG_PATH.open(encoding="utf-8") as catalog_file:
-        catalog = json.load(catalog_file)
-    catalog_ids = {operation["id"] for operation in catalog["operations"]}
-    adapter_ids = set(OPERATIONS)
-    if catalog_ids != adapter_ids:
-        raise RuntimeError(
-            "Adapter and command catalog operation IDs differ: "
-            f"catalog={sorted(catalog_ids)}, adapter={sorted(adapter_ids)}"
-        )
+    validate_catalog(
+        CATALOG_PATH,
+        {operation_id: _shared_operation(operation_id, details) for operation_id, details in OPERATIONS.items()},
+    )
+
+
+def _shared_operation(operation_id: str, details: dict[str, Any]) -> Operation:
+    return Operation(
+        operation_id=operation_id,
+        purpose=f"Execute the fixed AI Lab operation {operation_id}.",
+        approval_required=bool(details["approval_required"]),
+        powershell_command=details.get("command"),
+        wsl_script=details.get("wsl_script"),
+        wsl_user=details.get("wsl_user"),
+        timeout_seconds=(
+            TRANSPORT_SETTINGS.long_command_timeout_seconds
+            if details["approval_required"]
+            else TRANSPORT_SETTINGS.command_timeout_seconds
+        ),
+    )
 
 
 def requirements() -> dict[str, Any]:
     return {
         "tool_id": TOOL_ID,
         "description": "Run fixed, audited T480 Windows/WSL operations over SSH.",
+        "configuration_fingerprint": CONFIGURATION_FINGERPRINT,
         "requirements": [
             f"Set {SSH_TARGET_ENV}, or record it in the ignored {LOCAL_CONFIG_PATH.name} file.",
             "Configure SSH key authentication and verify the T480 host key before use.",
@@ -862,32 +895,12 @@ def requirements() -> dict[str, Any]:
 
 def ssh_command(target: str, powershell_command: str) -> list[str]:
     """Run Windows OpenSSH from T16 PowerShell, not a separate WSL SSH config."""
-    encoded_remote_command = base64.b64encode(powershell_command.encode("utf-16-le")).decode("ascii")
-    encoded_target = base64.b64encode(target.encode("utf-8")).decode("ascii")
-    return [
-        "powershell.exe",
-        "-NoProfile",
-        "-NonInteractive",
-        "-Command",
-        (
-            "$target = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('"
-            f"{encoded_target}')); "
-            "$remoteCommand = 'powershell.exe -NoProfile -NonInteractive "
-            f"-EncodedCommand {encoded_remote_command}'; "
-            "$sshArguments = @('-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes', "
-            "$target, $remoteCommand); & ssh.exe @sshArguments"
-        ),
-    ]
+    return build_ssh_command(target, powershell_command, TRANSPORT_SETTINGS)
 
 
 def wsl_bash_script_command(script: str, user: str | None = None) -> str:
     """Send an exact UTF-8 script to WSL without CRLF or nested-script issues."""
-    encoded_script = base64.b64encode(script.encode("utf-8")).decode("ascii")
-    user_argument = " -u root" if user == "root" else ""
-    return (
-        "$ErrorActionPreference = 'Stop'; "
-        f"'{encoded_script}' | wsl.exe -d Ubuntu{user_argument} -- bash -c 'base64 -d | bash'"
-    )
+    return build_wsl_powershell_command(script, TRANSPORT_SETTINGS, user)
 
 
 def digest(value: str) -> str:
@@ -896,109 +909,44 @@ def digest(value: str) -> str:
 
 def append_execution_log(command_name: str, operation_id: str | None, payload: dict[str, Any]) -> None:
     """Keep local audit metadata without retaining private host output."""
-    result = payload.get("result") or payload.get("remote_check") or {}
-    entry = {
-        "logged_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "tool_id": TOOL_ID,
-        "command": command_name,
-        "operation": operation_id,
-        "approval_required": payload.get("approval_required"),
-        "approved": payload.get("approved"),
-        "started_at": result.get("started_at"),
-        "finished_at": result.get("finished_at"),
-        "duration_ms": result.get("duration_ms"),
-        "exit_code": result.get("exit_code"),
-        "ok": payload.get("ok", result.get("ok")),
-        "stdout_bytes": len(result.get("stdout", "")),
-        "stderr_bytes": len(result.get("stderr", "")),
-        "stdout_sha256": digest(result.get("stdout", "")),
-        "stderr_sha256": digest(result.get("stderr", "")),
-    }
-    with EXECUTION_LOG_PATH.open("a", encoding="utf-8") as log_file:
-        log_file.write(json.dumps(entry, separators=(",", ":")) + "\n")
+    append_shared_execution_log(
+        EXECUTION_LOG_PATH,
+        tool_id=TOOL_ID,
+        command_name=command_name,
+        operation_id=operation_id,
+        payload=payload,
+    )
 
 
 def run_command(command: list[str]) -> dict[str, Any]:
-    started_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    started_monotonic = time.monotonic()
-    completed = subprocess.run(
-        command,
-        capture_output=True,
-        text=True,
-        check=False,
-        env={**os.environ, SSH_TARGET_ENV: configured_target()},
-    )
-    finished_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    if finished_at < started_at:
-        finished_at = started_at
-    return {
-        "started_at": started_at,
-        "finished_at": finished_at,
-        "duration_ms": round((time.monotonic() - started_monotonic) * 1000),
-        "exit_code": completed.returncode,
-        "stdout": completed.stdout.strip(),
-        "stderr": completed.stderr.strip(),
-        "ok": completed.returncode == 0,
-    }
+    """Compatibility wrapper for explicitly approved large file transfers."""
+    return run_shared_command(command, TRANSPORT_SETTINGS.long_command_timeout_seconds)
 
 
 def configured_target() -> str:
-    target = os.environ.get(SSH_TARGET_ENV, "").strip()
-    if not target and LOCAL_CONFIG_PATH.is_file():
-        for line in LOCAL_CONFIG_PATH.read_text(encoding="utf-8").splitlines():
-            if line.startswith(f"{SSH_TARGET_ENV}="):
-                target = line.partition("=")[2].strip()
-                break
-    if not target:
-        raise RuntimeError(
-            f"Set {SSH_TARGET_ENV} or add it to the ignored {LOCAL_CONFIG_PATH.name} file."
-        )
-    return target
+    return resolve_ssh_target(TRANSPORT_SETTINGS, [LOCAL_CONFIG_PATH])
 
 
 def preflight() -> dict[str, Any]:
-    try:
-        target = configured_target()
-    except RuntimeError as error:
-        return {
-            "tool_id": TOOL_ID,
-            "local_checks": {"ssh_available": shutil.which("ssh") is not None, "ssh_target_configured": False},
-            "ok": False,
-            "error": str(error),
-        }
-    local_checks = {
-        "powershell_available": shutil.which("powershell.exe") is not None,
-        "windows_ssh_available": shutil.which("ssh.exe") is not None,
-        "ssh_target_configured": bool(target),
-    }
-    payload: dict[str, Any] = {"tool_id": TOOL_ID, "local_checks": local_checks}
-    if not all(local_checks.values()):
-        payload["ok"] = False
-        return payload
-
-    remote_check = run_command(
-        ssh_command(target, "$ErrorActionPreference = 'Stop'; wsl.exe -d Ubuntu -- bash -lc 'whoami && uname -m'")
+    return shared_preflight(
+        tool_id=TOOL_ID,
+        settings=TRANSPORT_SETTINGS,
+        config_paths=[LOCAL_CONFIG_PATH],
     )
-    payload["remote_check"] = remote_check
-    payload["ok"] = remote_check["ok"]
-    return payload
 
 
 def execute(operation_id: str, approved: bool) -> dict[str, Any]:
     details = OPERATIONS.get(operation_id)
     if details is None:
         raise RuntimeError(f"Unknown operation: {operation_id}")
-    if details["approval_required"] and not approved:
-        raise PermissionError(f"{operation_id} requires --approve after explicit operator approval.")
-    command = details.get("command") or wsl_bash_script_command(details["wsl_script"], details.get("wsl_user"))
-    result = run_command(ssh_command(configured_target(), command))
-    return {
-        "tool_id": TOOL_ID,
-        "operation": operation_id,
-        "approval_required": details["approval_required"],
-        "approved": approved,
-        "result": result,
-    }
+    payload = execute_operation(
+        _shared_operation(operation_id, details),
+        target=configured_target(),
+        settings=TRANSPORT_SETTINGS,
+        approved=approved,
+    )
+    payload["tool_id"] = TOOL_ID
+    return payload
 
 
 def verify(operation_id: str) -> dict[str, Any]:
@@ -1183,6 +1131,7 @@ def main(argv: list[str] | None = None) -> int:
         if not args.operation:
             raise SystemExit("--operation is required for execute and verify")
         payload = execute(args.operation, args.approve) if args.command == "execute" else verify(args.operation)
+    payload["configuration_fingerprint"] = CONFIGURATION_FINGERPRINT
     append_execution_log(args.command, args.operation, payload)
     print(json.dumps(payload, indent=2))
     if args.command == "describe-requirements":
@@ -1193,6 +1142,6 @@ def main(argv: list[str] | None = None) -> int:
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
-    except (PermissionError, RuntimeError) as error:
+    except (PermissionError, RuntimeError, ValueError) as error:
         print(json.dumps({"tool_id": TOOL_ID, "ok": False, "error": str(error)}, indent=2), file=sys.stderr)
         raise SystemExit(2)
