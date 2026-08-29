@@ -42,6 +42,41 @@ class PostgresPgvectorAdapterTests(unittest.TestCase):
         self.assertIn("actual_sha256", remote.call_args.args[0])
         self.assertIn('< "$migration_file"', remote.call_args.args[0])
 
+    def test_forex_m2_schema_is_fixed_hash_bound_asset(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            forex_root = Path(temporary_directory)
+            asset = forex_root / "sql/migrations/001_m2_historical_data.sql"
+            asset.parent.mkdir(parents=True)
+            asset.write_text("SELECT 1;", encoding="utf-8")
+            with mock.patch.object(postgres_pgvector_adapter, "FOREX_ROOT", forex_root), mock.patch.object(
+                postgres_pgvector_adapter, "remote_script", return_value={"ok": True}
+            ) as remote:
+                payload = postgres_pgvector_adapter.apply_forex_m2_schema()
+        self.assertTrue(payload["ok"])
+        self.assertIn("actual_sha256", remote.call_args.args[0])
+        self.assertIn("FOREX_M2_SCHEMA_APPLIED", remote.call_args.args[0])
+
+    def test_forex_m2_import_is_fixed_hash_bound_asset(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            forex_root = Path(temporary_directory)
+            asset = forex_root / "scripts/build_m2_postgres_import.py"
+            asset.parent.mkdir(parents=True)
+            asset.write_text("print('fixed')", encoding="utf-8")
+            with mock.patch.object(postgres_pgvector_adapter, "FOREX_ROOT", forex_root), mock.patch.object(
+                postgres_pgvector_adapter, "remote_script", return_value={"ok": True}
+            ) as remote:
+                payload = postgres_pgvector_adapter.import_forex_m2_snapshot()
+        self.assertTrue(payload["ok"])
+        self.assertIn("actual_sha256", remote.call_args.args[0])
+        self.assertIn("FOREX_M2_IMPORT_EXECUTED", remote.call_args.args[0])
+
+    def test_forex_m2_verification_uses_fixed_counts_query(self):
+        with mock.patch.object(postgres_pgvector_adapter, "remote_script", return_value={"ok": True}) as remote:
+            payload = postgres_pgvector_adapter.verify_forex_m2_snapshot()
+        self.assertTrue(payload["ok"])
+        self.assertIn("FOREX_M2_POSTGRES_VERIFY_OK", remote.call_args.args[0])
+        self.assertIn("count(*) FROM forex.price_bar", remote.call_args.args[0])
+
 
 if __name__ == "__main__":
     unittest.main()
