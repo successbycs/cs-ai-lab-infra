@@ -4,6 +4,25 @@ Run all commands from the repository root. First copy `.env.example` to `.env` a
 
 Use `docker compose ps` for status and `docker compose logs -f <service>` for troubleshooting. `docker compose down` stops and removes containers and the network but preserves named volumes. Do not add `-v` unless you deliberately intend to erase persistent data.
 
+## T480 check routine
+
+From the T16, use the governed adapter as the routine control check. `preflight` proves the SSH/Windows/WSL route is available with strict host-key verification; `lab_health` is read-only and verifies the Docker daemon, Compose configuration, PostgreSQL container health plus a real query and pgvector extension, the n8n host health endpoint, and Ollama only when its optional profile is running. It also reports low disk or memory as warnings. No service is started or restarted by either command.
+
+```bash
+python3 scripts/t480_adapter.py preflight
+python3 scripts/t480_adapter.py execute --operation lab_health
+```
+
+The routine passes only when both commands exit successfully. A successful `preflight` and `lab_health` execution proves remote access from the T16 as well as the T480 checks. If the health check fails, capture read-only troubleshooting detail before choosing a recovery action:
+
+```bash
+python3 scripts/t480_adapter.py execute --operation lab_runtime_diagnostics
+```
+
+Run `lab_services_start --approve` only after reviewing the failure; it is deliberately separate from the check routine so monitoring cannot change the machine.
+
+This routine is tracked as M7, [T480 operational health routine proven](../t480/prompts/m7-operational-health.md). M7 is complete only after an actual T16 preflight and `lab_health` run are recorded as local evidence; defining the routine is not proof that the T480 is currently reachable.
+
 ## T480 sign-in startup
 
 The governed `startup_enable` T480 operation creates a Windows Scheduled Task named `CS AI Lab Start`. At the configured Windows user's sign-in, it starts Ubuntu WSL, waits for Docker, then runs `docker compose up -d n8n`; Compose starts the PostgreSQL dependency as well. The task retains a minimal `tail -f /dev/null` WSL process so the WSL instance and its Docker containers are not shut down immediately after startup. The task does not expose any ports or start the optional Ollama profile. `startup_run` starts it immediately; `startup_disable` removes it.

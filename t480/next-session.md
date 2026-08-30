@@ -21,6 +21,8 @@ M5, hands-off maintenance and recovery, is in progress. WSL liveness after the s
 
 M6, governed n8n upgrade, is in progress. A backup, reviewed target, security upgrade, and post-upgrade workflow execution have passed. Complete future update detection and the formal raw evidence bundle verification.
 
+M7, T480 operational health routine, is planned and available after M2. It is read-only: prove the T16 control path with `preflight`, then run `lab_health` to check Docker, PostgreSQL/pgvector, n8n, and the explicit optional Ollama state. Do not use its evidence to imply service recovery; recovery remains a separately approved action.
+
 ## First safe checks
 
 From this repository on the T16, start with read-only checks:
@@ -29,6 +31,7 @@ From this repository on the T16, start with read-only checks:
 python3 scripts/t480_adapter.py execute --operation power_policy_status
 python3 scripts/t480_adapter.py execute --operation startup_status
 python3 scripts/t480_adapter.py execute --operation docker_status
+python3 scripts/t480_adapter.py execute --operation lab_health
 python3 scripts/postgres_pgvector_adapter.py preflight
 python3 scripts/n8n_adapter.py preflight
 ```

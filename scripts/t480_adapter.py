@@ -495,6 +495,14 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "docker compose ps n8n postgres\n"
         ),
     },
+    "lab_health": {
+        "approval_required": False,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "cd /home/chris/projects/cs-ai-lab-infra\n"
+            "./scripts/health-check.sh\n"
+        ),
+    },
     "lab_runtime_diagnostics": {
         "approval_required": False,
         "wsl_script": (

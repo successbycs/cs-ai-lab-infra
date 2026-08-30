@@ -37,6 +37,7 @@ This MVP adopts the Autonomous Framework's adapter and tool-registry conventions
 - `m2_deploy` — controlled M2 clone, local-secret generation, image pull, and stack startup; requires explicit approval.
 - `m2_deploy_diagnostics` — non-secret Compose, image, and container checks after a failed M2 deployment.
 - `lab_services_start` — start the existing private PostgreSQL and n8n services; requires explicit approval.
+- `lab_health` — read-only check of the T16-to-T480 control path, Docker, required service health, PostgreSQL query and pgvector extension, n8n endpoint, optional running Ollama, and capacity.
 - `lab_runtime_diagnostics` — inspect container status, available memory, and recent private runtime logs.
 - `m2_latest_evidence_manifest` — reverify the newest M2 evidence bundle and return its fingerprint.
 - `repository_update` — fast-forward a clean existing T480 checkout to `origin/main`; requires explicit approval.

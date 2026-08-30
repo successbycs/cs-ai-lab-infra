@@ -189,6 +189,12 @@
       "execution": "adapter_owned"
     },
     {
+      "id": "lab_health",
+      "purpose": "Verify the private lab's Docker daemon, required container health, PostgreSQL query and pgvector extension, n8n health endpoint, optional running Ollama service, and available capacity without changing the T480.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
       "id": "lab_runtime_diagnostics",
       "purpose": "Inspect private lab container status, memory availability, and recent n8n, PostgreSQL, and Ollama logs after a runtime failure.",
       "approval_required": false,

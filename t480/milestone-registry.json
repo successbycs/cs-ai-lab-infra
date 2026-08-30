@@ -289,6 +289,55 @@
           "real_world_execution": true
         }
       ]
+    },
+    {
+      "id": "M7",
+      "name": "T480 operational health routine proven",
+      "objective": "Prove a repeatable, read-only T16-to-T480 check routine can distinguish an unavailable remote control path from an unhealthy private lab, and can verify Docker, PostgreSQL with pgvector, n8n, and an intentionally running optional Ollama service without restarting or exposing anything.",
+      "execution_prompt": "t480/prompts/m7-operational-health.md",
+      "depends_on": ["M2"],
+      "execution_steps": [
+        {
+          "id": "control_path_preflight",
+          "action": "Run the governed T480 adapter preflight from the T16 using the configured SSH target and strict host-key checking.",
+          "purpose": "Prove that the authenticated Windows-to-WSL control path is available before interpreting service results."
+        },
+        {
+          "id": "read_only_service_health",
+          "action": "Run the fixed read-only lab_health operation and retain its local structured command result as evidence.",
+          "purpose": "Verify the Docker daemon, Compose configuration, required container health, PostgreSQL connection and real query, pgvector extension, n8n host endpoint, and capacity without changing the T480."
+        },
+        {
+          "id": "optional_ollama_policy",
+          "action": "Confirm that the health output reports Ollama healthy when its profile is running, or explicitly skipped when the profile is intentionally stopped.",
+          "purpose": "Keep optional inference separate from the required PostgreSQL and n8n availability contract."
+        },
+        {
+          "id": "failure_handling",
+          "action": "Review the read-only lab_runtime_diagnostics operation and the separate approval-gated lab_services_start recovery action.",
+          "purpose": "Ensure a health check never silently starts, restarts, or exposes a service."
+        }
+      ],
+      "checks": [
+        {
+          "id": "remote_control_path_verified",
+          "description": "A real T16 adapter preflight succeeds with key-based SSH, strict host-key checking, Windows PowerShell, and a harmless Ubuntu WSL round trip.",
+          "real_world_execution": true
+        },
+        {
+          "id": "required_lab_services_verified",
+          "description": "A real T16 lab_health execution exits successfully and its retained local result shows Docker and Compose available; PostgreSQL and n8n running and healthy; PostgreSQL accepting connections, executing a query, and exposing pgvector; and the n8n host health endpoint responding.",
+          "real_world_execution": true
+        },
+        {
+          "id": "ollama_state_explicit",
+          "description": "The recorded lab_health result explicitly shows either a healthy running Ollama service or a skipped optional profile; neither state is treated as a failure of the required lab stack."
+        },
+        {
+          "id": "safe_failure_path_documented",
+          "description": "The milestone evidence references the read-only diagnostics operation and confirms that service recovery remains the separately approval-gated lab_services_start operation."
+        }
+      ]
     }
   ]
 }
