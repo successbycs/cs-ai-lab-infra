@@ -225,6 +225,18 @@
       "execution": "adapter_owned"
     },
     {
+      "id": "forex_deploy",
+      "purpose": "Deploy only the reviewed hash-pinned Forex revision to the fixed private T480 checkout, refusing a dirty or differently-originated checkout.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "forex_stage_m1_evidence",
+      "purpose": "Hash-check and stage only the reviewed retained M1 capture from fixed private Windows staging into the fixed Forex checkout.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
       "id": "m3_recovery_proof",
       "purpose": "Create and restore a timestamped synthetic PostgreSQL database backup, producing an M3 evidence bundle without touching the n8n database.",
       "approval_required": true,

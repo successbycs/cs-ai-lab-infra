@@ -54,6 +54,14 @@ TRANSCRIBER_WSL_STAGING = "/mnt/c/Users/chris/TranscriptionInbox"
 TRANSCRIBER_WINDOWS_EXPORT = "C:/Users/chris/TranscriptionExports"
 TRANSCRIBER_WSL_EXPORT = "/mnt/c/Users/chris/TranscriptionExports"
 TRANSCRIBER_LOCAL_EXPORT = Path("/mnt/c/Users/chris/Videos/Transcripts")
+FOREX_ROOT = Path("/home/chris/projects/forex")
+FOREX_REMOTE_ROOT = "/home/chris/projects/forex"
+FOREX_REPOSITORY = "https://github.com/successbycs/forex.git"
+FOREX_REVISION = "140c4f7305c93c411fdff5e46c7eb1fa1ba5b75c"
+FOREX_M1_CAPTURE = FOREX_ROOT / "runs/evidence/M1/20260829T064204Z/capture.stdout.json"
+FOREX_M1_CAPTURE_REMOTE = f"{FOREX_REMOTE_ROOT}/runs/evidence/M1/20260829T064204Z/capture.stdout.json"
+FOREX_M1_CAPTURE_SHA256 = "d3a79f0017fcd51ebd5a918a6094b257be902ebe9933e216462ceef07e4e731b"
+FOREX_WINDOWS_STAGING = "C:/Users/chris/ForexEvidence"
 # The name is passed as a quoted data argument at every boundary; allow normal
 # Windows Explorer duplicate suffixes such as "Lesson (1).mp4".
 PORTABLE_MP4_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9 ._()\-]*\.mp4", re.IGNORECASE)
@@ -576,6 +584,51 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "git rev-parse HEAD\n"
         ),
     },
+    "forex_deploy": {
+        "approval_required": True,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            f"repository_root='{FOREX_REMOTE_ROOT}'\n"
+            f"repository_url='{FOREX_REPOSITORY}'\n"
+            f"expected_revision='{FOREX_REVISION}'\n"
+            "if [[ -e \"$repository_root\" && ! -d \"$repository_root/.git\" ]]; then\n"
+            "  printf 'Refusing Forex deployment: target exists but is not a Git checkout.\\n' >&2; exit 4\n"
+            "fi\n"
+            "if [[ -d \"$repository_root/.git\" ]]; then\n"
+            "  cd \"$repository_root\"\n"
+            "  git diff --quiet && git diff --cached --quiet && test -z \"$(git status --porcelain --untracked-files=normal)\" || { printf 'Refusing Forex deployment: target checkout is not clean.\\n' >&2; exit 4; }\n"
+            "  [[ \"$(git remote get-url origin)\" == \"$repository_url\" ]] || { printf 'Refusing Forex deployment: origin differs.\\n' >&2; exit 4; }\n"
+            "else\n"
+            "  mkdir -p \"$(dirname \"$repository_root\")\"\n"
+            "  git clone --no-checkout \"$repository_url\" \"$repository_root\"\n"
+            "  cd \"$repository_root\"\n"
+            "fi\n"
+            "git fetch --depth 1 origin \"$expected_revision\"\n"
+            "git checkout --detach \"$expected_revision\"\n"
+            "[[ \"$(git rev-parse HEAD)\" == \"$expected_revision\" ]] || { printf 'Forex deployment revision mismatch.\\n' >&2; exit 5; }\n"
+            "test -f sql/migrations/001_m2_historical_data.sql\n"
+            "test -f scripts/build_m2_postgres_import.py\n"
+            "mkdir -p /mnt/c/Users/chris/ForexEvidence\n"
+            "printf 'FOREX_DEPLOY_OK revision=%s\\n' \"$expected_revision\"\n"
+        ),
+    },
+    "forex_stage_m1_evidence": {
+        "approval_required": True,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            f"staged='/mnt/c/Users/chris/ForexEvidence/capture.stdout.json'\n"
+            f"destination='{FOREX_M1_CAPTURE_REMOTE}'\n"
+            f"expected_sha256='{FOREX_M1_CAPTURE_SHA256}'\n"
+            "test -d /home/chris/projects/forex/.git || { printf 'Forex checkout is absent.\\n' >&2; exit 4; }\n"
+            "test -f \"$staged\" || { printf 'Fixed M1 capture is absent from Windows staging.\\n' >&2; exit 4; }\n"
+            "actual_sha256=\"$(sha256sum \"$staged\" | head -c 64)\"\n"
+            "[[ \"$actual_sha256\" == \"$expected_sha256\" ]] || { printf 'Fixed M1 capture hash differs from the reviewed payload.\\n' >&2; exit 5; }\n"
+            "mkdir -p \"$(dirname \"$destination\")\"\n"
+            "install -m 0600 \"$staged\" \"$destination\"\n"
+            "rm -f \"$staged\"\n"
+            "printf 'FOREX_M1_EVIDENCE_STAGED sha256:%s\\n' \"$actual_sha256\"\n"
+        ),
+    },
     "m3_recovery_proof": {
         "approval_required": True,
         "wsl_script": (
@@ -997,6 +1050,29 @@ def upload_mp4(target: str, source: Path) -> dict[str, Any]:
     return run_command(["powershell.exe", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded])
 
 
+def stage_forex_m1_evidence(approved: bool) -> dict[str, Any]:
+    """Transfer only the reviewed M1 capture, then hash-check it on the T480."""
+    if not approved:
+        raise PermissionError("stage-forex-m1-evidence requires --approve after explicit operator approval.")
+    if not FOREX_M1_CAPTURE.is_file() or sha256_file(FOREX_M1_CAPTURE) != FOREX_M1_CAPTURE_SHA256:
+        raise RuntimeError("The reviewed local Forex M1 capture is absent or has an unexpected hash.")
+    source_windows = subprocess.run(
+        ["wslpath", "-w", str(FOREX_M1_CAPTURE)], check=True, capture_output=True, text=True
+    ).stdout.strip()
+    destination = f"{configured_target()}:{FOREX_WINDOWS_STAGING}/capture.stdout.json"
+    command = (
+        "$ErrorActionPreference = 'Stop'; "
+        f"& scp.exe -B -o BatchMode=yes -o StrictHostKeyChecking=yes -- {powershell_quote(source_windows)} {powershell_quote(destination)}; "
+        "if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }"
+    )
+    encoded = base64.b64encode(command.encode("utf-16-le")).decode("ascii")
+    transfer = run_command(["powershell.exe", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded])
+    if not transfer["ok"]:
+        return {"tool_id": TOOL_ID, "operation": "forex_m1_evidence_stage", "approved": True, "transfer": transfer, "ok": False}
+    staged = execute("forex_stage_m1_evidence", approved=True)
+    return {"tool_id": TOOL_ID, "operation": "forex_m1_evidence_stage", "approved": True, "transfer": transfer, "stage": staged, "ok": staged["result"]["ok"]}
+
+
 def submit_transcription_folder(source_folder: str, approved: bool) -> dict[str, Any]:
     """Serially submit direct MP4 files to the fixed private T480 inbox."""
     if not approved:
@@ -1107,7 +1183,7 @@ def organize_local_transcription_exports() -> dict[str, Any]:
 
 def parser() -> argparse.ArgumentParser:
     command_parser = argparse.ArgumentParser(description="Governed SSH/WSL adapter for the T480 AI Lab.")
-    command_parser.add_argument("command", choices=["describe-requirements", "preflight", "execute", "verify", "submit-transcription-folder", "pull-transcription-outputs"])
+    command_parser.add_argument("command", choices=["describe-requirements", "preflight", "execute", "verify", "submit-transcription-folder", "pull-transcription-outputs", "stage-forex-m1-evidence"])
     command_parser.add_argument("--operation", choices=sorted(OPERATIONS), help="Fixed operation identifier.")
     command_parser.add_argument("--source-folder", help="Windows Explorer folder containing direct MP4 files; accepted only by submit-transcription-folder.")
     command_parser.add_argument("--approve", action="store_true", help="Record explicit approval for a mutating operation.")
@@ -1127,6 +1203,8 @@ def main(argv: list[str] | None = None) -> int:
         payload = submit_transcription_folder(args.source_folder, args.approve)
     elif args.command == "pull-transcription-outputs":
         payload = pull_transcription_outputs(args.approve)
+    elif args.command == "stage-forex-m1-evidence":
+        payload = stage_forex_m1_evidence(args.approve)
     else:
         if not args.operation:
             raise SystemExit("--operation is required for execute and verify")
