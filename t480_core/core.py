@@ -19,10 +19,12 @@ import shutil
 import subprocess
 import time
 from typing import Any, Iterable, Mapping, Sequence
+from zoneinfo import ZoneInfo
 
 _SAFE_IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]*\Z")
 _SAFE_TARGET = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.@:-]*\Z")
 _EXPECTED_SCHEMA = "cs-ai-lab.t480.transport.v1"
+NZ_TIME_ZONE = ZoneInfo("Pacific/Auckland")
 _CONFIG_FIELDS = {
     "schema_version",
     "ssh_target_env",
@@ -183,7 +185,7 @@ def build_wsl_powershell_command(
 
 
 def run_command(command: Sequence[str], timeout_seconds: int) -> dict[str, Any]:
-    started_at = datetime.now(UTC).isoformat(timespec="seconds")
+    started_at = datetime.now(UTC)
     started = time.monotonic()
     try:
         completed = subprocess.run(
@@ -204,9 +206,12 @@ def run_command(command: Sequence[str], timeout_seconds: int) -> dict[str, Any]:
         exit_code = 127
         stdout = ""
         stderr = str(error)
+    finished_at = datetime.now(UTC)
     return {
-        "started_at": started_at,
-        "finished_at": datetime.now(UTC).isoformat(timespec="seconds"),
+        "started_at": started_at.isoformat(timespec="seconds"),
+        "started_at_nz": started_at.astimezone(NZ_TIME_ZONE).isoformat(timespec="seconds"),
+        "finished_at": finished_at.isoformat(timespec="seconds"),
+        "finished_at_nz": finished_at.astimezone(NZ_TIME_ZONE).isoformat(timespec="seconds"),
         "duration_ms": round((time.monotonic() - started) * 1000),
         "exit_code": exit_code,
         "stdout": stdout,
@@ -322,8 +327,10 @@ def append_execution_log(
         result = {}
     stdout = str(result.get("stdout", ""))
     stderr = str(result.get("stderr", ""))
+    logged_at = datetime.now(UTC)
     entry = {
-        "logged_at": datetime.now(UTC).isoformat(timespec="seconds"),
+        "logged_at": logged_at.isoformat(timespec="seconds"),
+        "logged_at_nz": logged_at.astimezone(NZ_TIME_ZONE).isoformat(timespec="seconds"),
         "tool_id": tool_id,
         "command": command_name,
         "operation": operation_id,
@@ -331,7 +338,9 @@ def append_execution_log(
         "approved": payload.get("approved"),
         "configuration_fingerprint": payload.get("configuration_fingerprint"),
         "started_at": result.get("started_at"),
+        "started_at_nz": result.get("started_at_nz"),
         "finished_at": result.get("finished_at"),
+        "finished_at_nz": result.get("finished_at_nz"),
         "duration_ms": result.get("duration_ms"),
         "exit_code": result.get("exit_code"),
         "ok": payload.get("ok", result.get("ok")),
