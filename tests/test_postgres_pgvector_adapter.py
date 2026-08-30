@@ -55,6 +55,7 @@ class PostgresPgvectorAdapterTests(unittest.TestCase):
         self.assertTrue(payload["ok"])
         self.assertIn("actual_sha256", remote.call_args.args[0])
         self.assertIn("FOREX_M2_SCHEMA_APPLIED", remote.call_args.args[0])
+        self.assertIn("FOREX_M2_SCHEMA_ALREADY_APPLIED", remote.call_args.args[0])
 
     def test_forex_m2_import_is_fixed_hash_bound_asset(self):
         with tempfile.TemporaryDirectory() as temporary_directory:

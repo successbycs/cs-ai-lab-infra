@@ -40,6 +40,11 @@ This MVP adopts the Autonomous Framework's adapter and tool-registry conventions
 - `lab_runtime_diagnostics` — inspect container status, available memory, and recent private runtime logs.
 - `m2_latest_evidence_manifest` — reverify the newest M2 evidence bundle and return its fingerprint.
 - `repository_update` — fast-forward a clean existing T480 checkout to `origin/main`; requires explicit approval.
+- `repository_status` — show the fixed T480 lab checkout file status and local/fetched revisions without changing it.
+- `repository_diff` — show only the local adapter-contract diff before a controlled checkout update.
+- `repository_repair` — back up only corrupt zero-byte Git objects and fast-forward a clean repaired lab checkout; requires explicit approval.
+- `repository_restore_corrupt_contract_files` — restore only the three known zero-byte adapter-contract files from fetched origin/main, then fast-forward; requires explicit approval.
+- `repository_finalize_corrupt_contract_restore` — align Git metadata after the verified three-file restoration without changing working files; requires explicit approval.
 - `forex_deploy` — deploy the reviewed hash-pinned Forex revision to its fixed T480 checkout; requires explicit approval.
 - `forex_stage_m1_evidence` — hash-check and stage only the reviewed M1 capture for the fixed M2 import; requires explicit approval.
 - `m3_recovery_proof` — run the isolated M3 synthetic database backup and restore drill; requires explicit approval.

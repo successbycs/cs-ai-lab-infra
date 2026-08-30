@@ -225,6 +225,36 @@
       "execution": "adapter_owned"
     },
     {
+      "id": "repository_status",
+      "purpose": "Read the fixed T480 lab checkout status and local versus fetched origin/main revisions without changing it.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "repository_diff",
+      "purpose": "Read only the local diff for the three T480 adapter contract files before a controlled checkout update.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "repository_repair",
+      "purpose": "Back up only zero-byte Git objects in the fixed T480 lab checkout, fetch origin/main, and fast-forward only if the repaired checkout is clean.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "repository_restore_corrupt_contract_files",
+      "purpose": "Restore only the three known zero-byte T480 adapter contract files from fetched origin/main, then fast-forward only if clean.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "repository_finalize_corrupt_contract_restore",
+      "purpose": "Finalize only the verified three-file corrupt-contract restore by aligning Git index and HEAD with fetched origin/main without changing working files.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
       "id": "forex_deploy",
       "purpose": "Deploy only the reviewed hash-pinned Forex revision to the fixed private T480 checkout, refusing a dirty or differently-originated checkout.",
       "approval_required": true,

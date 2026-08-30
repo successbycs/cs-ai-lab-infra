@@ -118,6 +118,11 @@ def apply_forex_m2_schema() -> dict[str, Any]:
 expected_sha256="{expected_sha256}"
 actual_sha256="$(sha256sum "$asset" | head -c 64)"
 [[ "$actual_sha256" == "$expected_sha256" ]] || {{ printf 'Forex M2 migration hash differs from the reviewed controller file.\\n' >&2; exit 5; }}
+already_applied="$(docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT to_regclass('forex.source_registry') IS NOT NULL;" </dev/null)"
+if [[ "$already_applied" == "t" ]]; then
+  printf 'FOREX_M2_SCHEMA_ALREADY_APPLIED sha256:%s\\n' "$actual_sha256"
+  exit 0
+fi
 docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" < "$asset"
 printf 'FOREX_M2_SCHEMA_APPLIED sha256:%s\\n' "$actual_sha256"
 """)

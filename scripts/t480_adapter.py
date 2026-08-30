@@ -57,7 +57,7 @@ TRANSCRIBER_LOCAL_EXPORT = Path("/mnt/c/Users/chris/Videos/Transcripts")
 FOREX_ROOT = Path("/home/chris/projects/forex")
 FOREX_REMOTE_ROOT = "/home/chris/projects/forex"
 FOREX_REPOSITORY = "https://github.com/successbycs/forex.git"
-FOREX_REVISION = "140c4f7305c93c411fdff5e46c7eb1fa1ba5b75c"
+FOREX_REVISION = "9fcd918492259751b092fb4e53e0cf29329159b9"
 FOREX_M1_CAPTURE = FOREX_ROOT / "runs/evidence/M1/20260829T064204Z/capture.stdout.json"
 FOREX_M1_CAPTURE_REMOTE = f"{FOREX_REMOTE_ROOT}/runs/evidence/M1/20260829T064204Z/capture.stdout.json"
 FOREX_M1_CAPTURE_SHA256 = "d3a79f0017fcd51ebd5a918a6094b257be902ebe9933e216462ceef07e4e731b"
@@ -582,6 +582,71 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "git fetch origin main\n"
             "git merge --ff-only origin/main\n"
             "git rev-parse HEAD\n"
+        ),
+    },
+    "repository_status": {
+        "approval_required": False,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "cd /home/chris/projects/cs-ai-lab-infra\n"
+            "git status --short --untracked-files=normal\n"
+            "git rev-parse HEAD\n"
+            "git rev-parse origin/main\n"
+        ),
+    },
+    "repository_diff": {
+        "approval_required": False,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "cd /home/chris/projects/cs-ai-lab-infra\n"
+            "git diff -- scripts/t480_adapter.py t480/command-catalog.json t480/README.md\n"
+        ),
+    },
+    "repository_repair": {
+        "approval_required": True,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "repository_root='/home/chris/projects/cs-ai-lab-infra'\n"
+            "cd \"$repository_root\"\n"
+            "[[ \"$(git remote get-url origin)\" == 'https://github.com/successbycs/cs-ai-lab-infra.git' ]] || { printf 'Refusing repair: origin differs.\\n' >&2; exit 4; }\n"
+            "backup_root=\".git/corrupt-object-backup-$(date -u +%Y%m%dT%H%M%SZ)\"\n"
+            "mapfile -t empty_objects < <(find .git/objects -type f -size 0c -print)\n"
+            "((${#empty_objects[@]} > 0)) || { printf 'No zero-byte Git objects found; refusing repair.\\n' >&2; exit 4; }\n"
+            "mkdir -p \"$backup_root\"\n"
+            "for object in \"${empty_objects[@]}\"; do relative=\"${object#.git/}\"; mkdir -p \"$backup_root/$(dirname \"$relative\")\"; mv \"$object\" \"$backup_root/$relative\"; done\n"
+            "git fetch --force origin main\n"
+            "git fsck --no-reflogs --no-dangling\n"
+            "git diff --quiet && git diff --cached --quiet && test -z \"$(git status --porcelain --untracked-files=normal)\" || { printf 'Git repaired but checkout is not clean; refusing update.\\n' >&2; exit 4; }\n"
+            "git merge --ff-only origin/main\n"
+            "printf 'REPOSITORY_REPAIR_OK revision=%s backed_up_zero_byte_objects=%s\\n' \"$(git rev-parse HEAD)\" \"${#empty_objects[@]}\"\n"
+        ),
+    },
+    "repository_restore_corrupt_contract_files": {
+        "approval_required": True,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "cd /home/chris/projects/cs-ai-lab-infra\n"
+            "files=(scripts/t480_adapter.py t480/command-catalog.json t480/README.md)\n"
+            "for file in \"${files[@]}\"; do [[ -f \"$file\" && ! -s \"$file\" ]] || { printf 'Refusing restore: %s is not a zero-byte file.\\n' \"$file\" >&2; exit 4; }; done\n"
+            "git show origin/main:scripts/t480_adapter.py >/dev/null\n"
+            "git checkout origin/main -- \"${files[@]}\"\n"
+            "git diff --quiet && git diff --cached --quiet && test -z \"$(git status --porcelain --untracked-files=normal)\" || { printf 'Restore completed but checkout is not clean; refusing update.\\n' >&2; exit 4; }\n"
+            "git merge --ff-only origin/main\n"
+            "printf 'REPOSITORY_CONTRACT_FILES_RESTORED revision=%s files=%s\\n' \"$(git rev-parse HEAD)\" \"${#files[@]}\"\n"
+        ),
+    },
+    "repository_finalize_corrupt_contract_restore": {
+        "approval_required": True,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "cd /home/chris/projects/cs-ai-lab-infra\n"
+            "expected=$'scripts/t480_adapter.py\\nt480/README.md\\nt480/command-catalog.json'\n"
+            "[[ \"$(git diff --cached --name-only)\" == \"$expected\" ]] || { printf 'Refusing finalize: staged paths differ from the three restored contract files.\\n' >&2; exit 4; }\n"
+            "git diff --quiet || { printf 'Refusing finalize: unstaged changes exist.\\n' >&2; exit 4; }\n"
+            "git diff --cached --quiet origin/main -- scripts/t480_adapter.py t480/README.md t480/command-catalog.json || { printf 'Refusing finalize: restored files differ from fetched origin/main.\\n' >&2; exit 4; }\n"
+            "git reset --mixed origin/main\n"
+            "test -z \"$(git status --porcelain --untracked-files=normal)\" || { printf 'Finalize did not produce a clean checkout.\\n' >&2; exit 5; }\n"
+            "printf 'REPOSITORY_RESTORE_FINALIZED revision=%s\\n' \"$(git rev-parse HEAD)\"\n"
         ),
     },
     "forex_deploy": {
