@@ -2,7 +2,19 @@
 
 `scripts/postgres_pgvector_adapter.py` adapts the Autonomous Framework Supabase adapter's capability diagnostics and approval model to this repository's private Docker PostgreSQL service.
 
-It does not use Supabase, expose PostgreSQL, accept raw SQL, or copy database credentials to the T16. Commands route through the proven T16-to-T480 bridge and execute `psql` inside the PostgreSQL container.
+It does not use Supabase, accept raw SQL, or copy database credentials to the
+T16. Commands route through the proven T16-to-T480 bridge and execute `psql`
+inside the PostgreSQL container.
+
+## Closed-LAN administrator access
+
+PostgreSQL is published on standard port `5432` for the T480 home/closed-LAN
+MVP. Connect using the T480's LAN IP (currently `192.168.0.210`) and do not
+forward the port to the public internet or place credentials in this
+repository.
+
+Connect a desktop PostgreSQL client to `postgresql://192.168.0.210:5432` with
+the credentials held only in the T480 `.env`.
 
 After M2 is running, use the read-only operations first:
 
