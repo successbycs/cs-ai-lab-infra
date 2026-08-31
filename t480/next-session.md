@@ -21,7 +21,9 @@ M5, hands-off maintenance and recovery, is in progress. WSL liveness after the s
 
 M6, governed n8n upgrade, is in progress. A backup, reviewed target, security upgrade, and post-upgrade workflow execution have passed. Complete future update detection and the formal raw evidence bundle verification.
 
-M7, T480 operational health routine, is planned and available after M2. It is read-only: prove the T16 control path with `preflight`, then run `lab_health` to check Docker, PostgreSQL/pgvector, n8n, and the explicit optional Ollama state. Do not use its evidence to imply service recovery; recovery remains a separately approved action.
+M7, T480 operational health routine, is planned and available after M2. Use the read-only `Healthcheck` operator command; it proves the T16 control path first, then checks Docker, PostgreSQL/pgvector, n8n, and the explicit optional Ollama state. Do not use its evidence to imply service recovery; recovery remains a separately approved action.
+
+M8, operational health monitoring, follows M7. It will add startup/restart, WSL, exposure, volume-capacity, revision/image-drift, local-history, transition-reporting, scheduling, and weekly-report controls. It also deploys the PostgreSQL-backed status-only dashboard, adds it to T480 startup, and verifies private-LAN access from the T16. Backup freshness and restore checks are deliberately deferred because no backup capability exists yet.
 
 ## First safe checks
 
@@ -30,8 +32,7 @@ From this repository on the T16, start with read-only checks:
 ```bash
 python3 scripts/t480_adapter.py execute --operation power_policy_status
 python3 scripts/t480_adapter.py execute --operation startup_status
-python3 scripts/t480_adapter.py execute --operation docker_status
-python3 scripts/t480_adapter.py execute --operation lab_health
+python3 scripts/t480_adapter.py Healthcheck
 python3 scripts/postgres_pgvector_adapter.py preflight
 python3 scripts/n8n_adapter.py preflight
 ```

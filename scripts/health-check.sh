@@ -63,7 +63,7 @@ if ! docker info >/dev/null 2>&1; then
   exit 1
 fi
 
-for service in postgres n8n; do
+for service in postgres n8n health_dashboard; do
   check_service "$service"
 done
 
@@ -80,6 +80,14 @@ if command -v curl >/dev/null 2>&1; then
 else
   check_command n8n 'container health endpoint responds' \
     docker compose exec -T n8n wget -q --spider http://localhost:5678/healthz
+fi
+
+if command -v curl >/dev/null 2>&1; then
+  check_command health_dashboard 'host health endpoint responds' \
+    curl --fail --silent --max-time 5 "http://127.0.0.1:${HEALTH_DASHBOARD_PORT:-8080}/healthz"
+else
+  check_command health_dashboard 'container health endpoint responds' \
+    docker compose exec -T health_dashboard node -e "fetch('http://127.0.0.1:8080/healthz').then(response => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"
 fi
 
 ollama_id="$(docker compose --profile ollama ps -q ollama 2>/dev/null | head -n 1)"

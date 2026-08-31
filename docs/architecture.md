@@ -14,7 +14,7 @@ n8n stores its operational data in PostgreSQL and is for experimenting with inte
 
 All services join the `internal` bridge network. A Docker service reaches another service by its name—for example, `postgres:5432` or `ollama:11434` when the optional profile runs. These are internal Docker addresses.
 
-Published ports map a host address to a container port. n8n maps `127.0.0.1:5678` to its container port, so it is accessible on the T480 but not the local network. PostgreSQL and Ollama have no published ports. Host networking removes this isolation and is not used in v1.
+Published ports map a host address to a container port. n8n maps `127.0.0.1:5678` to its container port, so it is accessible on the T480 but not the local network. PostgreSQL is published only to the closed home LAN for administration. The health dashboard maps private-LAN port `8080` to a status-only static page. It has no database credentials or control actions: Healthcheck writes a redacted result into PostgreSQL, renders HTML from those tables on the T480 host, and the dashboard container serves that HTML. Ollama has no published port. Host networking removes this isolation and is not used.
 
 ## Model architecture
 

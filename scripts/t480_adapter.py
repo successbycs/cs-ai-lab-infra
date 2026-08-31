@@ -57,7 +57,7 @@ TRANSCRIBER_LOCAL_EXPORT = Path("/mnt/c/Users/chris/Videos/Transcripts")
 FOREX_ROOT = Path("/home/chris/projects/forex")
 FOREX_REMOTE_ROOT = "/home/chris/projects/forex"
 FOREX_REPOSITORY = "https://github.com/successbycs/forex.git"
-FOREX_REVISION = "9fcd918492259751b092fb4e53e0cf29329159b9"
+FOREX_REVISION = "f82bf75652458dccf8b0df8f29554af27dc8b310"
 FOREX_M1_CAPTURE = FOREX_ROOT / "runs/evidence/M1/20260829T064204Z/capture.stdout.json"
 FOREX_M1_CAPTURE_REMOTE = f"{FOREX_REMOTE_ROOT}/runs/evidence/M1/20260829T064204Z/capture.stdout.json"
 FOREX_M1_CAPTURE_SHA256 = "d3a79f0017fcd51ebd5a918a6094b257be902ebe9933e216462ceef07e4e731b"
@@ -156,6 +156,29 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "[pscustomobject]@{ uptime_since_utc = $os.LastBootUpTime.ToUniversalTime().ToString('o'); bios = $bios.SMBIOSBIOSVersion; battery = $battery; reboot_required = $rebootRequired; active_hours_start = $updateSettings.ActiveHoursStart; active_hours_end = $updateSettings.ActiveHoursEnd; smart_active_hours = $updateSettings.SmartActiveHoursState; bitlocker = $bitlocker; active_scheme = $scheme; ac_sleep = $sleep; ac_hibernate = $hibernate; wsl = $wsl; lab = $lab } | ConvertTo-Json -Depth 4 -Compress"
         ),
     },
+    "forex_m3_probe_directory_prepare": {
+        "approval_required": True,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "$root = Join-Path $env:USERPROFILE 'Documents\\Code\\forex-m1-probe'; "
+            "if (-not (Test-Path -LiteralPath $root -PathType Container)) { throw 'Expected fixed Forex M1/M3 probe directory is absent.' }; "
+            "$user = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name; "
+            "& icacls.exe $root /grant \"$user`:(OI)(CI)M\" /T /C | Out-String | Out-Null; "
+            "if ($LASTEXITCODE -ne 0) { throw \"icacls failed with exit code $LASTEXITCODE\" }; "
+            "[pscustomobject]@{ path = $root; principal = $user; modify_access_granted = $true } | ConvertTo-Json -Compress"
+        ),
+    },
+    "forex_m3_probe_directory_write_check": {
+        "approval_required": True,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "$root = Join-Path $env:USERPROFILE 'Documents\\Code\\forex-m1-probe'; "
+            "if (-not (Test-Path -LiteralPath $root -PathType Container)) { throw 'Expected fixed Forex M1/M3 probe directory is absent.' }; "
+            "$path = Join-Path $root '__cs_ai_lab_m3_write_check.tmp'; "
+            "try { [IO.File]::WriteAllText($path, 'fixed-write-check', [Text.Encoding]::UTF8); $readBack = [IO.File]::ReadAllText($path, [Text.Encoding]::UTF8); if ($readBack -ne 'fixed-write-check') { throw 'Write check content mismatch' } } finally { Remove-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue }; "
+            "[pscustomobject]@{ path = $root; write_delete_check = $true } | ConvertTo-Json -Compress"
+        ),
+    },
     "m5_boot_startup_compatibility": {
         "approval_required": False,
         "command": (
@@ -209,7 +232,7 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "$stateDir = Join-Path $env:ProgramData 'CSAILab'; New-Item -ItemType Directory -Force -Path $stateDir | Out-Null; "
             "$taskName = 'CS AI Lab Start'; $rollbackPath = Join-Path $stateDir 'CS-AI-Lab-Start.pre-m5.xml'; "
             "$existing = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue; if ($null -ne $existing) { Export-ScheduledTask -TaskName $taskName | Set-Content -Path $rollbackPath -Encoding utf8 }; "
-            "$bashCommand = 'for attempt in $(seq 1 30); do docker info >/dev/null 2>&1 && break; sleep 2; done; docker info >/dev/null; cd /home/chris/projects/cs-ai-lab-infra; docker compose up -d n8n; exec tail -f /dev/null'; "
+            "$bashCommand = 'for attempt in $(seq 1 30); do docker info >/dev/null 2>&1 && break; sleep 2; done; docker info >/dev/null; cd /home/chris/projects/cs-ai-lab-infra; docker compose up -d n8n health_dashboard; exec tail -f /dev/null'; "
             "$bashPayload = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($bashCommand)); "
             "$launcher = '$ErrorActionPreference = ''Stop''; $arguments = ''-d Ubuntu -- bash -c ""echo ' + $bashPayload + ' | base64 -d | bash""''; Start-Process -FilePath ''wsl.exe'' -ArgumentList $arguments -WindowStyle Hidden'; "
             "$payload = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($launcher)); "
@@ -292,7 +315,7 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "$stateDir = Join-Path $env:ProgramData 'CSAILab'\n"
             "$stdoutPath = Join-Path $stateDir 'wsl-keepalive.stdout.log'\n"
             "$stderrPath = Join-Path $stateDir 'wsl-keepalive.stderr.log'\n"
-            "$bashCommand = 'for attempt in $(seq 1 30); do docker info >/dev/null 2>&1 && break; sleep 2; done; docker info >/dev/null; cd /home/chris/projects/cs-ai-lab-infra; docker compose up -d n8n; exec tail -f /dev/null'\n"
+            "$bashCommand = 'for attempt in $(seq 1 30); do docker info >/dev/null 2>&1 && break; sleep 2; done; docker info >/dev/null; cd /home/chris/projects/cs-ai-lab-infra; docker compose up -d n8n health_dashboard; exec tail -f /dev/null'\n"
             "$payload = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($bashCommand))\n"
             "$arguments = '-d Ubuntu -- bash -c \"echo ' + $payload + ' | base64 -d | bash\"'\n"
             "Start-Process -FilePath 'wsl.exe' -ArgumentList $arguments -WindowStyle Hidden -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath\n"
@@ -300,7 +323,7 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "$action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument ('-NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"' + $scriptPath + '\"'); "
             "$trigger = New-ScheduledTaskTrigger -AtLogOn; "
             "Register-ScheduledTask -TaskName 'CS AI Lab Start' -Action $action -Trigger $trigger "
-            "-Description 'Starts T480 Ubuntu WSL, waits for Docker, starts the private n8n lab stack, and keeps WSL alive at sign-in.' -Force | Out-Null; "
+            "-Description 'Starts T480 Ubuntu WSL, waits for Docker, starts private PostgreSQL, n8n, and the status-only dashboard, and keeps WSL alive at sign-in.' -Force | Out-Null; "
             "Get-ScheduledTask -TaskName 'CS AI Lab Start' | Select-Object TaskName,State | ConvertTo-Json -Compress"
         ),
     },
@@ -312,7 +335,8 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "Start-Sleep -Seconds 10; "
             "$task = Get-ScheduledTask -TaskName 'CS AI Lab Start'; "
             "[pscustomobject]@{ task_state = $task.State.ToString(); "
-            "n8n_health = (Invoke-WebRequest -UseBasicParsing -TimeoutSec 10 http://127.0.0.1:5678/healthz).StatusCode } | ConvertTo-Json -Compress"
+            "n8n_health = (Invoke-WebRequest -UseBasicParsing -TimeoutSec 10 http://127.0.0.1:5678/healthz).StatusCode; "
+            "health_dashboard = (Invoke-WebRequest -UseBasicParsing -TimeoutSec 10 http://127.0.0.1:8080/healthz).StatusCode } | ConvertTo-Json -Compress"
         ),
     },
     "startup_disable": {
@@ -491,8 +515,8 @@ OPERATIONS: dict[str, dict[str, Any]] = {
         "wsl_script": (
             "set -euo pipefail\n"
             "cd /home/chris/projects/cs-ai-lab-infra\n"
-            "docker compose up -d --wait --wait-timeout 180 n8n\n"
-            "docker compose ps n8n postgres\n"
+            "docker compose up -d --wait --wait-timeout 180 n8n health_dashboard\n"
+            "docker compose ps n8n postgres health_dashboard\n"
         ),
     },
     "lab_health": {
@@ -1008,10 +1032,10 @@ def requirements() -> dict[str, Any]:
         "requirements": [
             f"Set {SSH_TARGET_ENV}, or record it in the ignored {LOCAL_CONFIG_PATH.name} file.",
             "Configure SSH key authentication and verify the T480 host key before use.",
-            "Ensure the Windows SSH account can run wsl.exe and access the Ubuntu distribution.",
-            "Explicitly approve every mutating operation in the operator conversation before execution.",
-        ],
-        "commands": ["describe-requirements", "preflight", "execute", "verify"],
+        "Ensure the Windows SSH account can run wsl.exe and access the Ubuntu distribution.",
+        "Explicitly approve every mutating operation in the operator conversation before execution.",
+    ],
+        "commands": ["describe-requirements", "preflight", "healthcheck", "execute", "verify"],
         "operations": [
             {"id": operation_id, "approval_required": details["approval_required"]}
             for operation_id, details in OPERATIONS.items()
@@ -1059,6 +1083,166 @@ def preflight() -> dict[str, Any]:
         settings=TRANSPORT_SETTINGS,
         config_paths=[LOCAL_CONFIG_PATH],
     )
+
+
+def healthcheck_action(component: str, status: str) -> str:
+    """Return safe guidance without embedding raw host output in the dashboard."""
+    actions = {
+        "control_path": "Check the T16 SSH target, host key, and T480 Windows/WSL availability.",
+        "docker": "Run lab_runtime_diagnostics; do not restart Docker automatically.",
+        "compose": "Review the deployed Compose configuration before making any change.",
+        "postgres": "Run lab_runtime_diagnostics, then request approval before any recovery action.",
+        "n8n": "Allow the startup grace period, then run lab_runtime_diagnostics if it remains unhealthy.",
+        "health_dashboard": "Check the dashboard container and its local health endpoint; do not expose n8n instead.",
+        "ollama": "Optional service: verify whether it was deliberately enabled before taking action.",
+        "capacity": "Review disk or memory use before deploying, updating, or loading a model.",
+    }
+    if status == "PASS":
+        return "No action required."
+    if status == "SKIP":
+        return "No action required while this optional service is intentionally disabled."
+    return actions.get(component, "Run lab_runtime_diagnostics and review the failed check before taking action.")
+
+
+def healthcheck_detail(component: str, status: str) -> str:
+    """Keep the dashboard useful without copying raw command output to PostgreSQL."""
+    details = {
+        "docker": "Docker daemon reachability was checked.",
+        "compose": "The deployed Compose configuration was checked.",
+        "postgres": "PostgreSQL service readiness or query capability was checked.",
+        "n8n": "The n8n service and its health endpoint were checked.",
+        "health_dashboard": "The static health-dashboard service and endpoint were checked.",
+        "ollama": "The optional Ollama service state was checked.",
+        "capacity": "Available host disk or memory capacity was checked.",
+    }
+    if status == "SKIP":
+        return "This optional service is intentionally not running."
+    return details.get(component, "A fixed T480 health check was completed.")
+
+
+def normalise_healthcheck(control_path: dict[str, Any], lab_health: dict[str, Any]) -> dict[str, Any]:
+    """Convert fixed health output into a small, dashboard-safe result payload."""
+    control_result = control_path.get("remote_check", {})
+    lab_result = lab_health.get("result", {})
+    checks: list[dict[str, Any]] = [
+        {
+            "key": "control_path",
+            "status": "PASS" if control_path.get("ok") else "FAIL",
+            "detail": "T16 SSH, Windows PowerShell, and Ubuntu WSL round trip completed."
+            if control_path.get("ok")
+            else "The T16 could not complete the governed T480 control-path check.",
+            "recommended_action": healthcheck_action("control_path", "PASS" if control_path.get("ok") else "FAIL"),
+            "duration_ms": control_result.get("duration_ms"),
+        }
+    ]
+    key_counts: dict[str, int] = {}
+    for raw_line in str(lab_result.get("stdout", "")).splitlines():
+        parts = raw_line.split(maxsplit=2)
+        if len(parts) < 2 or parts[0] not in {"OK", "WARN", "FAIL", "SKIP"}:
+            continue
+        current_status = {"OK": "PASS", "WARN": "WARN", "FAIL": "FAIL", "SKIP": "SKIP"}[parts[0]]
+        component = re.sub(r"[^a-z0-9_]+", "_", parts[1].lower()).strip("_") or "lab"
+        key_counts[component] = key_counts.get(component, 0) + 1
+        key = component if key_counts[component] == 1 else f"{component}_{key_counts[component]}"
+        checks.append(
+            {
+                "key": key,
+                "status": current_status,
+                "detail": healthcheck_detail(component, current_status),
+                "recommended_action": healthcheck_action(component, current_status),
+                "duration_ms": None,
+            }
+        )
+    if not lab_health.get("ok") and not any(check["status"] == "FAIL" for check in checks):
+        checks.append(
+            {
+                "key": "lab_health",
+                "status": "FAIL",
+                "detail": "The fixed T480 health operation did not complete successfully.",
+                "recommended_action": "Run lab_runtime_diagnostics and review the failed check before taking action.",
+                "duration_ms": lab_result.get("duration_ms"),
+            }
+        )
+    statuses = {check["status"] for check in checks}
+    overall_status = "FAIL" if "FAIL" in statuses else "WARN" if "WARN" in statuses else "PASS"
+    return {
+        "started_at": control_result.get("started_at") or lab_result.get("started_at"),
+        "started_at_nz": control_result.get("started_at_nz") or lab_result.get("started_at_nz"),
+        "finished_at": lab_result.get("finished_at") or control_result.get("finished_at"),
+        "finished_at_nz": lab_result.get("finished_at_nz") or control_result.get("finished_at_nz"),
+        "overall_status": overall_status,
+        "configuration_fingerprint": CONFIGURATION_FINGERPRINT,
+        "checks": checks,
+    }
+
+
+def publish_healthcheck(summary: dict[str, Any]) -> dict[str, Any]:
+    """Append a redacted health result and render the LAN status snapshot on the T480."""
+    encoded_payload = base64.b64encode(json.dumps(summary, separators=(",", ":")).encode()).decode("ascii")
+    if not re.fullmatch(r"[A-Za-z0-9+/=]+", encoded_payload):
+        raise RuntimeError("Healthcheck summary could not be encoded safely.")
+    script = f"""set -euo pipefail
+cd /home/chris/projects/cs-ai-lab-infra
+set -a
+source .env
+set +a
+payload_b64='{encoded_payload}'
+record_sql=\"SELECT monitoring.record_healthcheck(convert_from(decode(:'payload_b64', 'base64'), 'UTF8')::jsonb);\"
+docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -v payload_b64=\"$payload_b64\" -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\" -c \"$record_sql\" </dev/null
+dashboard_json=\"$(docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\" -Atqc 'SELECT monitoring.health_dashboard_payload();' </dev/null)\"
+printf '%s' \"$dashboard_json\" | python3 monitoring/dashboard/render_health_dashboard.py --output monitoring/dashboard/output/index.html
+printf 'HEALTHCHECK_PUBLISHED=ok\\n'
+"""
+    operation = Operation(
+        operation_id="healthcheck_publish",
+        purpose="Append a redacted Healthcheck result and render the fixed LAN dashboard.",
+        wsl_script=script,
+        timeout_seconds=TRANSPORT_SETTINGS.command_timeout_seconds,
+    )
+    return execute_operation(
+        operation,
+        target=configured_target(),
+        settings=TRANSPORT_SETTINGS,
+        approved=False,
+    )
+
+
+def healthcheck() -> dict[str, Any]:
+    """Run the fixed control-path and service-health checks, then publish a redacted result."""
+    control_path = preflight()
+    if not control_path["ok"]:
+        return {
+            "tool_id": TOOL_ID,
+            "operation": "healthcheck",
+            "approval_required": False,
+            "approved": False,
+            "checks": {"control_path": control_path},
+            "ok": False,
+        }
+    lab_health = execute("lab_health", approved=False)
+    summary = normalise_healthcheck(control_path, lab_health)
+    published = publish_healthcheck(summary)
+    if not published["ok"]:
+        summary["checks"].append(
+            {
+                "key": "health_dashboard_persistence",
+                "status": "FAIL",
+                "detail": "The health result could not be saved to PostgreSQL and published to the dashboard.",
+                "recommended_action": healthcheck_action("health_dashboard", "FAIL"),
+                "duration_ms": published["result"].get("duration_ms"),
+            }
+        )
+        summary["overall_status"] = "FAIL"
+    return {
+        "tool_id": TOOL_ID,
+        "operation": "healthcheck",
+        "approval_required": False,
+        "approved": False,
+        "checks": {"control_path": control_path, "lab_health": lab_health, "dashboard_publish": published},
+        "summary": summary,
+        "result": published["result"],
+        "ok": lab_health["ok"] and published["ok"],
+    }
 
 
 def execute(operation_id: str, approved: bool) -> dict[str, Any]:
@@ -1256,7 +1440,11 @@ def organize_local_transcription_exports() -> dict[str, Any]:
 
 def parser() -> argparse.ArgumentParser:
     command_parser = argparse.ArgumentParser(description="Governed SSH/WSL adapter for the T480 AI Lab.")
-    command_parser.add_argument("command", choices=["describe-requirements", "preflight", "execute", "verify", "submit-transcription-folder", "pull-transcription-outputs", "stage-forex-m1-evidence"])
+    command_parser.add_argument(
+        "command",
+        type=str.lower,
+        choices=["describe-requirements", "preflight", "healthcheck", "execute", "verify", "submit-transcription-folder", "pull-transcription-outputs", "stage-forex-m1-evidence"],
+    )
     command_parser.add_argument("--operation", choices=sorted(OPERATIONS), help="Fixed operation identifier.")
     command_parser.add_argument("--source-folder", help="Windows Explorer folder containing direct MP4 files; accepted only by submit-transcription-folder.")
     command_parser.add_argument("--approve", action="store_true", help="Record explicit approval for a mutating operation.")
@@ -1270,6 +1458,8 @@ def main(argv: list[str] | None = None) -> int:
         payload = requirements()
     elif args.command == "preflight":
         payload = preflight()
+    elif args.command == "healthcheck":
+        payload = healthcheck()
     elif args.command == "submit-transcription-folder":
         if not args.source_folder:
             raise SystemExit("--source-folder is required for submit-transcription-folder")

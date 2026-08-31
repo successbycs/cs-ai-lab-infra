@@ -5,6 +5,10 @@
 .t480-execution.local.jsonl
 .n8n-execution.local.jsonl
 .postgres-pgvector-execution.local.jsonl
+.t480-healthcheck.local.jsonl
+.t480-healthcheck.latest.json
+monitoring/dashboard/output/*
+!monitoring/dashboard/output/.gitkeep
 
 # Real-machine milestone evidence is local operational data, not Git source.
 evidence/

@@ -24,7 +24,7 @@ This MVP adopts the Autonomous Framework's adapter and tool-registry conventions
 - `docker_repository_probe` — reachability of Docker's signed repository.
 - `wsl_stdin_probe` — safe validation of the quote-free WSL script transport.
 - `startup_status` — inspect the Windows sign-in task for the private n8n lab stack.
-- `startup_enable` — create or update the Windows sign-in task that starts Ubuntu, Docker, PostgreSQL, and n8n and keeps WSL alive; requires explicit approval.
+- `startup_enable` — create or update the Windows sign-in task that starts Ubuntu, Docker, PostgreSQL, n8n, and the status-only dashboard and keeps WSL alive; requires explicit approval.
 - `startup_run` — start that task immediately and check the local n8n health endpoint; requires explicit approval.
 - `startup_diagnostics` — inspect the startup task result and its non-secret local log.
 - `startup_disable` — remove that Windows sign-in task; requires explicit approval.
@@ -36,8 +36,8 @@ This MVP adopts the Autonomous Framework's adapter and tool-registry conventions
 - `m2_preflight` — capacity, runtime, deployment-path, and existing-container checks before M2.
 - `m2_deploy` — controlled M2 clone, local-secret generation, image pull, and stack startup; requires explicit approval.
 - `m2_deploy_diagnostics` — non-secret Compose, image, and container checks after a failed M2 deployment.
-- `lab_services_start` — start the existing private PostgreSQL and n8n services; requires explicit approval.
-- `lab_health` — read-only check of the T16-to-T480 control path, Docker, required service health, PostgreSQL query and pgvector extension, n8n endpoint, optional running Ollama, and capacity.
+- `lab_services_start` — start the existing private PostgreSQL and n8n services plus the status-only dashboard; requires explicit approval.
+- `lab_health` — read-only check of Docker, required service health, PostgreSQL query and pgvector extension, n8n and health-dashboard endpoints, optional running Ollama, and capacity.
 - `lab_runtime_diagnostics` — inspect container status, available memory, and recent private runtime logs.
 - `m2_latest_evidence_manifest` — reverify the newest M2 evidence bundle and return its fingerprint.
 - `repository_update` — fast-forward a clean existing T480 checkout to `origin/main`; requires explicit approval.
@@ -92,6 +92,7 @@ When `.env.t480.local` contains `T480_SSH_TARGET`, the environment prefix is unn
 
 ```bash
 python3 scripts/t480_adapter.py preflight
+python3 scripts/t480_adapter.py Healthcheck
 ```
 
 The fourth command changes the T480: it installs Docker and adds the fixed `chris` Ubuntu user to the Docker group. It deliberately uses `wsl.exe -u root` so it never requests, stores, or automates a Linux password. A fresh Ubuntu session is required after installation for the new Docker-group membership to take effect.

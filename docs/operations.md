@@ -6,14 +6,15 @@ Use `docker compose ps` for status and `docker compose logs -f <service>` for tr
 
 ## T480 check routine
 
-From the T16, use the governed adapter as the routine control check. `preflight` proves the SSH/Windows/WSL route is available with strict host-key verification; `lab_health` is read-only and verifies the Docker daemon, Compose configuration, PostgreSQL container health plus a real query and pgvector extension, the n8n host health endpoint, and Ollama only when its optional profile is running. It also reports low disk or memory as warnings. No service is started or restarted by either command.
+From the T16, run the governed `Healthcheck` operator command. It first proves the SSH/Windows/WSL route is available with strict host-key verification, then runs the `lab_health` service check. The service check verifies the Docker daemon, Compose configuration, PostgreSQL container health plus a real query and pgvector extension, the n8n and health-dashboard host health endpoints, and Ollama only when its optional profile is running. It also reports low disk or memory as warnings. No service is started or restarted. After the check, the fixed publishing function appends only a redacted status summary to PostgreSQL and regenerates the static dashboard page.
 
 ```bash
-python3 scripts/t480_adapter.py preflight
-python3 scripts/t480_adapter.py execute --operation lab_health
+python3 scripts/t480_adapter.py Healthcheck
 ```
 
-The routine passes only when both commands exit successfully. A successful `preflight` and `lab_health` execution proves remote access from the T16 as well as the T480 checks. If the health check fails, capture read-only troubleshooting detail before choosing a recovery action:
+`Healthcheck` is case-insensitive, so `healthcheck` also works. It passes only when its control-path preflight, service-health check, and redacted dashboard publication pass. Its result contains a named list of all three stages. A passing result proves remote access from the T16 as well as the T480 checks. If it fails, capture read-only troubleshooting detail before choosing a recovery action:
+
+Every transport result retains the audit-safe UTC `started_at` and `finished_at` fields and includes matching `started_at_nz` and `finished_at_nz` fields in Pacific/Auckland time, including the current NZST/NZDT offset.
 
 ```bash
 python3 scripts/t480_adapter.py execute --operation lab_runtime_diagnostics
@@ -25,7 +26,7 @@ This routine is tracked as M7, [T480 operational health routine proven](../t480/
 
 ## T480 sign-in startup
 
-The governed `startup_enable` T480 operation creates a Windows Scheduled Task named `CS AI Lab Start`. At the configured Windows user's sign-in, it starts Ubuntu WSL, waits for Docker, then runs `docker compose up -d n8n`; Compose starts the PostgreSQL dependency as well. The task retains a minimal `tail -f /dev/null` WSL process so the WSL instance and its Docker containers are not shut down immediately after startup. The task does not expose any ports or start the optional Ollama profile. `startup_run` starts it immediately; `startup_disable` removes it.
+The governed `startup_enable` T480 operation creates a Windows Scheduled Task named `CS AI Lab Start`. At the configured Windows user's sign-in, it starts Ubuntu WSL, waits for Docker, then runs `docker compose up -d n8n health_dashboard`; Compose starts the PostgreSQL dependency as well. The task retains a minimal `tail -f /dev/null` WSL process so the WSL instance and its Docker containers are not shut down immediately after startup. It starts the status-only private-LAN dashboard but does not expose n8n or start the optional Ollama profile. `startup_run` starts it immediately; `startup_disable` removes it.
 
 ## T480 power policy
 

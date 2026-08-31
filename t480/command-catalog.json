@@ -39,6 +39,18 @@
       "execution": "adapter_owned"
     },
     {
+      "id": "forex_m3_probe_directory_prepare",
+      "purpose": "Grant the connected T480 Windows account Modify access only to the existing fixed Forex M1/M3 probe directory, so the historical-depth probe can run; requires explicit approval.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "forex_m3_probe_directory_write_check",
+      "purpose": "Write, read, and remove a fixed temporary file only inside the existing Forex M1/M3 probe directory to diagnose its effective Windows access; requires explicit approval.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
       "id": "m5_boot_startup_compatibility",
       "purpose": "Inspect the current Windows WSL distribution visibility and existing lab startup task before creating a boot-triggered Local System task.",
       "approval_required": false,
@@ -58,7 +70,7 @@
     },
     {
       "id": "m5_boot_startup_enable",
-      "purpose": "Replace the interim sign-in task with a boot-triggered passwordless S4U task that starts the fixed private Ubuntu WSL n8n/PostgreSQL action and preserves the prior task XML for rollback; requires explicit approval.",
+      "purpose": "Replace the interim sign-in task with a boot-triggered passwordless S4U task that starts the fixed private Ubuntu WSL PostgreSQL/n8n/status-dashboard action and preserves the prior task XML for rollback; requires explicit approval.",
       "approval_required": true,
       "execution": "adapter_owned"
     },
@@ -112,7 +124,7 @@
     },
     {
       "id": "startup_enable",
-      "purpose": "Create or update a Windows sign-in task that starts Ubuntu WSL, waits for Docker, starts PostgreSQL plus n8n privately, and keeps WSL alive.",
+      "purpose": "Create or update a Windows sign-in task that starts Ubuntu WSL, waits for Docker, starts PostgreSQL plus n8n and the status-only dashboard, and keeps WSL alive.",
       "approval_required": true,
       "execution": "adapter_owned"
     },
@@ -184,7 +196,7 @@
     },
     {
       "id": "lab_services_start",
-      "purpose": "Start the existing private PostgreSQL and n8n Compose services and wait for their health checks.",
+      "purpose": "Start the existing private PostgreSQL and n8n Compose services plus the status-only dashboard, then wait for their health checks.",
       "approval_required": true,
       "execution": "adapter_owned"
     },

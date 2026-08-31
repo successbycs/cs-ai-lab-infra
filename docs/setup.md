@@ -16,13 +16,24 @@ docker compose up -d
 
 The Compose images use explicit version tags and verified Linux/amd64 digests, making the initial deployment repeatable on the T480. When deliberately upgrading, change both the visible version tag and the matching verified digest, read release notes, back up PostgreSQL, run `scripts/update.sh`, and then restart with `docker compose up -d`.
 
-The default stack starts PostgreSQL and n8n. Ollama is intentionally optional. Start it only when ready to experiment with containerised local inference:
+The default stack starts PostgreSQL, n8n, and the status-only health dashboard. Ollama is intentionally optional. Start it only when ready to experiment with containerised local inference:
 
 ```bash
 docker compose --profile ollama up -d
 ```
 
 Alternatively, install Ollama natively on the host as described in [Ollama guidance](../ollama/README.md). Start with a small, quantised model and measure its behaviour; do not preload models merely because they are available.
+
+## Private-LAN health dashboard
+
+The default stack also starts a status-only health dashboard on port `8080`, bound by `HEALTH_DASHBOARD_BIND_ADDRESS` (default `0.0.0.0` for the trusted LAN). Apply the reviewed `postgres/migrations/001_health_dashboard.sql` migration to an existing T480 database with the approval-gated PostgreSQL adapter, then run `Healthcheck` from the T16 to publish the first result:
+
+```bash
+python3 scripts/postgres_pgvector_adapter.py apply-migration --migration-file 001_health_dashboard.sql --approve
+python3 scripts/t480_adapter.py Healthcheck
+```
+
+Open `http://<T480-LAN-address>:8080` from a trusted LAN device. Ensure Windows Firewall allows inbound TCP 8080 only on the Private network profile; do not port-forward it or expose it publicly. The page deliberately has no sign-in or control functions, so it displays only redacted service status, timestamps, and recommended actions.
 
 ## Windows host power policy
 

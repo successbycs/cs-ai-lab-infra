@@ -138,7 +138,7 @@
         },
         {
           "id": "boot_startup_configuration",
-          "action": "Configure a Windows boot-triggered Scheduled Task using the registered WSL user's passwordless S4U logon type to start Ubuntu WSL, wait for Docker, and start the private PostgreSQL plus n8n Compose services. Do not use Windows automatic logon or stored credentials.",
+          "action": "Configure a Windows boot-triggered Scheduled Task using the registered WSL user's passwordless S4U logon type to start Ubuntu WSL, wait for Docker, and start the private PostgreSQL plus n8n services and the status-only health dashboard. Do not use Windows automatic logon or stored credentials.",
           "purpose": "Make the lab recover after restart without an interactive Windows user session.",
           "subtasks": [
             {
@@ -149,7 +149,7 @@
             {
               "id": "boot_task_hardening",
               "action": "Replace the interim sign-in task with the final boot-triggered passwordless S4U task after proving the registered Ubuntu distribution is visible in that user context.",
-              "success_criteria": "The final task starts at boot without automatic logon, keeps WSL alive, and starts only the private PostgreSQL plus n8n services."
+              "success_criteria": "The final task starts at boot without automatic logon, keeps WSL alive, and starts the private PostgreSQL plus n8n services and the status-only health dashboard."
             }
           ]
         },
@@ -336,6 +336,79 @@
         {
           "id": "safe_failure_path_documented",
           "description": "The milestone evidence references the read-only diagnostics operation and confirms that service recovery remains the separately approval-gated lab_services_start operation."
+        }
+      ]
+    },
+    {
+      "id": "M8",
+      "name": "T480 operational health monitoring proven",
+      "objective": "Extend the M7 Healthcheck into a dependable operational monitoring control: structured and redacted local history, PostgreSQL health-result tables, a status-only private-LAN HTML dashboard, startup-aware health semantics, restart/capacity/exposure/drift checks, clear remediation guidance, state-transition reporting, and a reviewed scheduled-run plus weekly-report design. Backup freshness and restore checks are intentionally deferred until a backup capability exists.",
+      "execution_prompt": "t480/prompts/m8-operational-health-monitoring.md",
+      "depends_on": ["M7"],
+      "execution_steps": [
+        {
+          "id": "structured_result_and_history",
+          "action": "Make Healthcheck emit a normalized result with PASS, WARN, FAIL, or SKIP status for every check, append its redacted result to reviewed monitoring tables in PostgreSQL, render a static HTML snapshot from those tables, and store a redacted append-only local controller history plus a latest-result snapshot.",
+          "purpose": "Keep remote-access failures observable from the T16 while providing a status-only LAN view without exposing Git, credentials, raw logs, private host data, or database access to browsers."
+        },
+        {
+          "id": "startup_aware_service_checks",
+          "action": "Add bounded retry and grace-period behaviour for services that are starting, then record service start time and restart count once Docker reports them healthy.",
+          "purpose": "Avoid false failures during ordinary startup while surfacing unexpected restart loops."
+        },
+        {
+          "id": "runtime_and_policy_checks",
+          "action": "Check Windows startup-task/WSL liveness, expected n8n and PostgreSQL exposure, Docker volume capacity, T480 repository revision, and configured image digest drift.",
+          "purpose": "Detect availability, capacity, security-boundary, and deployment-drift conditions before they become an outage."
+        },
+        {
+          "id": "dashboard_deployment_and_lan_access",
+          "action": "Apply the reviewed health-dashboard migration to the existing T480 database, start the restart-managed dashboard through Compose and the fixed T480 startup paths, publish a real Healthcheck result, and verify the rendered status page from the T16 over the private LAN. Restrict Windows Firewall TCP 8080 to the Private network profile only.",
+          "purpose": "Make the status-only dashboard persist through ordinary service restarts and be safely available to trusted LAN devices without exposing n8n, PostgreSQL credentials, logs, or control actions."
+        },
+        {
+          "id": "operator_guidance_and_transitions",
+          "action": "Attach a safe recommended next action to every warning or failure and create a local transition event only when an overall or component state changes.",
+          "purpose": "Give an operator an actionable response without granting Healthcheck authority to repair services or sending unsolicited external messages."
+        },
+        {
+          "id": "recurring_execution_and_reporting",
+          "action": "Implement a fixed, approval-gated T16 scheduled-run configuration and a weekly redacted availability report generated from the local history. Keep outbound notification delivery disabled until the operator explicitly chooses and authorizes a destination.",
+          "purpose": "Turn a useful manual command into a dependable review routine without introducing an unapproved notification integration."
+        },
+        {
+          "id": "evidence_capture",
+          "action": "Run the real control-path and health checks, induce no failures, review the generated history and weekly report, and record concise local evidence in the milestone ledger.",
+          "purpose": "Prove the monitoring path on the actual T16 and T480 without disrupting the private lab."
+        }
+      ],
+      "checks": [
+        {
+          "id": "structured_redacted_history_verified",
+          "description": "A real Healthcheck result provides per-check PASS/WARN/FAIL/SKIP status, UTC and Pacific/Auckland timestamps, writes only redacted local history and latest-result files that are ignored by Git, and appends matching status-only rows to the monitoring PostgreSQL schema.",
+          "real_world_execution": true
+        },
+        {
+          "id": "startup_and_restart_semantics_verified",
+          "description": "A real T480 result demonstrates bounded startup grace behaviour and records required-service start time plus restart count without classifying an intentionally stopped optional Ollama profile as failed."
+        },
+        {
+          "id": "runtime_policy_and_drift_verified",
+          "description": "A real result reports Windows startup/WSL liveness, expected service exposure, Docker volume capacity, checkout revision, and configured-image drift, with safe guidance for every warning or failure.",
+          "real_world_execution": true
+        },
+        {
+          "id": "dashboard_deployed_and_lan_verified",
+          "description": "The reviewed monitoring migration is applied, the dashboard is restart-managed and included in T480 startup procedures, a real Healthcheck result is stored in PostgreSQL and rendered as static HTML, and the T16 retrieves the page over the private LAN on TCP 8080. The page exposes only redacted status data.",
+          "real_world_execution": true
+        },
+        {
+          "id": "scheduled_review_and_weekly_report_verified",
+          "description": "The fixed scheduled-run configuration is reviewed before activation, the private-LAN HTML dashboard renders the latest PostgreSQL health rows without credentials or raw logs, a local weekly redacted report is generated from actual history, and no outbound notification destination is configured or contacted without separate approval."
+        },
+        {
+          "id": "monitoring_safety_boundary_verified",
+          "description": "Review confirms that Healthcheck, its scheduled execution, history, and reporting never start, restart, update, expose, or otherwise mutate a T480 service; recovery remains separately approval-gated."
         }
       ]
     }

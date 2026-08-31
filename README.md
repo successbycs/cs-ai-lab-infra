@@ -26,9 +26,10 @@ The T16 is the development workstation. The T480 is a persistent, private runtim
 
 | Service | Purpose | Exposure |
 | --- | --- | --- |
-| PostgreSQL + pgvector | reusable structured data and vector-search foundation | Docker network only |
+| PostgreSQL + pgvector | reusable structured data, vector-search, and redacted health-result foundation | closed LAN on port 5432 |
 | n8n | workflow and orchestration learning platform | `127.0.0.1:5678` only |
 | Ollama (optional profile) | CPU-friendly local inference experimentation | Docker network only |
+| Health dashboard | status-only view of redacted Healthcheck results | private LAN on port 8080 |
 
 Persistent state is held in named Docker volumes. The database is intentionally not published to the host. See [architecture](docs/architecture.md), [T480 setup](docs/setup.md), [operations](docs/operations.md), and [model strategy](docs/model-strategy.md).
 
@@ -47,7 +48,7 @@ docker compose up -d
 ./scripts/health-check.sh
 ```
 
-Open n8n locally on the T480 at `http://127.0.0.1:5678`. For an optional containerised Ollama runtime, use `docker compose --profile ollama up -d`; the recommended starting approach is documented in [ollama/README.md](ollama/README.md).
+Open n8n locally on the T480 at `http://127.0.0.1:5678`. The status-only dashboard is available to devices on the trusted LAN at `http://<T480-LAN-address>:8080` after the first Healthcheck publishes a result. It exposes no controls, logs, credentials, workflow data, or database access. For an optional containerised Ollama runtime, use `docker compose --profile ollama up -d`; the recommended starting approach is documented in [ollama/README.md](ollama/README.md).
 
 Useful operational commands:
 

@@ -12,6 +12,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./postgres/init:/docker-entrypoint-initdb.d:ro
+      - ./postgres/migrations:/lab-postgres/migrations:ro
     networks:
       - internal
     ports:
@@ -69,6 +70,30 @@ services:
     restart: "no"
     volumes:
       - n8n_files:/home/node/.n8n-files
+
+  health_dashboard:
+    image: n8nio/n8n:1.123.65@sha256:8554136778e759f208205d13bf52ce0c782c43fefd72ecaab2b88285d7bc8046
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      HEALTH_DASHBOARD_PORT: 8080
+      TZ: ${TZ}
+    entrypoint: ["node", "/opt/health-dashboard/server.js"]
+    ports:
+      - "${HEALTH_DASHBOARD_BIND_ADDRESS}:${HEALTH_DASHBOARD_PORT}:8080"
+    volumes:
+      - ./monitoring/dashboard/server.js:/opt/health-dashboard/server.js:ro
+      - ./monitoring/dashboard/output:/opt/health-dashboard/output:ro
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/healthz').then(response => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   # Optional CPU-only local inference. Start deliberately with:
   # docker compose --profile ollama up -d
