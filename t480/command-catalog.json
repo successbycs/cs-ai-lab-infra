@@ -15,6 +15,18 @@
       "execution": "adapter_owned"
     },
     {
+      "id": "health_dashboard_firewall_status",
+      "purpose": "Inspect the fixed Windows Private-profile firewall rule for the status-only health dashboard without changing it.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "health_dashboard_firewall_enable",
+      "purpose": "Create or repair the fixed Windows Private-profile inbound TCP 8080 rule for the status-only health dashboard; requires explicit approval.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
       "id": "windows_restart",
       "purpose": "Schedule a controlled T480 Windows restart after explicit operator approval; callers must poll the control path afterward.",
       "approval_required": true,

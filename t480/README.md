@@ -10,6 +10,8 @@ This MVP adopts the Autonomous Framework's adapter and tool-registry conventions
 
 - `health` — Windows hostname, operating system, and installed memory.
 - `storage` — filesystem capacity and free space.
+- `health_dashboard_firewall_status` — inspect the fixed private-LAN TCP 8080 dashboard firewall rule.
+- `health_dashboard_firewall_enable` — create or repair the fixed private-LAN TCP 8080 dashboard firewall rule; requires explicit approval.
 - `windows_restart` — schedule a controlled Windows restart; requires explicit approval.
 - `power_policy_status` — inspect active Windows sleep, hibernation, and lid-close policy.
 - `power_policy_ac_always_on` — prevent sleep/hibernation and ignore lid close while on AC power; battery behaviour is unchanged; requires explicit approval.

@@ -33,7 +33,14 @@ python3 scripts/postgres_pgvector_adapter.py apply-migration --migration-file 00
 python3 scripts/t480_adapter.py Healthcheck
 ```
 
-Open `http://<T480-LAN-address>:8080` from a trusted LAN device. Ensure Windows Firewall allows inbound TCP 8080 only on the Private network profile; do not port-forward it or expose it publicly. The page deliberately has no sign-in or control functions, so it displays only redacted service status, timestamps, and recommended actions.
+Open `http://<T480-LAN-address>:8080` from a trusted LAN device. After explicit approval, configure and verify the fixed Private-profile-only Windows firewall rule with the governed adapter:
+
+```bash
+python3 scripts/t480_adapter.py execute --operation health_dashboard_firewall_enable --approve
+python3 scripts/t480_adapter.py execute --operation health_dashboard_firewall_status
+```
+
+Do not port-forward the dashboard or expose it publicly. The page deliberately has no sign-in or control functions, so it displays only redacted service status, timestamps, and recommended actions.
 
 ## Windows host power policy
 

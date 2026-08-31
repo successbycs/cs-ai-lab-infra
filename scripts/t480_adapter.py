@@ -57,7 +57,7 @@ TRANSCRIBER_LOCAL_EXPORT = Path("/mnt/c/Users/chris/Videos/Transcripts")
 FOREX_ROOT = Path("/home/chris/projects/forex")
 FOREX_REMOTE_ROOT = "/home/chris/projects/forex"
 FOREX_REPOSITORY = "https://github.com/successbycs/forex.git"
-FOREX_REVISION = "f82bf75652458dccf8b0df8f29554af27dc8b310"
+FOREX_REVISION = "46bcc7f331e26075a40bfa259f33638230fccd28"
 FOREX_M1_CAPTURE = FOREX_ROOT / "runs/evidence/M1/20260829T064204Z/capture.stdout.json"
 FOREX_M1_CAPTURE_REMOTE = f"{FOREX_REMOTE_ROOT}/runs/evidence/M1/20260829T064204Z/capture.stdout.json"
 FOREX_M1_CAPTURE_SHA256 = "d3a79f0017fcd51ebd5a918a6094b257be902ebe9933e216462ceef07e4e731b"
@@ -101,6 +101,28 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "Get-CimInstance Win32_LogicalDisk -Filter 'DriveType = 3' | "
             "Select-Object DeviceID, @{Name='size_gib'; Expression={[math]::Round($_.Size / 1GB, 1)}}, "
             "@{Name='free_gib'; Expression={[math]::Round($_.FreeSpace / 1GB, 1)}} | ConvertTo-Json -Compress"
+        ),
+    },
+    "health_dashboard_firewall_status": {
+        "approval_required": False,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "$rule = Get-NetFirewallRule -DisplayName 'CS AI Lab Health Dashboard' -ErrorAction SilentlyContinue; "
+            "if ($null -eq $rule) { '{\"present\":false}' } else { "
+            "$port = $rule | Get-NetFirewallPortFilter; "
+            "[pscustomobject]@{ present = $true; enabled = $rule.Enabled.ToString(); direction = $rule.Direction.ToString(); action = $rule.Action.ToString(); profiles = $rule.Profile.ToString(); protocol = $port.Protocol.ToString(); local_port = $port.LocalPort } | ConvertTo-Json -Compress }"
+        ),
+    },
+    "health_dashboard_firewall_enable": {
+        "approval_required": True,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "$name = 'CS AI Lab Health Dashboard'; "
+            "$existing = @(Get-NetFirewallRule -DisplayName $name -ErrorAction SilentlyContinue); "
+            "if ($existing.Count -gt 1) { throw 'Refusing firewall change: more than one dashboard rule exists.' }; "
+            "if ($existing.Count -eq 1) { Set-NetFirewallRule -InputObject $existing[0] -Enabled True -Direction Inbound -Action Allow -Profile Private; Set-NetFirewallPortFilter -AssociatedNetFirewallRule $existing[0] -Protocol TCP -LocalPort 8080 } else { New-NetFirewallRule -DisplayName $name -Description 'Allows the status-only CS AI Lab health dashboard on trusted private networks.' -Direction Inbound -Action Allow -Protocol TCP -LocalPort 8080 -Profile Private | Out-Null }; "
+            "$rule = Get-NetFirewallRule -DisplayName $name; $port = $rule | Get-NetFirewallPortFilter; "
+            "[pscustomobject]@{ present = $true; enabled = $rule.Enabled.ToString(); direction = $rule.Direction.ToString(); action = $rule.Action.ToString(); profiles = $rule.Profile.ToString(); protocol = $port.Protocol.ToString(); local_port = $port.LocalPort } | ConvertTo-Json -Compress"
         ),
     },
     "windows_restart": {

@@ -199,3 +199,14 @@ def test_dashboard_is_required_by_compose_healthcheck_and_t480_startup_paths():
     assert "health_dashboard" in t480_adapter.OPERATIONS["lab_services_start"]["wsl_script"]
     assert "health_dashboard" in t480_adapter.OPERATIONS["startup_enable"]["command"]
     assert "health_dashboard" in t480_adapter.OPERATIONS["m5_boot_startup_enable"]["command"]
+
+
+def test_dashboard_firewall_operations_are_fixed_and_private_profile_only():
+    status = t480_adapter.OPERATIONS["health_dashboard_firewall_status"]
+    enable = t480_adapter.OPERATIONS["health_dashboard_firewall_enable"]
+
+    assert status["approval_required"] is False
+    assert enable["approval_required"] is True
+    assert "LocalPort 8080" in enable["command"]
+    assert "-Profile Private" in enable["command"]
+    assert "New-NetFirewallRule" in enable["command"]
