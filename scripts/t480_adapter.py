@@ -65,7 +65,7 @@ TRANSCRIBER_LOCAL_EXPORT = Path("/mnt/c/Users/chris/Videos/Transcripts")
 FOREX_ROOT = Path("/home/chris/projects/forex")
 FOREX_REMOTE_ROOT = "/home/chris/projects/forex"
 FOREX_REPOSITORY = "https://github.com/successbycs/forex.git"
-FOREX_REVISION = "45e59ec2fcdbe18135a68f812c47e677de7dba80"
+FOREX_REVISION = "d5337b4948afa523d7a6075d9f9d9f287383b6d8"
 FOREX_M1_CAPTURE = FOREX_ROOT / "runs/evidence/M1/20260829T064204Z/capture.stdout.json"
 FOREX_M1_CAPTURE_REMOTE = f"{FOREX_REMOTE_ROOT}/runs/evidence/M1/20260829T064204Z/capture.stdout.json"
 FOREX_M1_CAPTURE_SHA256 = "d3a79f0017fcd51ebd5a918a6094b257be902ebe9933e216462ceef07e4e731b"
@@ -119,6 +119,38 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "if ($null -eq $rule) { '{\"present\":false}' } else { "
             "$port = $rule | Get-NetFirewallPortFilter; "
             "[pscustomobject]@{ present = $true; enabled = $rule.Enabled.ToString(); direction = $rule.Direction.ToString(); action = $rule.Action.ToString(); profiles = $rule.Profile.ToString(); protocol = $port.Protocol.ToString(); local_port = $port.LocalPort } | ConvertTo-Json -Compress }"
+        ),
+    },
+    "network_profile_status": {
+        "approval_required": False,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "Get-NetConnectionProfile | Select-Object InterfaceAlias,NetworkCategory,IPv4Connectivity,IPv6Connectivity | ConvertTo-Json -Compress"
+        ),
+    },
+    "health_dashboard_windows_probe": {
+        "approval_required": False,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "$listeners = @(Get-NetTCPConnection -State Listen -LocalPort 8080 -ErrorAction SilentlyContinue); "
+            "$response = Invoke-WebRequest -UseBasicParsing -TimeoutSec 10 http://127.0.0.1:8080/healthz; "
+            "[pscustomobject]@{ listener_count = $listeners.Count; listener_addresses = @($listeners | ForEach-Object LocalAddress); local_health_status = $response.StatusCode } | ConvertTo-Json -Compress"
+        ),
+    },
+    "health_dashboard_lan_proxy_enable": {
+        "approval_required": True,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "$profiles = @(Get-NetConnectionProfile | Where-Object NetworkCategory -eq 'Private'); "
+            "if ($profiles.Count -ne 1) { throw 'Refusing dashboard proxy: exactly one active Private network profile is required.' }; "
+            "$addresses = @(Get-NetIPAddress -InterfaceIndex $profiles[0].InterfaceIndex -AddressFamily IPv4 | Where-Object { $_.IPAddress -notmatch '^169\\.254\\.' }); "
+            "if ($addresses.Count -ne 1) { throw 'Refusing dashboard proxy: exactly one usable Private-network IPv4 address is required.' }; "
+            "$listenAddress = $addresses[0].IPAddress; $existing = (& netsh.exe interface portproxy show v4tov4) -join \"`n\"; "
+            "$line = ($existing -split \"`n\" | Where-Object { $_ -match ('^\\s*' + [regex]::Escape($listenAddress) + '\\s+8080\\s+') }); "
+            "if ($line -and $line -notmatch '127\\.0\\.0\\.1\\s+8080\\s*$') { throw 'Refusing dashboard proxy: TCP 8080 already has a different port-proxy target.' }; "
+            "if (-not $line) { & netsh.exe interface portproxy add v4tov4 listenaddress=$listenAddress listenport=8080 connectaddress=127.0.0.1 connectport=8080; if ($LASTEXITCODE -ne 0) { throw 'netsh portproxy add failed.' } }; "
+            "$response = Invoke-WebRequest -UseBasicParsing -TimeoutSec 10 ('http://' + $listenAddress + ':8080/healthz'); "
+            "[pscustomobject]@{ listen_address = $listenAddress; listener_target = '127.0.0.1:8080'; local_health_status = $response.StatusCode; private_profile = $profiles[0].Name } | ConvertTo-Json -Compress"
         ),
     },
     "health_dashboard_firewall_enable": {

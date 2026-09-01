@@ -41,6 +41,12 @@ python3 scripts/t480_adapter.py execute --operation health_dashboard_firewall_en
 python3 scripts/t480_adapter.py execute --operation health_dashboard_firewall_status
 ```
 
+If Windows exposes the Docker-published dashboard only on loopback, enable the separate fixed private-LAN proxy after the firewall rule. It uses the active Private-network IPv4 address only and forwards solely to `127.0.0.1:8080`:
+
+```bash
+python3 scripts/t480_adapter.py execute --operation health_dashboard_lan_proxy_enable --approve
+```
+
 Do not port-forward the dashboard or expose it publicly. The page deliberately has no sign-in or control functions, so it displays only redacted service status, timestamps, and recommended actions.
 
 PostgreSQL now defaults to loopback-only binding through `POSTGRES_BIND_ADDRESS=127.0.0.1`. Keep that setting; it is not required for the dashboard and prevents direct LAN database access.

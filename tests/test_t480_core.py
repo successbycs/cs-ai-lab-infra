@@ -226,6 +226,31 @@ def test_dashboard_firewall_operations_are_fixed_and_private_profile_only():
     assert "New-NetFirewallRule" in enable["command"]
 
 
+def test_network_profile_status_is_read_only():
+    operation = t480_adapter.OPERATIONS["network_profile_status"]
+
+    assert operation["approval_required"] is False
+    assert "Get-NetConnectionProfile" in operation["command"]
+
+
+def test_dashboard_windows_probe_checks_only_listener_and_local_health():
+    operation = t480_adapter.OPERATIONS["health_dashboard_windows_probe"]
+
+    assert operation["approval_required"] is False
+    assert "Get-NetTCPConnection" in operation["command"]
+    assert "127.0.0.1:8080/healthz" in operation["command"]
+
+
+def test_dashboard_lan_proxy_is_private_and_fixed_to_loopback_dashboard():
+    operation = t480_adapter.OPERATIONS["health_dashboard_lan_proxy_enable"]
+
+    assert operation["approval_required"] is True
+    assert "NetworkCategory -eq 'Private'" in operation["command"]
+    assert "connectaddress=127.0.0.1 connectport=8080" in operation["command"]
+    assert "netsh.exe interface portproxy add v4tov4" in operation["command"]
+    assert "0.0.0.0" not in operation["command"]
+
+
 def test_repository_snapshot_recovery_creates_a_patch_before_tracked_reset():
     operation = t480_adapter.OPERATIONS["repository_snapshot_and_update"]
     script = operation["wsl_script"]
