@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import gzip
 import hashlib
 import json
 import os
@@ -64,7 +65,7 @@ TRANSCRIBER_LOCAL_EXPORT = Path("/mnt/c/Users/chris/Videos/Transcripts")
 FOREX_ROOT = Path("/home/chris/projects/forex")
 FOREX_REMOTE_ROOT = "/home/chris/projects/forex"
 FOREX_REPOSITORY = "https://github.com/successbycs/forex.git"
-FOREX_REVISION = "f1fef40fa57f4872c853418342300a41184084e6"
+FOREX_REVISION = "b61c789873c8449eb368b9c17b704ffd4dc2f2bb"
 FOREX_M1_CAPTURE = FOREX_ROOT / "runs/evidence/M1/20260829T064204Z/capture.stdout.json"
 FOREX_M1_CAPTURE_REMOTE = f"{FOREX_REMOTE_ROOT}/runs/evidence/M1/20260829T064204Z/capture.stdout.json"
 FOREX_M1_CAPTURE_SHA256 = "d3a79f0017fcd51ebd5a918a6094b257be902ebe9933e216462ceef07e4e731b"
@@ -1346,7 +1347,7 @@ def record_local_healthcheck(summary: dict[str, Any]) -> dict[str, int]:
 
 def publish_healthcheck(summary: dict[str, Any]) -> dict[str, Any]:
     """Append a redacted health result and render the LAN status snapshot on the T480."""
-    encoded_payload = base64.b64encode(json.dumps(summary, separators=(",", ":")).encode()).decode("ascii")
+    encoded_payload = base64.b64encode(gzip.compress(json.dumps(summary, separators=(",", ":")).encode())).decode("ascii")
     if not re.fullmatch(r"[A-Za-z0-9+/=]+", encoded_payload):
         raise RuntimeError("Healthcheck summary could not be encoded safely.")
     script = f"""set -euo pipefail
@@ -1355,8 +1356,9 @@ set -a
 source .env
 set +a
 payload_b64='{encoded_payload}'
-record_sql=\"SELECT monitoring.record_healthcheck(convert_from(decode(:'payload_b64', 'base64'), 'UTF8')::jsonb);\"
-docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -v payload_b64=\"$payload_b64\" -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\" -c \"$record_sql\" </dev/null
+payload_json=\"$(printf '%s' \"$payload_b64\" | base64 -d | gzip -d)\"
+record_sql=\"SELECT monitoring.record_healthcheck(:'payload_json'::jsonb);\"
+docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -v payload_json=\"$payload_json\" -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\" -c \"$record_sql\" </dev/null
 dashboard_json=\"$(docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\" -Atqc 'SELECT monitoring.health_dashboard_payload();' </dev/null)\"
 printf '%s' \"$dashboard_json\" | python3 monitoring/dashboard/render_health_dashboard.py --output monitoring/dashboard/output/index.html
 printf 'HEALTHCHECK_PUBLISHED=ok\\n'
