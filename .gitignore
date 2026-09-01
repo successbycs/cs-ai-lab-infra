@@ -7,6 +7,8 @@
 .postgres-pgvector-execution.local.jsonl
 .t480-healthcheck.local.jsonl
 .t480-healthcheck.latest.json
+.t480-healthcheck.transitions.local.jsonl
+.t480-healthcheck.weekly-report.local.md
 monitoring/dashboard/output/*
 !monitoring/dashboard/output/.gitkeep
 

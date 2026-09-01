@@ -24,6 +24,16 @@ Run `lab_services_start --approve` only after reviewing the failure; it is delib
 
 This routine is tracked as M7, [T480 operational health routine proven](../t480/prompts/m7-operational-health.md). M7 is complete only after an actual T16 preflight and `lab_health` run are recorded as local evidence; defining the routine is not proof that the T480 is currently reachable.
 
+`Healthcheck` also writes redacted controller-only history, a latest snapshot, and transition-only event records. They are ignored by Git and retain no raw transport output. Generate the local seven-day report without contacting the T480:
+
+```bash
+python3 scripts/t480_adapter.py Healthreport
+```
+
+The history rotates to the latest 2,000 records. M9 adds the review-remediation proof and its [execution prompt](../t480/prompts/m9-health-monitoring-remediation.md).
+
+The reviewed recurring-run design is [healthcheck-schedule.json](../monitoring/healthcheck-schedule.json). It is disabled by default, contains no credentials, runs only `Healthcheck` plus the local `Healthreport`, and has no notification destination. Registering a Windows task remains a separate approval-gated decision.
+
 ## T480 sign-in startup
 
 The governed `startup_enable` T480 operation creates a Windows Scheduled Task named `CS AI Lab Start`. At the configured Windows user's sign-in, it starts Ubuntu WSL, waits for Docker, then runs `docker compose up -d n8n health_dashboard`; Compose starts the PostgreSQL dependency as well. The task retains a minimal `tail -f /dev/null` WSL process so the WSL instance and its Docker containers are not shut down immediately after startup. It starts the status-only private-LAN dashboard but does not expose n8n or start the optional Ollama profile. `startup_run` starts it immediately; `startup_disable` removes it.

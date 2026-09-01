@@ -30,6 +30,7 @@ The default stack also starts a status-only health dashboard on port `8080`, bou
 
 ```bash
 python3 scripts/postgres_pgvector_adapter.py apply-migration --migration-file 001_health_dashboard.sql --approve
+python3 scripts/postgres_pgvector_adapter.py apply-migration --migration-file 002_healthcheck_lifecycle.sql --approve
 python3 scripts/t480_adapter.py Healthcheck
 ```
 
@@ -41,6 +42,8 @@ python3 scripts/t480_adapter.py execute --operation health_dashboard_firewall_st
 ```
 
 Do not port-forward the dashboard or expose it publicly. The page deliberately has no sign-in or control functions, so it displays only redacted service status, timestamps, and recommended actions.
+
+PostgreSQL now defaults to loopback-only binding through `POSTGRES_BIND_ADDRESS=127.0.0.1`. Keep that setting; it is not required for the dashboard and prevents direct LAN database access.
 
 ## Windows host power policy
 

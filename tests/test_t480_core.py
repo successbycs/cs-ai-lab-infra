@@ -16,6 +16,8 @@ from t480_core import (
 )
 from t480_core.core import run_command
 from scripts import t480_adapter
+from monitoring.health_history import append as append_health_history
+from monitoring.health_history import weekly_report
 
 
 def test_repository_transport_configuration_is_valid():
@@ -135,8 +137,15 @@ def test_healthcheck_runs_lab_health_after_a_control_path_pass(monkeypatch):
     }
     published = {"operation": "healthcheck_publish", "ok": True, "result": {"duration_ms": 2}}
     monkeypatch.setattr(t480_adapter, "preflight", lambda: control_path)
-    monkeypatch.setattr(t480_adapter, "execute", lambda operation, approved: lab_health)
+    startup = {"ok": True, "result": {"stdout": '{"present":true}', "duration_ms": 1}}
+    firewall = {"ok": True, "result": {"stdout": '{"present":true}', "duration_ms": 1}}
+    monkeypatch.setattr(
+        t480_adapter,
+        "execute",
+        lambda operation, approved: lab_health if operation == "lab_health" else startup if operation == "startup_status" else firewall,
+    )
     monkeypatch.setattr(t480_adapter, "publish_healthcheck", lambda summary: published)
+    monkeypatch.setattr(t480_adapter, "record_local_healthcheck", lambda summary: {"history_records": 1, "state_transitions": 1})
 
     result = t480_adapter.healthcheck()
 
@@ -144,6 +153,8 @@ def test_healthcheck_runs_lab_health_after_a_control_path_pass(monkeypatch):
     assert result["checks"] == {
         "control_path": control_path,
         "lab_health": lab_health,
+        "startup_task": startup,
+        "dashboard_firewall": firewall,
         "dashboard_publish": published,
     }
     assert result["summary"]["overall_status"] == "PASS"
@@ -152,6 +163,7 @@ def test_healthcheck_runs_lab_health_after_a_control_path_pass(monkeypatch):
 
 def test_healthcheck_command_is_case_insensitive():
     assert t480_adapter.parser().parse_args(["Healthcheck"]).command == "healthcheck"
+    assert t480_adapter.parser().parse_args(["Healthreport"]).command == "healthreport"
 
 
 def test_healthcheck_summary_does_not_copy_raw_command_output():
@@ -210,3 +222,50 @@ def test_dashboard_firewall_operations_are_fixed_and_private_profile_only():
     assert "LocalPort 8080" in enable["command"]
     assert "-Profile Private" in enable["command"]
     assert "New-NetFirewallRule" in enable["command"]
+
+
+def test_health_history_is_redacted_rotated_and_emits_transition_only(tmp_path):
+    history = tmp_path / "history.jsonl"
+    latest = tmp_path / "latest.json"
+    transitions = tmp_path / "transitions.jsonl"
+    summary = {"overall_status": "PASS", "checks": [{"key": "postgres", "status": "PASS", "detail": "safe"}]}
+
+    first = append_health_history(summary, history_path=history, latest_path=latest, transitions_path=transitions)
+    second = append_health_history(summary, history_path=history, latest_path=latest, transitions_path=transitions)
+
+    assert first["state_transitions"] == 2
+    assert second["state_transitions"] == 0
+    assert len(history.read_text(encoding="utf-8").splitlines()) == 2
+    assert len(transitions.read_text(encoding="utf-8").splitlines()) == 1
+
+
+def test_weekly_health_report_uses_local_history_only(tmp_path):
+    history = tmp_path / "history.jsonl"
+    latest = tmp_path / "latest.json"
+    transitions = tmp_path / "transitions.jsonl"
+    append_health_history(
+        {"overall_status": "WARN", "checks": []},
+        history_path=history,
+        latest_path=latest,
+        transitions_path=transitions,
+    )
+    output = tmp_path / "weekly.md"
+    report = weekly_report(history, output)
+
+    assert report["runs"] == 1
+    assert report["counts"]["WARN"] == 1
+    assert "weekly Healthcheck report" in output.read_text(encoding="utf-8")
+
+
+def test_healthcheck_scheduler_design_is_disabled_and_safe():
+    schedule = json.loads(Path("monitoring/healthcheck-schedule.json").read_text(encoding="utf-8"))
+
+    assert schedule["enabled"] is False
+    assert schedule["command"][-1] == "Healthcheck"
+    assert schedule["report_command"][-1] == "Healthreport"
+    assert schedule["safety"] == {
+        "contains_credentials": False,
+        "allows_service_mutation": False,
+        "outbound_notifications": False,
+        "activation_requires_separate_approval": True,
+    }

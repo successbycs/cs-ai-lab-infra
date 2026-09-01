@@ -22,6 +22,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
@@ -40,11 +41,17 @@ from t480_core import (
     validate_catalog,
 )
 from t480_core.core import run_command as run_shared_command
+from monitoring.health_history import append as append_health_history
+from monitoring.health_history import weekly_report
 
 TOOL_ID = "t480_wsl_lab"
 SSH_TARGET_ENV = "T480_SSH_TARGET"
 LOCAL_CONFIG_PATH = PROJECT_ROOT / ".env.t480.local"
 EXECUTION_LOG_PATH = PROJECT_ROOT / ".t480-execution.local.jsonl"
+HEALTH_HISTORY_PATH = PROJECT_ROOT / ".t480-healthcheck.local.jsonl"
+HEALTH_LATEST_PATH = PROJECT_ROOT / ".t480-healthcheck.latest.json"
+HEALTH_TRANSITIONS_PATH = PROJECT_ROOT / ".t480-healthcheck.transitions.local.jsonl"
+HEALTH_WEEKLY_REPORT_PATH = PROJECT_ROOT / ".t480-healthcheck.weekly-report.local.md"
 TRANSPORT_CONFIG_PATH = PROJECT_ROOT / "t480" / "transport-config.json"
 TRANSPORT_SETTINGS = load_transport_settings(TRANSPORT_CONFIG_PATH)
 TRANSCRIBER_ROOT = "/home/chris/projects/mp4-to-transcript"
@@ -1136,13 +1143,59 @@ def healthcheck_detail(component: str, status: str) -> str:
         "health_dashboard": "The static health-dashboard service and endpoint were checked.",
         "ollama": "The optional Ollama service state was checked.",
         "capacity": "Available host disk or memory capacity was checked.",
+        "revision": "The deployed checkout was compared with its fetched origin revision.",
+        "image": "Configured service images were checked for immutable digest pinning.",
+        "postgres_exposure": "PostgreSQL binding was checked against the loopback-only policy.",
+        "n8n_exposure": "n8n binding was checked against the loopback-only policy.",
+        "dashboard_exposure": "Dashboard binding was checked against the private-LAN policy.",
+        "startup_task": "The Windows startup task was checked without changing it.",
+        "dashboard_firewall": "The dashboard firewall rule was checked for private-LAN availability.",
+        "vector": "A read-only pgvector expression was evaluated.",
     }
     if status == "SKIP":
         return "This optional service is intentionally not running."
     return details.get(component, "A fixed T480 health check was completed.")
 
 
-def normalise_healthcheck(control_path: dict[str, Any], lab_health: dict[str, Any]) -> dict[str, Any]:
+def _lifecycle_metadata(detail: str) -> dict[str, Any]:
+    """Extract only fixed lifecycle facts from health-check output."""
+    match = re.search(r"started_at=([^\s]+)\s+restart_count=(\d+)", detail)
+    if not match:
+        return {}
+    try:
+        started_at = datetime.fromisoformat(match.group(1).replace("Z", "+00:00"))
+    except ValueError:
+        return {"restart_count": int(match.group(2))}
+    return {
+        "observed_started_at": started_at.isoformat(),
+        "observed_started_at_nz": started_at.astimezone(ZoneInfo("Pacific/Auckland")).isoformat(),
+        "restart_count": int(match.group(2)),
+    }
+
+
+def _supplemental_check(operation: dict[str, Any], component: str, present_is_pass: bool = True) -> dict[str, Any]:
+    """Create a redacted status check from a fixed JSON-returning operation."""
+    result = operation.get("result", {})
+    try:
+        value = json.loads(str(result.get("stdout", "")))
+    except json.JSONDecodeError:
+        value = None
+    if isinstance(value, list):
+        value = value[0] if value else None
+    valid = isinstance(value, dict) and bool(value.get("present", present_is_pass)) == present_is_pass
+    status = "PASS" if operation.get("ok") and valid else "FAIL"
+    return {
+        "key": component,
+        "status": status,
+        "detail": healthcheck_detail(component, status),
+        "recommended_action": healthcheck_action(component, status),
+        "duration_ms": result.get("duration_ms"),
+    }
+
+
+def normalise_healthcheck(
+    control_path: dict[str, Any], lab_health: dict[str, Any], supplemental: dict[str, dict[str, Any]] | None = None
+) -> dict[str, Any]:
     """Convert fixed health output into a small, dashboard-safe result payload."""
     control_result = control_path.get("remote_check", {})
     lab_result = lab_health.get("result", {})
@@ -1173,6 +1226,7 @@ def normalise_healthcheck(control_path: dict[str, Any], lab_health: dict[str, An
                 "detail": healthcheck_detail(component, current_status),
                 "recommended_action": healthcheck_action(component, current_status),
                 "duration_ms": None,
+                **_lifecycle_metadata(parts[2] if len(parts) > 2 else ""),
             }
         )
     if not lab_health.get("ok") and not any(check["status"] == "FAIL" for check in checks):
@@ -1185,6 +1239,8 @@ def normalise_healthcheck(control_path: dict[str, Any], lab_health: dict[str, An
                 "duration_ms": lab_result.get("duration_ms"),
             }
         )
+    for component, operation in (supplemental or {}).items():
+        checks.append(_supplemental_check(operation, component))
     statuses = {check["status"] for check in checks}
     overall_status = "FAIL" if "FAIL" in statuses else "WARN" if "WARN" in statuses else "PASS"
     return {
@@ -1196,6 +1252,36 @@ def normalise_healthcheck(control_path: dict[str, Any], lab_health: dict[str, An
         "configuration_fingerprint": CONFIGURATION_FINGERPRINT,
         "checks": checks,
     }
+
+
+def control_path_failure_summary(control_path: dict[str, Any]) -> dict[str, Any]:
+    result = control_path.get("remote_check", {})
+    return {
+        "started_at": result.get("started_at"),
+        "started_at_nz": result.get("started_at_nz"),
+        "finished_at": result.get("finished_at"),
+        "finished_at_nz": result.get("finished_at_nz"),
+        "overall_status": "FAIL",
+        "configuration_fingerprint": CONFIGURATION_FINGERPRINT,
+        "checks": [
+            {
+                "key": "control_path",
+                "status": "FAIL",
+                "detail": "The T16 could not complete the governed T480 control-path check.",
+                "recommended_action": healthcheck_action("control_path", "FAIL"),
+                "duration_ms": result.get("duration_ms"),
+            }
+        ],
+    }
+
+
+def record_local_healthcheck(summary: dict[str, Any]) -> dict[str, int]:
+    return append_health_history(
+        summary,
+        history_path=HEALTH_HISTORY_PATH,
+        latest_path=HEALTH_LATEST_PATH,
+        transitions_path=HEALTH_TRANSITIONS_PATH,
+    )
 
 
 def publish_healthcheck(summary: dict[str, Any]) -> dict[str, Any]:
@@ -1233,16 +1319,24 @@ def healthcheck() -> dict[str, Any]:
     """Run the fixed control-path and service-health checks, then publish a redacted result."""
     control_path = preflight()
     if not control_path["ok"]:
+        summary = control_path_failure_summary(control_path)
+        local_history = record_local_healthcheck(summary)
         return {
             "tool_id": TOOL_ID,
             "operation": "healthcheck",
             "approval_required": False,
             "approved": False,
             "checks": {"control_path": control_path},
+            "summary": summary,
+            "local_history": local_history,
             "ok": False,
         }
     lab_health = execute("lab_health", approved=False)
-    summary = normalise_healthcheck(control_path, lab_health)
+    supplemental = {
+        "startup_task": execute("startup_status", approved=False),
+        "dashboard_firewall": execute("health_dashboard_firewall_status", approved=False),
+    }
+    summary = normalise_healthcheck(control_path, lab_health, supplemental)
     published = publish_healthcheck(summary)
     if not published["ok"]:
         summary["checks"].append(
@@ -1255,15 +1349,29 @@ def healthcheck() -> dict[str, Any]:
             }
         )
         summary["overall_status"] = "FAIL"
+    local_history = record_local_healthcheck(summary)
     return {
         "tool_id": TOOL_ID,
         "operation": "healthcheck",
         "approval_required": False,
         "approved": False,
-        "checks": {"control_path": control_path, "lab_health": lab_health, "dashboard_publish": published},
+        "checks": {"control_path": control_path, "lab_health": lab_health, **supplemental, "dashboard_publish": published},
         "summary": summary,
+        "local_history": local_history,
         "result": published["result"],
         "ok": lab_health["ok"] and published["ok"],
+    }
+
+
+def healthreport() -> dict[str, Any]:
+    """Generate a redacted seven-day local report without contacting the T480."""
+    report = weekly_report(HEALTH_HISTORY_PATH, HEALTH_WEEKLY_REPORT_PATH)
+    return {
+        "tool_id": TOOL_ID,
+        "operation": "healthreport",
+        "output": str(HEALTH_WEEKLY_REPORT_PATH),
+        "report": report,
+        "ok": True,
     }
 
 
@@ -1465,7 +1573,7 @@ def parser() -> argparse.ArgumentParser:
     command_parser.add_argument(
         "command",
         type=str.lower,
-        choices=["describe-requirements", "preflight", "healthcheck", "execute", "verify", "submit-transcription-folder", "pull-transcription-outputs", "stage-forex-m1-evidence"],
+        choices=["describe-requirements", "preflight", "healthcheck", "healthreport", "execute", "verify", "submit-transcription-folder", "pull-transcription-outputs", "stage-forex-m1-evidence"],
     )
     command_parser.add_argument("--operation", choices=sorted(OPERATIONS), help="Fixed operation identifier.")
     command_parser.add_argument("--source-folder", help="Windows Explorer folder containing direct MP4 files; accepted only by submit-transcription-folder.")
@@ -1482,6 +1590,8 @@ def main(argv: list[str] | None = None) -> int:
         payload = preflight()
     elif args.command == "healthcheck":
         payload = healthcheck()
+    elif args.command == "healthreport":
+        payload = healthreport()
     elif args.command == "submit-transcription-folder":
         if not args.source_folder:
             raise SystemExit("--source-folder is required for submit-transcription-folder")

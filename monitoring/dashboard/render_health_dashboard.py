@@ -42,10 +42,12 @@ def render(payload: dict[str, Any]) -> str:
         f"<td>{text(check.get('detail'))}</td>"
         f"<td>{text(check.get('recommended_action'))}</td>"
         f"<td>{text(check.get('duration_ms'))}</td>"
+        f"<td>{text(check.get('observed_started_at_nz'))}</td>"
+        f"<td>{text(check.get('restart_count'))}</td>"
         "</tr>"
         for check in latest_checks
         if isinstance(check, dict)
-    ) or '<tr><td colspan="5">No individual check results are available.</td></tr>'
+    ) or '<tr><td colspan="7">No individual check results are available.</td></tr>'
     history_rows = "".join(
         "<tr>"
         f"<td>{text(run.get('run_id'))}</td>"
@@ -83,7 +85,7 @@ def render(payload: dict[str, Any]) -> str:
   <p class="meta">Private LAN status page · auto-refreshes every 60 seconds · generated {generated_at}</p>
   <p class="summary">{summary}</p>
   <h2>Latest checks</h2>
-  <table><thead><tr><th>Check</th><th>Status</th><th>Detail</th><th>Recommended action</th><th>Duration (ms)</th></tr></thead><tbody>{check_rows}</tbody></table>
+  <table><thead><tr><th>Check</th><th>Status</th><th>Detail</th><th>Recommended action</th><th>Duration (ms)</th><th>Started (NZ)</th><th>Restarts</th></tr></thead><tbody>{check_rows}</tbody></table>
   <h2>Recent Healthchecks</h2>
   <table><thead><tr><th>Run</th><th>Recorded (NZ)</th><th>Result</th><th>Finished (NZ)</th></tr></thead><tbody>{history_rows}</tbody></table>
 </body>

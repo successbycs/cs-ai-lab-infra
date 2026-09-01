@@ -25,9 +25,22 @@ service_id() {
   docker compose ps -q "$1" 2>/dev/null | head -n 1
 }
 
+wait_for_service_health() {
+  local service="$1" container_id health
+  for _attempt in 1 2 3; do
+    container_id="$(service_id "$service")"
+    [[ -n "$container_id" ]] || return 1
+    health="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$container_id" 2>/dev/null || true)"
+    [[ "$health" == "healthy" ]] && return 0
+    [[ "$health" == "starting" ]] || return 1
+    sleep 2
+  done
+  return 1
+}
+
 check_service() {
   local service="$1"
-  local container_id state health
+  local container_id state health started_at restart_count
   container_id="$(service_id "$service")"
   if [[ -z "$container_id" ]]; then
     fail "$service" "container is absent"
@@ -35,8 +48,16 @@ check_service() {
   fi
   state="$(docker inspect --format '{{.State.Status}}' "$container_id" 2>/dev/null || true)"
   health="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$container_id" 2>/dev/null || true)"
-  if [[ "$state" == "running" && "$health" == "healthy" ]]; then
-    ok "$service" "running and healthy"
+  started_at="$(docker inspect --format '{{.State.StartedAt}}' "$container_id" 2>/dev/null || true)"
+  restart_count="$(docker inspect --format '{{.RestartCount}}' "$container_id" 2>/dev/null || true)"
+  if [[ "$state" == "running" && "$health" == "starting" ]]; then
+    wait_for_service_health "$service" || true
+    health="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$container_id" 2>/dev/null || true)"
+  fi
+  if [[ "$state" == "running" && "$health" == "starting" ]]; then
+    warn "$service" "startup grace is still active started_at=$started_at restart_count=${restart_count:-0}"
+  elif [[ "$state" == "running" && "$health" == "healthy" ]]; then
+    ok "$service" "running and healthy started_at=$started_at restart_count=${restart_count:-0}"
   else
     fail "$service" "state=$state health=$health"
   fi
@@ -73,6 +94,8 @@ check_command postgres 'executes a database query' \
   docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U "${POSTGRES_USER:-postgres}" -d "${POSTGRES_DB:-postgres}" -Atqc 'SELECT 1'
 check_command postgres 'pgvector extension is installed' \
   docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U "${POSTGRES_USER:-postgres}" -d "${POSTGRES_DB:-postgres}" -Atqc "SELECT 1 FROM pg_extension WHERE extname = 'vector'"
+check_command vector 'evaluates a vector expression' \
+  docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U "${POSTGRES_USER:-postgres}" -d "${POSTGRES_DB:-postgres}" -Atqc "SELECT '[1,0,0]'::vector <-> '[0,1,0]'::vector"
 
 if command -v curl >/dev/null 2>&1; then
   check_command n8n 'host health endpoint responds' \
@@ -97,6 +120,19 @@ if [[ -n "$ollama_id" ]]; then
 else
   note SKIP ollama 'optional profile is not running'
 fi
+
+check_command postgres_exposure 'is loopback-only' \
+  bash -c 'docker compose port postgres 5432 | grep -Eq "^127\\.0\\.0\\.1:"'
+check_command n8n_exposure 'is loopback-only' \
+  bash -c 'docker compose port n8n 5678 | grep -Eq "^127\\.0\\.0\\.1:"'
+check_command dashboard_exposure 'is available on its configured private-LAN binding' \
+  bash -c 'docker compose port health_dashboard 8080 | grep -Eq "^(0\\.0\\.0\\.0|127\\.0\\.0\\.1):"'
+check_command revision 'checkout is clean and matches fetched origin/main' \
+  bash -c 'test -z "$(git status --porcelain --untracked-files=normal)" && test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"'
+check_command image 'configured images use immutable digests' \
+  bash -c 'docker compose config --images | grep -q "@sha256:" && ! docker compose config --images | grep -vq "@sha256:"'
+check_command capacity 'PostgreSQL volume has capacity' \
+  docker compose exec -T postgres df -Pk /var/lib/postgresql/data
 
 disk_available_kb="$(df -Pk . | awk 'NR==2 {print $4}')"
 disk_summary="$(df -h . | awk 'NR==2 {print $4 " available of " $2}')"

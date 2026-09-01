@@ -20,6 +20,8 @@ def test_dashboard_renderer_outputs_statuses_and_escapes_details(tmp_path):
                         "detail": "<not raw html>",
                         "recommended_action": "Review it",
                         "duration_ms": 12,
+                        "observed_started_at_nz": "2026-08-31T10:00:00+12:00",
+                        "restart_count": 0,
                     }
                 ],
             }
@@ -37,4 +39,5 @@ def test_dashboard_renderer_outputs_statuses_and_escapes_details(tmp_path):
     rendered = output.read_text(encoding="utf-8")
     assert "Latest checks" in rendered
     assert "WARN" in rendered
+    assert "Restarts" in rendered
     assert "&lt;not raw html&gt;" in rendered

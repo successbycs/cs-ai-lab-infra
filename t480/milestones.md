@@ -32,6 +32,7 @@ python3 scripts/t480_milestones.py prove --id M0
 | M6 | Governed n8n upgrade proven — [execution prompt](prompts/m6-n8n-upgrade.md) |
 | M7 | T480 operational health routine proven — [execution prompt](prompts/m7-operational-health.md) |
 | M8 | T480 operational health monitoring proven — [execution prompt](prompts/m8-operational-health-monitoring.md) |
+| M9 | Health monitoring review remediation proven — [execution prompt](prompts/m9-health-monitoring-remediation.md) |
 
 M6's post-upgrade validation includes the `validation_integrity_corrections` subtask. It corrects stale M2 image evidence expectations, prevents unfiltered workflow-export metadata from reaching the n8n API, and makes the default test command reliably execute the adapter suite.
 

@@ -1,0 +1,15 @@
+{
+  "schema_version": "cs-ai-lab.healthcheck-schedule.v1",
+  "enabled": false,
+  "cadence_minutes": 15,
+  "controller": "T16",
+  "command": ["python3", "scripts/t480_adapter.py", "Healthcheck"],
+  "report_command": ["python3", "scripts/t480_adapter.py", "Healthreport"],
+  "weekly_report_day": "Monday",
+  "safety": {
+    "contains_credentials": false,
+    "allows_service_mutation": false,
+    "outbound_notifications": false,
+    "activation_requires_separate_approval": true
+  }
+}

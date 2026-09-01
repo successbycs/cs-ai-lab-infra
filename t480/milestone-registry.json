@@ -411,6 +411,65 @@
           "description": "Review confirms that Healthcheck, its scheduled execution, history, and reporting never start, restart, update, expose, or otherwise mutate a T480 service; recovery remains separately approval-gated."
         }
       ]
+    },
+    {
+      "id": "M9",
+      "name": "Health monitoring review remediation proven",
+      "objective": "Close the solution-architecture, senior-development, and AI-engineering findings from the M8 review. Preserve private boundaries, make controller-side evidence durable, and prove the dashboard from the T16 before declaring operational monitoring complete.",
+      "execution_prompt": "t480/prompts/m9-health-monitoring-remediation.md",
+      "depends_on": ["M7"],
+      "execution_steps": [
+        {
+          "id": "controller_history_and_report",
+          "action": "Run Healthcheck and Healthreport, inspect the ignored redacted history, latest snapshot, transition-only events, and weekly report on the T16.",
+          "purpose": "Retain monitoring evidence even when the T480 control path is unavailable."
+        },
+        {
+          "id": "runtime_policy_checks",
+          "action": "Review startup grace, service lifecycle facts, pgvector expression, loopback-only PostgreSQL and n8n bindings, dashboard LAN binding, checkout state, image digests, and PostgreSQL volume capacity.",
+          "purpose": "Detect unsafe exposure, deployment drift, startup instability, and AI-data-plane regressions without a recovery action."
+        },
+        {
+          "id": "safe_deployment_recovery",
+          "action": "Preserve and resolve the dirty T480 checkout using a separately reviewed recovery path, then fast-forward to the approved revision. Do not discard local work without a recoverable snapshot and explicit approval.",
+          "purpose": "Make deployment safe instead of bypassing Git’s dirty-worktree protection."
+        },
+        {
+          "id": "dashboard_lan_proof",
+          "action": "Apply both monitoring migrations, start the Compose dashboard, enable only the fixed Private-profile TCP 8080 firewall rule, publish Healthcheck, and retrieve the rendered page from the T16.",
+          "purpose": "Prove the exact dashboard path that operators will use."
+        },
+        {
+          "id": "scheduler_review",
+          "action": "Review monitoring/healthcheck-schedule.json. It specifies the exact T16 Healthcheck and weekly-report commands, has no credentials or notification destination, and remains disabled until separately approved.",
+          "purpose": "Make recurring monitoring explicit without silently registering a task."
+        }
+      ],
+      "checks": [
+        {
+          "id": "controller_history_and_reporting_verified",
+          "description": "Actual Healthcheck results create redacted T16-local history, latest snapshot, transition-only events, and a seven-day report without raw command output or credentials.",
+          "real_world_execution": true
+        },
+        {
+          "id": "runtime_safety_and_ai_readiness_verified",
+          "description": "A real Healthcheck records startup/restart facts, bounded startup handling, a pgvector expression, service exposure policy, volume capacity, revision state, and digest-pinned image policy using PASS/WARN/FAIL/SKIP and safe actions.",
+          "real_world_execution": true
+        },
+        {
+          "id": "private_dashboard_deployed_verified",
+          "description": "The two reviewed monitoring migrations are applied, the dashboard is restart-managed, TCP 8080 is enabled only for the Windows Private profile, and the T16 retrieves a redacted dashboard page over the trusted LAN.",
+          "real_world_execution": true
+        },
+        {
+          "id": "deployment_recovery_evidence_verified",
+          "description": "Any dirty-checkout recovery records a recoverable snapshot and an operator approval before an update; no checkout data is silently discarded."
+        },
+        {
+          "id": "scheduler_design_reviewed",
+          "description": "The disabled fixed T16 scheduler design is reviewed; it invokes only Healthcheck and Healthreport, contains no credentials, does not change services, and has no outbound notification destination."
+        }
+      ]
     }
   ]
 }
