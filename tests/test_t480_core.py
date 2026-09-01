@@ -200,6 +200,7 @@ def test_healthcheck_publisher_uses_only_fixed_database_and_rendering_commands(m
     assert "monitoring.health_dashboard_payload" in captured["operation"].wsl_script
     assert "render_health_dashboard.py" in captured["operation"].wsl_script
     assert "gzip -d" in captured["operation"].wsl_script
+    assert "printf '%s\\n' \"$record_sql\" | docker compose exec" in captured["operation"].wsl_script
 
 
 def test_dashboard_is_required_by_compose_healthcheck_and_t480_startup_paths():

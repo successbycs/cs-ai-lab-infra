@@ -65,7 +65,7 @@ TRANSCRIBER_LOCAL_EXPORT = Path("/mnt/c/Users/chris/Videos/Transcripts")
 FOREX_ROOT = Path("/home/chris/projects/forex")
 FOREX_REMOTE_ROOT = "/home/chris/projects/forex"
 FOREX_REPOSITORY = "https://github.com/successbycs/forex.git"
-FOREX_REVISION = "b61c789873c8449eb368b9c17b704ffd4dc2f2bb"
+FOREX_REVISION = "45e59ec2fcdbe18135a68f812c47e677de7dba80"
 FOREX_M1_CAPTURE = FOREX_ROOT / "runs/evidence/M1/20260829T064204Z/capture.stdout.json"
 FOREX_M1_CAPTURE_REMOTE = f"{FOREX_REMOTE_ROOT}/runs/evidence/M1/20260829T064204Z/capture.stdout.json"
 FOREX_M1_CAPTURE_SHA256 = "d3a79f0017fcd51ebd5a918a6094b257be902ebe9933e216462ceef07e4e731b"
@@ -1358,7 +1358,7 @@ set +a
 payload_b64='{encoded_payload}'
 payload_json=\"$(printf '%s' \"$payload_b64\" | base64 -d | gzip -d)\"
 record_sql=\"SELECT monitoring.record_healthcheck(:'payload_json'::jsonb);\"
-docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -v payload_json=\"$payload_json\" -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\" -c \"$record_sql\" </dev/null
+printf '%s\\n' \"$record_sql\" | docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -v payload_json=\"$payload_json\" -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\"
 dashboard_json=\"$(docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\" -Atqc 'SELECT monitoring.health_dashboard_payload();' </dev/null)\"
 printf '%s' \"$dashboard_json\" | python3 monitoring/dashboard/render_health_dashboard.py --output monitoring/dashboard/output/index.html
 printf 'HEALTHCHECK_PUBLISHED=ok\\n'
