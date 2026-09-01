@@ -267,6 +267,12 @@
       "execution": "adapter_owned"
     },
     {
+      "id": "repository_snapshot_and_update",
+      "purpose": "Create and verify a timestamped recoverable patch snapshot of the dirty tracked T480 checkout, then reset only tracked files to origin/main; requires explicit approval.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
       "id": "repository_status",
       "purpose": "Read the fixed T480 lab checkout status and local versus fetched origin/main revisions without changing it.",
       "approval_required": false,

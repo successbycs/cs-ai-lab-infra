@@ -224,6 +224,18 @@ def test_dashboard_firewall_operations_are_fixed_and_private_profile_only():
     assert "New-NetFirewallRule" in enable["command"]
 
 
+def test_repository_snapshot_recovery_creates_a_patch_before_tracked_reset():
+    operation = t480_adapter.OPERATIONS["repository_snapshot_and_update"]
+    script = operation["wsl_script"]
+
+    assert operation["approval_required"] is True
+    assert "git diff --binary HEAD" in script
+    assert "git apply --check --reverse" in script
+    assert "sha256sum" in script
+    assert "git reset --hard origin/main" in script
+    assert "git clean" not in script
+
+
 def test_health_history_is_redacted_rotated_and_emits_transition_only(tmp_path):
     history = tmp_path / "history.jsonl"
     latest = tmp_path / "latest.json"
