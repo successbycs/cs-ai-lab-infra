@@ -213,6 +213,18 @@
       "execution": "adapter_owned"
     },
     {
+      "id": "n8n_restart",
+      "purpose": "Restart the existing private n8n service and wait for its health endpoint after a workflow-registration change.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "n8n_internal_task_runners_enable",
+      "purpose": "Enable n8n's built-in task runner for fixed Code-node workflows on the private T480 and wait for a healthy service.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
       "id": "lab_health",
       "purpose": "Verify the private lab's Docker daemon, required container health, PostgreSQL query and pgvector extension, n8n health endpoint, optional running Ollama service, and available capacity without changing the T480.",
       "approval_required": false,

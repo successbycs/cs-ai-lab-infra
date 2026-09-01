@@ -254,7 +254,7 @@ def main(argv: list[str] | None = None) -> int:
     elif args.command == "get-execution":
         if not args.workflow_id:
             raise SystemExit("--workflow-id is required for get-execution")
-        response, result = api_request("GET", f"/executions/{args.workflow_id}")
+        response, result = api_request("GET", f"/executions/{args.workflow_id}?includeData=true")
         payload = {"tool_id": TOOL_ID, "execution": response, "result": result, "ok": True}
     elif args.command == "activate-workflow":
         if not args.workflow_id:

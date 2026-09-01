@@ -64,7 +64,7 @@ TRANSCRIBER_LOCAL_EXPORT = Path("/mnt/c/Users/chris/Videos/Transcripts")
 FOREX_ROOT = Path("/home/chris/projects/forex")
 FOREX_REMOTE_ROOT = "/home/chris/projects/forex"
 FOREX_REPOSITORY = "https://github.com/successbycs/forex.git"
-FOREX_REVISION = "46bcc7f331e26075a40bfa259f33638230fccd28"
+FOREX_REVISION = "093b8f380932aa0a923bb743dcc83198086643e4"
 FOREX_M1_CAPTURE = FOREX_ROOT / "runs/evidence/M1/20260829T064204Z/capture.stdout.json"
 FOREX_M1_CAPTURE_REMOTE = f"{FOREX_REMOTE_ROOT}/runs/evidence/M1/20260829T064204Z/capture.stdout.json"
 FOREX_M1_CAPTURE_SHA256 = "d3a79f0017fcd51ebd5a918a6094b257be902ebe9933e216462ceef07e4e731b"
@@ -546,6 +546,42 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "cd /home/chris/projects/cs-ai-lab-infra\n"
             "docker compose up -d --wait --wait-timeout 180 n8n health_dashboard\n"
             "docker compose ps n8n postgres health_dashboard\n"
+        ),
+    },
+    "n8n_restart": {
+        "approval_required": True,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "cd /home/chris/projects/cs-ai-lab-infra\n"
+            "docker compose restart n8n\n"
+            "for attempt in $(seq 1 30); do\n"
+            "  if curl --fail --silent --max-time 5 http://127.0.0.1:5678/healthz >/dev/null; then\n"
+            "    docker compose ps n8n\n"
+            "    exit 0\n"
+            "  fi\n"
+            "  sleep 2\n"
+            "done\n"
+            "printf 'n8n did not become healthy after restart.\\n' >&2\n"
+            "exit 1\n"
+        ),
+    },
+    "n8n_internal_task_runners_enable": {
+        "approval_required": True,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "cd /home/chris/projects/cs-ai-lab-infra\n"
+            "grep -Fq 'N8N_RUNNERS_ENABLED:' compose.yaml || sed -i '/N8N_PERSONALIZATION_ENABLED:/a\\      N8N_RUNNERS_ENABLED: ${N8N_RUNNERS_ENABLED:-true}' compose.yaml\n"
+            "if grep -q '^N8N_RUNNERS_ENABLED=' .env; then sed -i 's/^N8N_RUNNERS_ENABLED=.*/N8N_RUNNERS_ENABLED=true/' .env; else printf '\\nN8N_RUNNERS_ENABLED=true\\n' >> .env; fi\n"
+            "docker compose up -d --force-recreate n8n\n"
+            "for attempt in $(seq 1 45); do\n"
+            "  if curl --fail --silent --max-time 5 http://127.0.0.1:5678/healthz >/dev/null; then\n"
+            "    docker compose exec -T n8n sh -lc 'test \"$N8N_RUNNERS_ENABLED\" = true'\n"
+            "    exit 0\n"
+            "  fi\n"
+            "  sleep 2\n"
+            "done\n"
+            "printf 'n8n task runners did not become ready.\\n' >&2\n"
+            "exit 1\n"
         ),
     },
     "lab_health": {
