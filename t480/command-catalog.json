@@ -268,7 +268,7 @@
     },
     {
       "id": "n8n_upgrade",
-      "purpose": "Pull and deploy only the reviewed digest-pinned n8n 1.123.65 image, then report version and private service health.",
+      "purpose": "Pull and deploy only the reviewed digest-pinned n8n 1.123.76 image, then report version and private service health.",
       "approval_required": true,
       "execution": "adapter_owned"
     },

@@ -3,7 +3,7 @@
 ## Current operating state
 
 - M0 through M3 are proven with real T480 evidence bundles where required.
-- n8n is running privately on the T480 at `127.0.0.1:5678`, using the reviewed and digest-pinned `1.123.65` image. PostgreSQL/pgvector and Ollama are also installed.
+- n8n is running privately on the T480 at `127.0.0.1:5678`, using the reviewed and digest-pinned `1.123.76` image. PostgreSQL/pgvector and Ollama are also installed.
 - The n8n adapter is enabled with an API key stored only on the T480 in a mode-600 file. Do not request, print, copy, or commit that key.
 - A bounded n8n live file-write workflow has been created and verified. Its output is stored only in the dedicated n8n file volume.
 - The active T480 Windows plan is configured on AC power not to sleep or use timed hibernation and to ignore lid-close events. Battery behaviour is unchanged.

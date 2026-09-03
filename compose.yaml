@@ -25,7 +25,7 @@ services:
       start_period: 20s
 
   n8n:
-    image: n8nio/n8n:1.123.65@sha256:8554136778e759f208205d13bf52ce0c782c43fefd72ecaab2b88285d7bc8046
+    image: n8nio/n8n:1.123.76@sha256:66b6bfd6716877591d9c21340250f44f842e6b03f97ccaed09b9f95e13cf5331
     restart: unless-stopped
     depends_on:
       postgres:
@@ -66,7 +66,7 @@ services:
   # This one-shot service owns only the separate n8n_files volume. It lets the
   # non-root n8n process write deliberately generated local files there.
   n8n_files_init:
-    image: n8nio/n8n:1.123.65@sha256:8554136778e759f208205d13bf52ce0c782c43fefd72ecaab2b88285d7bc8046
+    image: n8nio/n8n:1.123.76@sha256:66b6bfd6716877591d9c21340250f44f842e6b03f97ccaed09b9f95e13cf5331
     user: "0:0"
     entrypoint: ["/bin/sh", "-c", "mkdir -p /home/node/.n8n-files && chown -R 1000:1000 /home/node/.n8n-files"]
     restart: "no"
@@ -74,7 +74,7 @@ services:
       - n8n_files:/home/node/.n8n-files
 
   health_dashboard:
-    image: n8nio/n8n:1.123.65@sha256:8554136778e759f208205d13bf52ce0c782c43fefd72ecaab2b88285d7bc8046
+    image: n8nio/n8n:1.123.76@sha256:66b6bfd6716877591d9c21340250f44f842e6b03f97ccaed09b9f95e13cf5331
     restart: unless-stopped
     depends_on:
       postgres:
