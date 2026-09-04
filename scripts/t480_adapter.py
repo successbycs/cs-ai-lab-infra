@@ -65,7 +65,7 @@ TRANSCRIBER_LOCAL_EXPORT = Path("/mnt/c/Users/chris/Videos/Transcripts")
 FOREX_ROOT = Path("/home/chris/projects/forex")
 FOREX_REMOTE_ROOT = "/home/chris/projects/forex"
 FOREX_REPOSITORY = "https://github.com/successbycs/forex.git"
-FOREX_REVISION = "d5337b4948afa523d7a6075d9f9d9f287383b6d8"
+FOREX_REVISION = "62ca5836ba49aad85111e247eaebec25ef185ce8"
 FOREX_M1_CAPTURE = FOREX_ROOT / "runs/evidence/M1/20260829T064204Z/capture.stdout.json"
 FOREX_M1_CAPTURE_REMOTE = f"{FOREX_REMOTE_ROOT}/runs/evidence/M1/20260829T064204Z/capture.stdout.json"
 FOREX_M1_CAPTURE_SHA256 = "d3a79f0017fcd51ebd5a918a6094b257be902ebe9933e216462ceef07e4e731b"
@@ -109,6 +109,215 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "Get-CimInstance Win32_LogicalDisk -Filter 'DriveType = 3' | "
             "Select-Object DeviceID, @{Name='size_gib'; Expression={[math]::Round($_.Size / 1GB, 1)}}, "
             "@{Name='free_gib'; Expression={[math]::Round($_.FreeSpace / 1GB, 1)}} | ConvertTo-Json -Compress"
+        ),
+    },
+    "tailscale_windows_status": {
+        "approval_required": False,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "$exe = Join-Path $env:ProgramFiles 'Tailscale\\tailscale.exe'; "
+            "$service = Get-CimInstance Win32_Service -Filter \"Name='Tailscale'\" -ErrorAction SilentlyContinue | Select-Object Name,State,StartMode,StartName; "
+            "$version = if (Test-Path -LiteralPath $exe -PathType Leaf) { (& $exe version 2>$null | Select-Object -First 1) } else { $null }; "
+            "$backend = if (Test-Path -LiteralPath $exe -PathType Leaf) { (& $exe status --json 2>$null | ConvertFrom-Json -ErrorAction SilentlyContinue | Select-Object BackendState,Self) } else { $null }; "
+            "[pscustomobject]@{ installed = [bool](Test-Path -LiteralPath $exe -PathType Leaf); version = $version; service = $service; backend = $backend } | ConvertTo-Json -Depth 5 -Compress"
+        ),
+    },
+    "tailscale_tailnet_peers": {
+        "approval_required": False,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; $exe = Join-Path $env:ProgramFiles 'Tailscale\\tailscale.exe'; "
+            "if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) { throw 'Tailscale is not installed.' }; "
+            "$status = & $exe status --json | ConvertFrom-Json; "
+            "$peers = @($status.Peer.PSObject.Properties | ForEach-Object { $peer = $_.Value; [pscustomobject]@{ host_name = $peer.HostName; os = $peer.OS; online = $peer.Online; active = $peer.Active; exit_node = $peer.ExitNode; allowed_ips = $peer.AllowedIPs } }); "
+            "[pscustomobject]@{ backend_state = $status.BackendState; self_online = $status.Self.Online; self_exit_node = $status.Self.ExitNode; peer_count = $peers.Count; peers = $peers } | ConvertTo-Json -Depth 5 -Compress"
+        ),
+    },
+    "tailscale_windows_install": {
+        "approval_required": True,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue'; "
+            "$uri = 'https://dl.tailscale.com/stable/tailscale-setup-1.102.3-amd64.msi'; "
+            "$destinationDir = Join-Path $env:ProgramData 'CSAILab\\installers'; $destination = Join-Path $destinationDir 'tailscale-setup-1.102.3-amd64.msi'; "
+            "New-Item -ItemType Directory -Path $destinationDir -Force | Out-Null; "
+            "Invoke-WebRequest -Uri $uri -OutFile $destination -UseBasicParsing; "
+            "$signature = Get-AuthenticodeSignature -FilePath $destination; "
+            "if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'Tailscale') { throw 'Downloaded Tailscale installer signature validation failed.' }; "
+            "$install = Start-Process -FilePath 'msiexec.exe' -ArgumentList @('/i', $destination, '/qn', 'TS_NOLAUNCH=1') -Wait -PassThru; "
+            "if ($install.ExitCode -notin @(0,3010)) { throw \"Tailscale MSI installation failed with exit code $($install.ExitCode).\" }; "
+            "$exe = Join-Path $env:ProgramFiles 'Tailscale\\tailscale.exe'; if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) { throw 'Tailscale executable was absent after MSI installation.' }; "
+            "$service = Get-CimInstance Win32_Service -Filter \"Name='Tailscale'\" -ErrorAction Stop | Select-Object Name,State,StartMode; "
+            "[pscustomobject]@{ installed = $true; installer_version = '1.102.3'; installer_signature = $signature.Status.ToString(); installer_signer = $signature.SignerCertificate.Subject; msi_exit_code = $install.ExitCode; client_version = (& $exe version 2>$null | Select-Object -First 1); service = $service; login_required = $true; next_action = 'Sign in locally to Tailscale with the owner account; do not enable routes, exit node, or public exposure.' } | ConvertTo-Json -Depth 5 -Compress"
+        ),
+    },
+    "performance_diagnostics": {
+        "approval_required": False,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "$os = Get-CimInstance Win32_OperatingSystem; $cpu = Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average; "
+            "$memoryTotal = [math]::Round($os.TotalVisibleMemorySize / 1MB, 2); $memoryFree = [math]::Round($os.FreePhysicalMemory / 1MB, 2); "
+            "$disks = @(Get-CimInstance Win32_LogicalDisk -Filter 'DriveType = 3' | Select-Object DeviceID,@{Name='free_gib';Expression={[math]::Round($_.FreeSpace / 1GB,2)}},@{Name='free_percent';Expression={[math]::Round(100*$_.FreeSpace/$_.Size,1)}}); "
+            "$processes = @(Get-Process -ErrorAction SilentlyContinue | Sort-Object CPU -Descending | Select-Object -First 20 ProcessName,Id,@{Name='cpu_seconds';Expression={[math]::Round($_.CPU,1)}},@{Name='working_set_mib';Expression={[math]::Round($_.WorkingSet64 / 1MB,1)}},Responding,StartTime); "
+            "$rdpService = Get-CimInstance Win32_Service -Filter \"Name='TermService'\" | Select-Object Name,State,StartMode,ProcessId; "
+            "$rdpSessions = @(Get-CimInstance Win32_LogonSession -Filter 'LogonType = 10' -ErrorAction SilentlyContinue | Select-Object LogonId,StartTime,AuthenticationPackage); "
+            "$rdpListeners = @(Get-NetTCPConnection -LocalPort 3389 -ErrorAction SilentlyContinue | Select-Object State,LocalAddress,LocalPort,RemoteAddress,RemotePort,OwningProcess); "
+            "$network = @(Get-CimInstance Win32_PerfFormattedData_Tcpip_NetworkInterface -ErrorAction SilentlyContinue | Select-Object Name,BytesReceivedPersec,BytesSentPersec,OutputQueueLength | Sort-Object BytesSentPersec -Descending | Select-Object -First 10); "
+            "[pscustomobject]@{ captured_at_utc = (Get-Date).ToUniversalTime().ToString('o'); uptime_since_utc = $os.LastBootUpTime.ToUniversalTime().ToString('o'); cpu_load_percent = [math]::Round($cpu.Average,1); memory_total_gib = $memoryTotal; memory_free_gib = $memoryFree; memory_used_percent = [math]::Round(100 * (1 - $memoryFree / $memoryTotal),1); disks = $disks; top_processes_by_cpu_seconds = $processes; rdp_service = $rdpService; rdp_network_logon_sessions = $rdpSessions; rdp_tcp_connections = $rdpListeners; network_interfaces = $network } | ConvertTo-Json -Depth 6 -Compress"
+        ),
+    },
+    "security_windows_baseline": {
+        "approval_required": False,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "$os = Get-CimInstance Win32_OperatingSystem; "
+            "$ubr = (Get-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion' -ErrorAction SilentlyContinue).UBR; "
+            "$latestHotfix = Get-HotFix -ErrorAction SilentlyContinue | Sort-Object InstalledOn -Descending | Select-Object -First 1 HotFixID,InstalledOn,Description; "
+            "$firewall = try { @(Get-NetFirewallProfile -ErrorAction Stop | Select-Object Name,Enabled,DefaultInboundAction,DefaultOutboundAction,NotifyOnListen,AllowInboundRules,AllowLocalFirewallRules) } catch { @([pscustomobject]@{ error = $_.Exception.Message }) }; "
+            "$bitlocker = try { @(Get-BitLockerVolume | Select-Object MountPoint,VolumeType,ProtectionStatus,VolumeStatus,EncryptionMethod,EncryptionPercentage,AutoUnlockEnabled) } catch { @([pscustomobject]@{ error = $_.Exception.Message }) }; "
+            "$secureBoot = try { [bool](Confirm-SecureBootUEFI) } catch { $null }; "
+            "$deviceGuard = try { Get-CimInstance -Namespace root/Microsoft/Windows/DeviceGuard -ClassName Win32_DeviceGuard | Select-Object SecurityServicesConfigured,SecurityServicesRunning,VirtualizationBasedSecurityStatus,CodeIntegrityPolicyEnforcementStatus,UsermodeCodeIntegrityPolicyEnforcementStatus } catch { [pscustomobject]@{ error = $_.Exception.Message } }; "
+            "$uac = Get-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' -ErrorAction SilentlyContinue | Select-Object EnableLUA,ConsentPromptBehaviorAdmin,PromptOnSecureDesktop,FilterAdministratorToken,LocalAccountTokenFilterPolicy; "
+            "$smartScreen = Get-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer' -ErrorAction SilentlyContinue | Select-Object SmartScreenEnabled; "
+            "$rdp = Get-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server' -ErrorAction SilentlyContinue | Select-Object fDenyTSConnections; "
+            "$smb = try { Get-SmbServerConfiguration | Select-Object EnableSMB1Protocol,EnableSMB2Protocol,EncryptData,RejectUnencryptedAccess,RequireSecuritySignature,EnableSecuritySignature } catch { [pscustomobject]@{ error = $_.Exception.Message } }; "
+            "[pscustomobject]@{ os = [pscustomobject]@{ caption = $os.Caption; version = $os.Version; build = $os.BuildNumber; ubr = $ubr; architecture = $os.OSArchitecture; install_date = $os.InstallDate; last_boot = $os.LastBootUpTime }; latest_hotfix = $latestHotfix; firewall_profiles = $firewall; bitlocker = $bitlocker; secure_boot = $secureBoot; device_guard = $deviceGuard; uac = $uac; smart_screen = $smartScreen; rdp = $rdp; smb_server = $smb } | ConvertTo-Json -Depth 8 -Compress"
+        ),
+    },
+    "security_defender_status": {
+        "approval_required": False,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "$mp = try { $s = Get-MpComputerStatus; $p = Get-MpPreference; [pscustomobject]@{ status = $s | Select-Object AMServiceEnabled,AntivirusEnabled,AntispywareEnabled,BehaviorMonitorEnabled,IoavProtectionEnabled,NISEnabled,OnAccessProtectionEnabled,RealTimeProtectionEnabled,IsTamperProtected,DefenderSignaturesOutOfDate,AntivirusSignatureVersion,AntivirusSignatureLastUpdated,AntispywareSignatureVersion,AntispywareSignatureLastUpdated,QuickScanAge,QuickScanEndTime,FullScanAge,FullScanEndTime,RebootRequired; preferences = $p | Select-Object DisableArchiveScanning,DisableBehaviorMonitoring,DisableBlockAtFirstSeen,DisableEmailScanning,DisableIOAVProtection,DisableRealtimeMonitoring,DisableRemovableDriveScanning,DisableScanningMappedNetworkDrivesForFullScan,DisableScanningNetworkFiles,PUAProtection,MAPSReporting,SubmitSamplesConsent,CloudBlockLevel,EnableControlledFolderAccess,ExclusionPath,ExclusionExtension,ExclusionProcess,AttackSurfaceReductionRules_Ids,AttackSurfaceReductionRules_Actions } } catch { [pscustomobject]@{ error = $_.Exception.Message } }; "
+            "$detections = try { @(Get-MpThreatDetection -ErrorAction Stop | Sort-Object InitialDetectionTime -Descending | Select-Object -First 50 ThreatID,ThreatStatusID,ActionSuccess,InitialDetectionTime,LastThreatStatusChangeTime,Resources) } catch { @([pscustomobject]@{ error = $_.Exception.Message }) }; "
+            "$av = try { @(Get-CimInstance -Namespace root/SecurityCenter2 -ClassName AntivirusProduct -ErrorAction Stop | Select-Object displayName,productState,pathToSignedProductExe,pathToSignedReportingExe) } catch { @([pscustomobject]@{ error = $_.Exception.Message }) }; "
+            "[pscustomobject]@{ defender = $mp; defender_detections = $detections; registered_antivirus = $av } | ConvertTo-Json -Depth 7 -Compress"
+        ),
+    },
+    "security_accounts_and_shares": {
+        "approval_required": False,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "$users = try { @(Get-LocalUser | Select-Object Name,Enabled,LastLogon,PasswordRequired,PasswordExpires,UserMayChangePassword,PasswordLastSet,PrincipalSource) } catch { @([pscustomobject]@{ error = $_.Exception.Message }) }; "
+            "$administrators = try { @(Get-LocalGroupMember -Group 'Administrators' | Select-Object Name,ObjectClass,PrincipalSource) } catch { @([pscustomobject]@{ error = $_.Exception.Message }) }; "
+            "$remoteDesktopUsers = try { @(Get-LocalGroupMember -Group 'Remote Desktop Users' | Select-Object Name,ObjectClass,PrincipalSource) } catch { @([pscustomobject]@{ error = $_.Exception.Message }) }; "
+            "$autologon = Get-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon' -ErrorAction SilentlyContinue | Select-Object AutoAdminLogon,DefaultUserName,DefaultDomainName,ForceAutoLogon; "
+            "$shares = try { @(Get-SmbShare | Select-Object Name,Path,Description,Special,EncryptData,FolderEnumerationMode) } catch { @([pscustomobject]@{ error = $_.Exception.Message }) }; "
+            "$passwordPolicy = (& net.exe accounts | Out-String); "
+            "[pscustomobject]@{ current_identity = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name; elevated_administrator = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator); local_users = $users; administrators = $administrators; remote_desktop_users = $remoteDesktopUsers; autologon = $autologon; smb_shares = $shares; password_policy = $passwordPolicy } | ConvertTo-Json -Depth 6 -Compress"
+        ),
+    },
+    "security_network_exposure": {
+        "approval_required": False,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue'; "
+            "$processCache = @{}; function Process-Fact([int]$processId) { if (-not $processCache.ContainsKey($processId)) { $p = Get-Process -Id $processId -ErrorAction SilentlyContinue; $path = $p.Path; $sig = if ($path) { (Get-AuthenticodeSignature -FilePath $path -ErrorAction SilentlyContinue).Status.ToString() } else { $null }; $processCache[$processId] = [pscustomobject]@{ name = $p.ProcessName; path = $path; signature = $sig } }; return $processCache[$processId] }; "
+            "$tcpRaw = @(Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Sort-Object LocalPort,LocalAddress); $tcp = @($tcpRaw | Select-Object -First 100 | ForEach-Object { $p = Process-Fact $_.OwningProcess; [pscustomobject]@{ address = $_.LocalAddress; port = $_.LocalPort; pid = $_.OwningProcess; process = $p.name; path = $p.path; signature = $p.signature } }); "
+            "$udpRaw = @(Get-NetUDPEndpoint -ErrorAction SilentlyContinue | Sort-Object LocalPort,LocalAddress); $udp = @($udpRaw | Select-Object -First 100 | ForEach-Object { $p = Process-Fact $_.OwningProcess; [pscustomobject]@{ address = $_.LocalAddress; port = $_.LocalPort; pid = $_.OwningProcess; process = $p.name; path = $p.path; signature = $p.signature } }); "
+            "$ruleError = $null; $rules = try { @(Get-NetFirewallRule -Enabled True -Direction Inbound -Action Allow -ErrorAction Stop) } catch { $ruleError = $_.Exception.Message; @() }; "
+            "$inbound = @($rules | ForEach-Object { $rule = $_; $ports = @($rule | Get-NetFirewallPortFilter -ErrorAction SilentlyContinue); foreach ($port in $ports) { if ($port.LocalPort -ne 'Any' -or $rule.Profile.ToString() -match 'Public|Any') { [pscustomobject]@{ display_name = $rule.DisplayName; profile = $rule.Profile.ToString(); protocol = $port.Protocol.ToString(); local_port = $port.LocalPort } } } } | Sort-Object profile,local_port,display_name | Select-Object -First 60); "
+            "$portProxy = (& netsh.exe interface portproxy show all | Out-String); "
+            "$profiles = try { @(Get-NetConnectionProfile -ErrorAction Stop | Select-Object Name,InterfaceAlias,NetworkCategory,IPv4Connectivity,IPv6Connectivity) } catch { @([pscustomobject]@{ error = $_.Exception.Message }) }; "
+            "[pscustomobject]@{ connection_profiles = $profiles; tcp_listener_count = $tcpRaw.Count; tcp_listeners = $tcp; udp_endpoint_count = $udpRaw.Count; udp_endpoints = $udp; listener_result_limit = 100; enabled_inbound_allow_rule_count = $rules.Count; reviewed_inbound_allow_rules = $inbound; inbound_rule_error = $ruleError; inbound_rule_result_limit = 60; port_proxy = $portProxy } | ConvertTo-Json -Depth 6 -Compress"
+        ),
+    },
+    "security_sensitive_firewall_rules": {
+        "approval_required": False,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue'; "
+            "$targets = @('22','139','445','3389','5432','8080'); $matches = @(); "
+            "$rules = Get-NetFirewallRule -Enabled True -Direction Inbound -Action Allow -ErrorAction SilentlyContinue; "
+            "foreach ($rule in $rules) { foreach ($port in @($rule | Get-NetFirewallPortFilter -ErrorAction SilentlyContinue)) { if ($targets -contains [string]$port.LocalPort) { $address = $rule | Get-NetFirewallAddressFilter -ErrorAction SilentlyContinue; $matches += [pscustomobject]@{ display_name = $rule.DisplayName; profile = $rule.Profile.ToString(); protocol = $port.Protocol.ToString(); local_port = $port.LocalPort; remote_address = $address.RemoteAddress } } } }; "
+            "[pscustomobject]@{ sensitive_ports = $targets; enabled_inbound_allow_rules = @($matches | Sort-Object local_port,profile,display_name) } | ConvertTo-Json -Depth 5 -Compress"
+        ),
+    },
+    "security_remote_access": {
+        "approval_required": False,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "$rdp = Get-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp' -ErrorAction SilentlyContinue | Select-Object UserAuthentication,SecurityLayer,MinEncryptionLevel; "
+            "$sshd = Get-CimInstance Win32_Service -Filter \"Name='sshd'\" -ErrorAction SilentlyContinue | Select-Object Name,State,StartMode,StartName,PathName; "
+            "$sshdExe = Join-Path $env:WINDIR 'System32\\OpenSSH\\sshd.exe'; $effective = if (Test-Path -LiteralPath $sshdExe -PathType Leaf) { & $sshdExe -T 2>$null } else { @('sshd_executable_absent') }; $sshDirectives = @($effective | Where-Object { $_ -match '^(passwordauthentication|pubkeyauthentication|authenticationmethods|permitrootlogin|permitemptypasswords|maxauthtries)\\s' } | ForEach-Object { [string]$_ }); "
+            "$winrm = Get-CimInstance Win32_Service -Filter \"Name='WinRM'\" -ErrorAction SilentlyContinue | Select-Object Name,State,StartMode,StartName; "
+            "[pscustomobject]@{ rdp_tcp = $rdp; openssh_service = $sshd; openssh_security_directives = $sshDirectives; winrm_service = $winrm } | ConvertTo-Json -Depth 5 -Compress"
+        ),
+    },
+    "security_persistence": {
+        "approval_required": False,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "$startup = @(Get-CimInstance Win32_StartupCommand -ErrorAction SilentlyContinue | Select-Object Name,Command,Location,User); "
+            "$runKeys = @(); foreach ($key in @('HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run','HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce','HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Run','HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run','HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce')) { if (Test-Path $key) { $item = Get-ItemProperty $key; foreach ($property in $item.PSObject.Properties | Where-Object Name -NotMatch '^PS') { $runKeys += [pscustomobject]@{ key = $key; name = $property.Name; command = [string]$property.Value } } } }; "
+            "$tasks = try { @(Get-ScheduledTask -ErrorAction Stop | Where-Object TaskPath -NotLike '\\Microsoft\\*' | ForEach-Object { $task = $_; foreach ($action in @($task.Actions)) { [pscustomobject]@{ task_name = $task.TaskName; task_path = $task.TaskPath; state = $task.State.ToString(); enabled = $task.Settings.Enabled; principal = $task.Principal.UserId; run_level = $task.Principal.RunLevel.ToString(); execute = $action.Execute; arguments = $action.Arguments } } }) } catch { @([pscustomobject]@{ error = $_.Exception.Message }) }; "
+            "[pscustomobject]@{ startup_commands = $startup; run_keys = $runKeys; non_microsoft_scheduled_tasks = $tasks } | ConvertTo-Json -Depth 7 -Compress"
+        ),
+    },
+    "security_persistence_signatures": {
+        "approval_required": False,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; function Inspect-Command([string]$source,[string]$name,[string]$command) { if (-not $command) { return }; $raw = [Environment]::ExpandEnvironmentVariables($command.Trim()); $quoted = $raw.StartsWith([string][char]34); $start = if ($quoted) { 1 } else { 0 }; $end = $raw.IndexOf('.exe',[StringComparison]::OrdinalIgnoreCase); if ($end -lt 0) { return [pscustomobject]@{ source=$source; name=$name; command=$command; executable=$null; present=$false; signature='NotExecutable' } }; $exe = $raw.Substring($start,$end + 4 - $start); $present = Test-Path -LiteralPath $exe -PathType Leaf; $sig = if ($present) { (Get-AuthenticodeSignature -FilePath $exe -ErrorAction SilentlyContinue).Status.ToString() } else { 'PathNotResolved' }; [pscustomobject]@{ source=$source; name=$name; command=$command; executable=$exe; present=$present; signature=$sig } }; "
+            "$items = @(); foreach ($entry in @(Get-CimInstance Win32_StartupCommand -ErrorAction SilentlyContinue)) { $items += Inspect-Command 'startup' $entry.Name $entry.Command }; foreach ($task in @(Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object TaskPath -NotLike '\\Microsoft\\*')) { foreach ($action in @($task.Actions)) { $items += Inspect-Command 'scheduled_task' ($task.TaskPath + $task.TaskName) $action.Execute } }; "
+            "[pscustomobject]@{ inspected = @($items | Where-Object { $_ }); inspected_count = @($items | Where-Object { $_ }).Count } | ConvertTo-Json -Depth 5 -Compress"
+        ),
+    },
+    "security_services": {
+        "approval_required": False,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "$services = try { @(Get-CimInstance Win32_Service -ErrorAction Stop | Where-Object { $_.StartMode -eq 'Auto' -and $_.PathName } | ForEach-Object { $raw = [Environment]::ExpandEnvironmentVariables($_.PathName); $quoted = $raw.StartsWith([string][char]34); $start = if ($quoted) { 1 } else { 0 }; $end = $raw.IndexOf('.exe',[StringComparison]::OrdinalIgnoreCase); $exe = if ($end -ge 0) { $raw.Substring($start,$end + 4 - $start) } else { $raw }; $sig = if (Test-Path -LiteralPath $exe -PathType Leaf) { (Get-AuthenticodeSignature -FilePath $exe -ErrorAction SilentlyContinue).Status.ToString() } else { 'PathNotResolved' }; [pscustomobject]@{ name = $_.Name; display_name = $_.DisplayName; state = $_.State; start_name = $_.StartName; path_name = $raw; executable = $exe; signature = $sig; unquoted_space_path = (-not $quoted -and $exe.Contains(' ')) } }) } catch { @([pscustomobject]@{ error = $_.Exception.Message }) }; "
+            "[pscustomobject]@{ automatic_services = $services } | ConvertTo-Json -Depth 5 -Compress"
+        ),
+    },
+    "security_wmi_powershell": {
+        "approval_required": False,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "$wmi = try { $filters = @(Get-CimInstance -Namespace root/subscription -ClassName __EventFilter -ErrorAction Stop | Select-Object Name,Query,EventNamespace); $consumers = @(Get-CimInstance -Namespace root/subscription -ClassName __EventConsumer | Select-Object @{Name='class';Expression={$_.CimClass.CimClassName}},Name); $bindings = @(Get-CimInstance -Namespace root/subscription -ClassName __FilterToConsumerBinding | Select-Object Filter,Consumer); [pscustomobject]@{ filters = $filters; consumers = $consumers; bindings = $bindings } } catch { [pscustomobject]@{ error = $_.Exception.Message } }; "
+            "$profileFiles = @($PROFILE.AllUsersAllHosts,$PROFILE.AllUsersCurrentHost,$PROFILE.CurrentUserAllHosts,$PROFILE.CurrentUserCurrentHost) | Sort-Object -Unique | ForEach-Object { if (Test-Path -LiteralPath $_ -PathType Leaf) { Get-Item -LiteralPath $_ | Select-Object FullName,Length,LastWriteTime } }; "
+            "$policy = Get-ExecutionPolicy -List | ForEach-Object { [pscustomobject]@{ scope = $_.Scope.ToString(); execution_policy = $_.ExecutionPolicy.ToString() } }; "
+            "[pscustomobject]@{ permanent_wmi_subscriptions = $wmi; powershell_profile_files = @($profileFiles); powershell_language_mode = $ExecutionContext.SessionState.LanguageMode.ToString(); execution_policy = @($policy) } | ConvertTo-Json -Depth 6 -Compress"
+        ),
+    },
+    "security_software_inventory": {
+        "approval_required": False,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "$programs = @(); foreach ($key in @('HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*','HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*','HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*')) { $programs += Get-ItemProperty $key -ErrorAction SilentlyContinue | Where-Object DisplayName | Select-Object DisplayName,DisplayVersion,Publisher,InstallDate,InstallLocation,UninstallString }; $programs = @($programs | Sort-Object DisplayName,DisplayVersion -Unique); "
+            "$appx = try { @(Get-AppxPackage | Where-Object { -not $_.IsFramework } | Select-Object Name,Version,Publisher,SignatureKind,Architecture,IsDevelopmentMode,NonRemovable) } catch { @([pscustomobject]@{ error = $_.Exception.Message }) }; "
+            "$unsignedDrivers = @(Get-CimInstance Win32_PnPSignedDriver -ErrorAction SilentlyContinue | Where-Object { $_.IsSigned -ne $true } | Select-Object DeviceName,DriverProviderName,DriverVersion,DriverDate,InfName,IsSigned); "
+            "$hotfixes = @(Get-HotFix -ErrorAction SilentlyContinue | Sort-Object InstalledOn -Descending | Select-Object -First 30 HotFixID,Description,InstalledOn,InstalledBy); "
+            "$features = try { @(Get-WindowsOptionalFeature -Online -ErrorAction Stop | Where-Object State -eq 'Enabled' | Select-Object FeatureName,State) } catch { @([pscustomobject]@{ error = $_.Exception.Message }) }; "
+            "[pscustomobject]@{ installed_programs = $programs; appx_packages = $appx; unsigned_pnp_drivers = $unsignedDrivers; recent_hotfixes = $hotfixes; enabled_optional_features = $features } | ConvertTo-Json -Depth 6 -Compress"
+        ),
+    },
+    "security_risky_file_metadata": {
+        "approval_required": False,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "$roots = @((Join-Path $env:USERPROFILE 'Downloads'),(Join-Path $env:USERPROFILE 'Desktop'),$env:TEMP,(Join-Path $env:APPDATA 'Microsoft\\Windows\\Start Menu\\Programs\\Startup'),(Join-Path $env:ProgramData 'Microsoft\\Windows\\Start Menu\\Programs\\StartUp')); "
+            "$extensions = @('.exe','.dll','.msi','.msp','.ps1','.psm1','.bat','.cmd','.com','.scr','.vbs','.vbe','.js','.jse','.wsf','.wsh','.hta','.lnk','.iso','.img'); "
+            "$files = @(); $errors = @(); foreach ($root in $roots | Sort-Object -Unique) { if (-not (Test-Path -LiteralPath $root -PathType Container)) { continue }; try { $candidates = Get-ChildItem -LiteralPath $root -File -Recurse -Force -ErrorAction SilentlyContinue | Where-Object { $extensions -contains $_.Extension.ToLowerInvariant() } | Sort-Object LastWriteTime -Descending | Select-Object -First 300; foreach ($file in $candidates) { $signature = if ($file.Extension -in @('.exe','.dll','.msi','.msp','.ps1','.psm1','.psd1','.ps1xml','.cdxml')) { Get-AuthenticodeSignature -FilePath $file.FullName -ErrorAction SilentlyContinue } else { $null }; $hash = if ($file.Length -le 268435456) { (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256 -ErrorAction SilentlyContinue).Hash } else { $null }; $zone = try { [bool](Get-Item -LiteralPath $file.FullName -Stream Zone.Identifier -ErrorAction Stop) } catch { $false }; $files += [pscustomobject]@{ root = $root; path = $file.FullName; extension = $file.Extension; size_bytes = $file.Length; created = $file.CreationTimeUtc; modified = $file.LastWriteTimeUtc; signature = if ($signature) { $signature.Status.ToString() } else { 'NotApplicable' }; signer = if ($signature -and $signature.SignerCertificate) { $signature.SignerCertificate.Subject } else { $null }; sha256 = $hash; mark_of_the_web = $zone } } } catch { $errors += [pscustomobject]@{ root = $root; error = $_.Exception.Message } } }; "
+            "[pscustomobject]@{ searched_roots = @($roots | Sort-Object -Unique); matched_file_count = $files.Count; files = $files; errors = $errors; per_root_limit = 300; hash_size_limit_bytes = 268435456 } | ConvertTo-Json -Depth 6 -Compress"
+        ),
+    },
+    "security_wsl_posture": {
+        "approval_required": False,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "printf '%s\\n' '---identity---'\n"
+            "id\n"
+            "uname -a\n"
+            "cat /etc/os-release\n"
+            "printf '%s\\n' '---upgradable-packages-from-current-cache---'\n"
+            "apt list --upgradable 2>/dev/null || true\n"
+            "printf '%s\\n' '---failed-units---'\n"
+            "systemctl --failed --no-pager 2>/dev/null || true\n"
+            "printf '%s\\n' '---listening-sockets---'\n"
+            "ss -lntup 2>/dev/null || ss -lntu\n"
+            "printf '%s\\n' '---docker-containers---'\n"
+            "docker ps --no-trunc --format '{{json .}}' 2>/dev/null || true\n"
+            "printf '%s\\n' '---docker-security-settings---'\n"
+            "for container in $(docker ps -q 2>/dev/null); do docker inspect --format '{{json .}}' \"$container\" | python3 -c 'import json,sys; x=json.load(sys.stdin); h=x.get(\"HostConfig\",{}); print(json.dumps({\"name\":x.get(\"Name\",\"\").lstrip(\"/\"),\"image\":x.get(\"Config\",{}).get(\"Image\"),\"privileged\":h.get(\"Privileged\"),\"readonly_rootfs\":h.get(\"ReadonlyRootfs\"),\"network_mode\":h.get(\"NetworkMode\"),\"pid_mode\":h.get(\"PidMode\"),\"cap_add\":h.get(\"CapAdd\"),\"security_opt\":h.get(\"SecurityOpt\"),\"ports\":h.get(\"PortBindings\"),\"mounts\":[{\"type\":m.get(\"Type\"),\"source\":m.get(\"Source\"),\"destination\":m.get(\"Destination\"),\"rw\":m.get(\"RW\")} for m in x.get(\"Mounts\",[])]}))' || true; done\n"
+            "printf '%s\\n' '---setuid-setgid-files---'\n"
+            "find /usr /bin /sbin -xdev -type f -perm /6000 -print 2>/dev/null | sort\n"
         ),
     },
     "health_dashboard_firewall_status": {
@@ -485,6 +694,58 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             ">\"$job_log_file\" 2>&1 &\n"
             "echo $! > \"$job_pid_file\"\n"
             "echo ollama-embeddings-install-started\n"
+        ),
+    },
+    "ollama_qwen25_3b_install": {
+        "approval_required": True,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "cd /home/chris/projects/cs-ai-lab-infra\n"
+            "docker compose --profile ollama up -d --wait --wait-timeout 180 ollama\n"
+            "docker compose exec -T ollama ollama pull qwen2.5:3b\n"
+            "docker compose exec -T ollama ollama list | grep -E '^qwen2.5:3b[[:space:]]'\n"
+            "echo ollama-qwen25-3b-install-complete\n"
+        ),
+    },
+    "ollama_qwen25_3b_status": {
+        "approval_required": False,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "cd /home/chris/projects/cs-ai-lab-infra\n"
+            "docker compose exec -T ollama ollama list\n"
+            "state_dir=/home/chris/.local/state/cs-ai-lab\n"
+            "pid_file=\"$state_dir/ollama-qwen25-3b-install.pid\"\n"
+            "log_file=\"$state_dir/ollama-qwen25-3b-install.log\"\n"
+            "echo ---installation-job---\n"
+            "if [ -f \"$pid_file\" ] && kill -0 \"$(cat \"$pid_file\")\" 2>/dev/null; then echo running; else echo not-running; fi\n"
+            "echo ---installation-log---\n"
+            "test -f \"$log_file\" && tail -n 40 \"$log_file\" || echo absent\n"
+        ),
+    },
+    "ollama_qwen25_3b_recover": {
+        "approval_required": True,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "cd /home/chris/projects/cs-ai-lab-infra\n"
+            "docker compose --profile ollama restart ollama\n"
+            "docker compose --profile ollama up -d --wait --wait-timeout 90 ollama\n"
+            "docker compose exec -T ollama ollama list | grep -E '^qwen2.5:3b[[:space:]]'\n"
+            "echo ollama-qwen25-3b-recovery-complete\n"
+        ),
+    },
+    "ollama_qwen25_3b_diagnostics": {
+        "approval_required": False,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "state_dir=/home/chris/.local/state/cs-ai-lab\n"
+            "pid_file=\"$state_dir/ollama-qwen25-3b-install.pid\"\n"
+            "log_file=\"$state_dir/ollama-qwen25-3b-install.log\"\n"
+            "echo ---pid---\n"
+            "test -f \"$pid_file\" && cat \"$pid_file\" || echo absent\n"
+            "echo ---running---\n"
+            "if [ -f \"$pid_file\" ] && kill -0 \"$(cat \"$pid_file\")\" 2>/dev/null; then echo true; else echo false; fi\n"
+            "echo ---log---\n"
+            "test -f \"$log_file\" && tail -n 120 \"$log_file\" || echo absent\n"
         ),
     },
     "ollama_embeddings_diagnostics": {

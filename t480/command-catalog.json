@@ -15,6 +15,108 @@
       "execution": "adapter_owned"
     },
     {
+      "id": "tailscale_windows_status",
+      "purpose": "Inspect the Windows-host Tailscale client, service, and non-secret backend state without changing the T480.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "tailscale_tailnet_peers",
+      "purpose": "Inspect the owner-visible Tailscale peer inventory and online/exit-node state from the Windows host without changing T480 or tailnet policy.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "tailscale_windows_install",
+      "purpose": "Download the fixed official signed Tailscale Windows amd64 MSI, validate its Authenticode signature, install it silently without launching the GUI, and report version/service state; requires explicit approval and does not authenticate, enroll, advertise routes, or change tailnet policy.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "performance_diagnostics",
+      "purpose": "Inspect current Windows CPU, memory, disk, high-resource processes, RDP service/session/TCP state, and network-interface throughput without changing the T480 or interrupting a session.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "security_windows_baseline",
+      "purpose": "Inspect Windows patch, firewall, disk-encryption, Secure Boot, VBS, UAC, SmartScreen, RDP, and SMB posture without changing the T480.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "security_defender_status",
+      "purpose": "Inspect Microsoft Defender status, preferences, exclusions, detections, and registered antivirus products without starting a scan or changing the T480.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "security_accounts_and_shares",
+      "purpose": "Inspect local accounts, privileged group membership, autologon state, password policy, and SMB shares without changing the T480.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "security_network_exposure",
+      "purpose": "Inspect listeners, listener process signatures, active network profiles, enabled inbound allow rules, and port proxies without changing the T480.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "security_sensitive_firewall_rules",
+      "purpose": "Correlate enabled inbound firewall allow rules for fixed sensitive lab and administration ports without changing the T480.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "security_remote_access",
+      "purpose": "Inspect RDP security settings and effective OpenSSH authentication directives plus WinRM service state without changing the T480.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "security_persistence",
+      "purpose": "Inspect startup commands, Run keys, and non-Microsoft scheduled tasks without changing the T480.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "security_persistence_signatures",
+      "purpose": "Inspect Authenticode status for executables referenced by startup entries and non-Microsoft scheduled tasks without changing the T480.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "security_services",
+      "purpose": "Inspect automatic Windows service paths, accounts, quoting, and executable signatures without changing the T480.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "security_wmi_powershell",
+      "purpose": "Inspect permanent WMI subscriptions and PowerShell profile metadata, language mode, and execution policy without reading profile contents or changing the T480.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "security_software_inventory",
+      "purpose": "Inspect installed desktop and AppX software, unsigned PnP drivers, recent hotfixes, and enabled Windows optional features without changing the T480.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "security_risky_file_metadata",
+      "purpose": "Inspect bounded metadata, signatures, hashes, and Mark-of-the-Web presence for executable or script-like files in common user, temporary, and startup locations without reading document content or changing the T480.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "security_wsl_posture",
+      "purpose": "Inspect the Ubuntu WSL package cache, listeners, failed units, setuid files, and Docker container security settings without changing the T480.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
       "id": "health_dashboard_firewall_status",
       "purpose": "Inspect the fixed Windows Private-profile firewall rule for the status-only health dashboard without changing it.",
       "approval_required": false,
@@ -198,6 +300,30 @@
       "id": "ollama_embeddings_install",
       "purpose": "Start the private Ollama service and install the approved bge-m3 and mxbai-embed-large embedding models into its persistent model volume.",
       "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "ollama_qwen25_3b_install",
+      "purpose": "Install the approved local qwen2.5:3b instruct model into the private Ollama persistent volume for non-executing Forex research only.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "ollama_qwen25_3b_status",
+      "purpose": "Inspect installation status and local availability of the approved qwen2.5:3b model without changing the T480.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "ollama_qwen25_3b_recover",
+      "purpose": "Restart the private Ollama service and confirm the approved qwen2.5:3b model remains available after a bounded Forex research inference recovery.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "ollama_qwen25_3b_diagnostics",
+      "purpose": "Read the fixed qwen2.5:3b installer PID and log without changing T480 state.",
+      "approval_required": false,
       "execution": "adapter_owned"
     },
     {

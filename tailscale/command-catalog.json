@@ -1,0 +1,12 @@
+{
+  "schema_version": "tailscale.operations.v1",
+  "scope": "fixed_operations_only",
+  "operations": [
+    {"id": "preflight", "approval_required": false},
+    {"id": "list-devices", "approval_required": false},
+    {"id": "inspect-policy", "approval_required": false},
+    {"id": "validate-policy", "approval_required": false},
+    {"id": "apply-policy", "approval_required": true},
+    {"id": "set-device-authorization", "approval_required": true}
+  ]
+}

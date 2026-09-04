@@ -33,11 +33,14 @@ python3 scripts/t480_milestones.py prove --id M0
 | M7 | T480 operational health routine proven — [execution prompt](prompts/m7-operational-health.md) |
 | M8 | T480 operational health monitoring proven — [execution prompt](prompts/m8-operational-health-monitoring.md) |
 | M9 | Health monitoring review remediation proven — [execution prompt](prompts/m9-health-monitoring-remediation.md) |
+| M10 | Private remote access over tailnet proven — [execution prompt](prompts/m10-tailnet-remote-access.md) |
 
 M6's post-upgrade validation includes the `validation_integrity_corrections` subtask. It corrects stale M2 image evidence expectations, prevents unfiltered workflow-export metadata from reaching the n8n API, and makes the default test command reliably execute the adapter suite.
 
 M7 adds a read-only operational routine after M2. It proves the T16 control path and verifies the required private services without treating an intentionally stopped optional Ollama profile as a fault or performing automatic recovery.
 
 M8 hardens M7 into an operational monitoring control. It deliberately excludes backup freshness and recovery checks until a backup capability has been implemented and separately proven.
+
+M10 is the governed remote-access work package. It depends on M5 because a remote-access service cannot be considered resilient until the T480's no-logon boot recovery has been proven. It uses an owner-controlled Tailscale Personal tailnet, never public ingress. T16 receives approved development access; the iPhone is restricted to the status-only dashboard for read-only cellular validation. Every T480/T16 configuration change remains separately approval-gated.
 
 Do not record passwords, keys, private IP addresses, or unredacted service data in evidence text.

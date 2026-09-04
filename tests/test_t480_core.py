@@ -1,3 +1,4 @@
+import base64
 import json
 from pathlib import Path
 import sys
@@ -226,11 +227,113 @@ def test_dashboard_firewall_operations_are_fixed_and_private_profile_only():
     assert "New-NetFirewallRule" in enable["command"]
 
 
+def test_tailscale_installer_is_fixed_signed_and_does_not_enrol_or_expose_the_host():
+    status = t480_adapter.OPERATIONS["tailscale_windows_status"]
+    install = t480_adapter.OPERATIONS["tailscale_windows_install"]
+
+    assert status["approval_required"] is False
+    assert install["approval_required"] is True
+    assert "https://dl.tailscale.com/stable/tailscale-setup-1.102.3-amd64.msi" in install["command"]
+    assert "Get-AuthenticodeSignature" in install["command"]
+    assert "msiexec.exe" in install["command"]
+    assert "TS_NOLAUNCH=1" in install["command"]
+    assert "tailscale up" not in install["command"]
+    assert "advertise-routes" not in install["command"]
+    assert "advertise-exit-node" not in install["command"]
+
+
+def test_tailscale_peer_inventory_is_read_only():
+    operation = t480_adapter.OPERATIONS["tailscale_tailnet_peers"]
+
+    assert operation["approval_required"] is False
+    assert "status --json" in operation["command"]
+    assert "ExitNode" in operation["command"]
+    assert "tailscale up" not in operation["command"]
+
+
+def test_performance_diagnostics_is_fixed_and_read_only():
+    operation = t480_adapter.OPERATIONS["performance_diagnostics"]
+
+    assert operation["approval_required"] is False
+    assert "Get-Process" in operation["command"]
+    assert "TermService" in operation["command"]
+    assert "Get-NetTCPConnection -LocalPort 3389" in operation["command"]
+    assert "Restart-Service" not in operation["command"]
+    assert "Stop-Process" not in operation["command"]
+
+
 def test_network_profile_status_is_read_only():
     operation = t480_adapter.OPERATIONS["network_profile_status"]
 
     assert operation["approval_required"] is False
     assert "Get-NetConnectionProfile" in operation["command"]
+
+
+def test_security_sweep_operations_are_fixed_and_read_only():
+    operation_ids = {
+        "security_windows_baseline",
+        "security_defender_status",
+        "security_accounts_and_shares",
+        "security_network_exposure",
+        "security_sensitive_firewall_rules",
+        "security_remote_access",
+        "security_persistence",
+        "security_persistence_signatures",
+        "security_services",
+        "security_wmi_powershell",
+        "security_software_inventory",
+        "security_risky_file_metadata",
+        "security_wsl_posture",
+    }
+    forbidden = (
+        "Start-MpScan",
+        "Remove-MpThreat",
+        "Set-MpPreference",
+        "Add-MpPreference",
+        "Set-ItemProperty",
+        "New-Item",
+        "Remove-Item",
+        "Start-Service",
+        "Stop-Service",
+        "Restart-Service",
+        "apt-get update",
+        "apt-get upgrade",
+        "docker compose up",
+        "docker restart",
+    )
+
+    for operation_id in operation_ids:
+        operation = t480_adapter.OPERATIONS[operation_id]
+        command = operation.get("command", "") + operation.get("wsl_script", "")
+        assert operation["approval_required"] is False
+        assert not any(token in command for token in forbidden)
+
+
+def test_windows_security_sweep_operations_fit_the_ssh_command_line():
+    for operation_id, operation in t480_adapter.OPERATIONS.items():
+        if not operation_id.startswith("security_") or "command" not in operation:
+            continue
+        encoded = base64.b64encode(operation["command"].encode("utf-16-le"))
+        assert len(encoded) < 7_000, operation_id
+
+
+def test_risky_file_sweep_is_bounded_and_does_not_read_document_content():
+    command = t480_adapter.OPERATIONS["security_risky_file_metadata"]["command"]
+
+    assert "Select-Object -First 300" in command
+    assert "Get-AuthenticodeSignature" in command
+    assert "Get-FileHash" in command
+    assert "Get-Content" not in command
+    assert "Get-MpThreatDetection" not in command
+    assert "Join-Path $env:USERPROFILE 'Downloads'" in command
+
+
+def test_network_security_sweep_limits_firewall_rule_output():
+    command = t480_adapter.OPERATIONS["security_network_exposure"]["command"]
+
+    assert "Select-Object -First 60" in command
+    assert "Select-Object -First 100" in command
+    assert "enabled_inbound_allow_rule_count" in command
 
 
 def test_dashboard_windows_probe_checks_only_listener_and_local_health():

@@ -470,6 +470,74 @@
           "description": "The disabled fixed T16 scheduler design is reviewed; it invokes only Healthcheck and Healthreport, contains no credentials, does not change services, and has no outbound notification destination."
         }
       ]
+    },
+    {
+      "id": "M10",
+      "name": "Private remote access over tailnet proven",
+      "objective": "Provide the T16 with private, authenticated remote development access to the always-on T480 through a Tailscale Personal tailnet owned by chris@successbycs.com, without router port forwarding or public service exposure. The iPhone is a separately constrained, read-only status client and cellular-network test path; it may reach only the status-only dashboard, not RDP, SSH, PostgreSQL, n8n, Ollama, Docker, or other development services.",
+      "execution_prompt": "t480/prompts/m10-tailnet-remote-access.md",
+      "depends_on": ["M5"],
+      "execution_steps": [
+        {
+          "id": "approval_and_recovery_preflight",
+          "action": "Record the tailnet owner, enable multi-factor authentication, identify the local-console recovery path, confirm the existing T16-to-T480 LAN control path, and review the unproven M5 boot-recovery dependency. Do not install software or alter access controls in this step.",
+          "purpose": "Ensure the owner can recover the T480 and revoke access before any remote-access dependency is introduced."
+        },
+        {
+          "id": "security_remediation_decision",
+          "action": "Review the security-sweep findings and obtain separate approval for every remediation group that changes the T480, including Windows support/updates, BitLocker, password policy, SSH authentication, RDP/firewall scope, and the exposed PostgreSQL port-proxy. Do not bundle remediation with tailnet enrollment.",
+          "purpose": "Keep material hardening changes reviewable, reversible where possible, and distinct from remote-access deployment."
+        },
+        {
+          "id": "tailnet_enrollment",
+          "action": "With explicit approval, install the official Tailscale client on the T480 and T16, enroll both devices into the owner-controlled tailnet, approve only the intended devices, and retain the existing LAN SSH path as recovery access.",
+          "purpose": "Create an authenticated encrypted overlay without changing router configuration or publishing a public endpoint."
+        },
+        {
+          "id": "least_privilege_policy",
+          "action": "Replace the tailnet default allow-all policy with reviewed deny-by-default rules. Permit the T16 to reach the T480 only on the approved development ports and services. After the iPhone is enrolled, restrict its device-specific source to the status-only dashboard port only; do not use a user-wide allow rule because it would include both T16 and iPhone.",
+          "purpose": "Deliver full development access to the T16 while making the iPhone a read-only status and connectivity-test client at the network boundary."
+        },
+        {
+          "id": "service_boundary_and_external_validation",
+          "action": "Verify T16 remote RDP and key-based OpenSSH access, plus only the development services explicitly approved by the owner. From the iPhone on cellular data, verify the status-only dashboard and confirm SSH, RDP, PostgreSQL, n8n, Ollama, Docker, and unapproved ports are unreachable. Confirm there are no router port forwards or public endpoints for the T480 services.",
+          "purpose": "Prove the remote user journeys and the intended denials from outside the home network."
+        },
+        {
+          "id": "recovery_revocation_and_evidence",
+          "action": "After M5's no-logon reboot recovery has been proven, validate tailnet reconnection following an approved restart, disable or revoke the iPhone device and prove its dashboard access stops, then retain redacted evidence and an owner runbook locally.",
+          "purpose": "Prove remote availability, safe loss-of-device handling, and repeatable owner operation."
+        }
+      ],
+      "checks": [
+        {
+          "id": "owner_and_recovery_prerequisites_verified",
+          "description": "Redacted local evidence identifies the owner-controlled tailnet with MFA enabled, a physical/local-console recovery path, the retained T16-to-T480 LAN recovery path, and M5 as a proven dependency before any remote restart validation."
+        },
+        {
+          "id": "tailscale_devices_enrolled",
+          "description": "The approved T16, T480, and iPhone devices are visibly enrolled in the owner-controlled tailnet; no route advertisement, exit node, subnet router, public DNS publication, or router port-forward is enabled.",
+          "real_world_execution": true
+        },
+        {
+          "id": "t16_development_access_verified",
+          "description": "From a network outside the home LAN, the T16 reaches the T480 over the tailnet using approved RDP and key-based OpenSSH, and any additional explicitly approved Forex-development services. No password-based SSH proof is accepted."
+        },
+        {
+          "id": "iphone_read_only_access_verified",
+          "description": "On cellular data, the iPhone reaches only the status-only dashboard over the tailnet. The evidence confirms that its device-specific policy denies RDP, SSH, PostgreSQL, n8n, Ollama, Docker, and other unapproved T480 ports; the dashboard exposes no control action or sensitive data.",
+          "real_world_execution": true
+        },
+        {
+          "id": "external_exposure_absent_verified",
+          "description": "Review evidence confirms no T480 service is exposed by router port forwarding, public DNS, Cloudflare Tunnel, or another public ingress mechanism, and records the disposition of the pre-existing PostgreSQL port-proxy and firewall rule."
+        },
+        {
+          "id": "recovery_and_revocation_verified",
+          "description": "After M5 is proven, an approved restart demonstrates tailnet reconnection and the iPhone device revocation/disable test demonstrates that its access is promptly denied. The local owner runbook records recovery and lost-device steps.",
+          "real_world_execution": true
+        }
+      ]
     }
   ]
 }

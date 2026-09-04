@@ -3,6 +3,7 @@
 !.env.example
 .t480-milestones.local.json
 .t480-execution.local.jsonl
+.tailscale-execution.local.jsonl
 .n8n-execution.local.jsonl
 .postgres-pgvector-execution.local.jsonl
 .t480-healthcheck.local.jsonl

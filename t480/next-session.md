@@ -25,6 +25,8 @@ M7, T480 operational health routine, is planned and available after M2. Use the 
 
 M8, operational health monitoring, follows M7. It will add startup/restart, WSL, exposure, volume-capacity, revision/image-drift, local-history, transition-reporting, scheduling, and weekly-report controls. It also deploys the PostgreSQL-backed status-only dashboard, adds it to T480 startup, and verifies private-LAN access from the T16. Backup freshness and restore checks are deliberately deferred because no backup capability exists yet.
 
+M10, private remote access over tailnet, is planned after M5. It provides T16 with approved Forex-development access to the always-on T480 over an owner-controlled Tailscale Personal tailnet, without router port forwards or public ingress. The iPhone is a cellular-network test client limited to the status-only dashboard. Do not enroll devices, change a tailnet policy, alter Windows firewall rules, or remediate the sweep findings without the relevant explicit approval.
+
 ## First safe checks
 
 From this repository on the T16, start with read-only checks:
