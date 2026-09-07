@@ -26,15 +26,15 @@ def test_drill_uses_isolated_projects_volumes_and_no_env_loading():
     assert "n8n_data" in source and "n8n_files" in source
     assert "source .env" not in source
     assert "test-only-preserved-not-recorded" in source
-    assert "--wait" in source
-    assert 'restore_postgres_start "${compose[@]}" --project-name "$restore_project" up -d --wait postgres' in source
+    assert "wait_for_service" in source
+    assert 'restore_postgres_ready wait_for_service "$restore_project" postgres pg_isready' in source
     assert 'restore_n8n_data docker run --rm --user 0:0' in source
 
 
 def write_bundle(bundle: Path):
     probes = (
         "source_start", "source_health", "source_synthetic_file", "source_dump", "archive_n8n_data", "archive_n8n_files",
-        "restore_postgres_start", "restore_database", "restore_n8n_data", "restore_n8n_files", "restored_n8n_start", "restored_n8n_health",
+        "restore_postgres_start", "restore_postgres_ready", "restore_database", "restore_n8n_data", "restore_n8n_files", "restored_n8n_start", "restored_n8n_health",
     )
     bundle.mkdir()
     (bundle / "manifest.txt").write_text(

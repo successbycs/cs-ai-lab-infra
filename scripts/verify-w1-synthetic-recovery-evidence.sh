@@ -4,7 +4,7 @@ set -euo pipefail
 # Verify an existing synthetic Wave 1 bundle without contacting Docker, n8n,
 # PostgreSQL, .env, or any off-host destination.
 bundle_dir="${1:?Usage: ./scripts/verify-w1-synthetic-recovery-evidence.sh evidence/W1/<UTC-timestamp>}"
-probes=(source_start source_health source_synthetic_file source_dump archive_n8n_data archive_n8n_files restore_postgres_start restore_database restore_n8n_data restore_n8n_files restored_n8n_start restored_n8n_health)
+probes=(source_start source_health source_synthetic_file source_dump archive_n8n_data archive_n8n_files restore_postgres_start restore_postgres_ready restore_database restore_n8n_data restore_n8n_files restored_n8n_start restored_n8n_health)
 required=(manifest.txt SHA256SUMS postgres.sql.gz n8n-data.tar.gz n8n-files.tar.gz)
 for probe in "${probes[@]}"; do required+=("$probe.txt"); done
 for file in "${required[@]}"; do

@@ -84,10 +84,20 @@ probe() {
   (( exit_code == 0 )) || status=1
 }
 
+wait_for_service() {
+  local project="$1" service="$2"
+  shift 2
+  for _attempt in $(seq 1 45); do
+    "${compose[@]}" --project-name "$project" exec -T "$service" "$@" >/dev/null 2>&1 && return 0
+    sleep 2
+  done
+  return 1
+}
+
 # All project names, databases, and volumes are generated above. Do not replace
 # them with active Compose names or POSTGRES_DB values from a live environment.
-probe source_start "${compose[@]}" --project-name "$source_project" up -d --wait postgres n8n_files_init n8n
-probe source_health "${compose[@]}" --project-name "$source_project" exec -T n8n wget -q --spider http://localhost:5678/healthz
+probe source_start "${compose[@]}" --project-name "$source_project" up -d postgres n8n_files_init n8n
+probe source_health wait_for_service "$source_project" n8n wget -q --spider http://localhost:5678/healthz
 probe source_synthetic_file "${compose[@]}" --project-name "$source_project" exec -T n8n sh -c 'printf synthetic-recovery > /home/node/.n8n-files/w1-synthetic.txt'
 probe source_dump bash -c 'docker compose --env-file "$1" -f compose.yaml -f postgres/recovery/w1-isolated-compose.yaml --project-name "$2" exec -T postgres pg_dump -U w1_recovery -d "$3" | gzip -9 > "$4"' _ "$test_env" "$source_project" "$source_db" "$db_dump"
 probe archive_n8n_data docker run --rm --entrypoint /bin/sh -v "${source_project}_n8n_data:/source:ro" -v "$bundle_dir:/backup" "$n8n_image" -c 'tar -C /source -czf /backup/n8n-data.tar.gz .'
@@ -97,12 +107,13 @@ probe archive_n8n_files docker run --rm --entrypoint /bin/sh -v "${source_projec
 # database name changes before startup, so a restore can never connect to the
 # source or an active lab database.
 sed -i "s/^POSTGRES_DB=.*/POSTGRES_DB=$restore_db/" "$test_env"
-probe restore_postgres_start "${compose[@]}" --project-name "$restore_project" up -d --wait postgres
+probe restore_postgres_start "${compose[@]}" --project-name "$restore_project" up -d postgres
+probe restore_postgres_ready wait_for_service "$restore_project" postgres pg_isready -U w1_recovery -d "$restore_db"
 probe restore_database bash -c 'gunzip -c "$1" | docker compose --env-file "$2" -f compose.yaml -f postgres/recovery/w1-isolated-compose.yaml --project-name "$3" exec -T postgres psql -v ON_ERROR_STOP=1 -U w1_recovery -d "$4"' _ "$db_dump" "$test_env" "$restore_project" "$restore_db"
 probe restore_n8n_data docker run --rm --user 0:0 --entrypoint /bin/sh -v "${restore_project}_n8n_data:/target" -v "$bundle_dir:/backup:ro" "$n8n_image" -c 'tar -C /target -xzf /backup/n8n-data.tar.gz && chown -R 1000:1000 /target'
 probe restore_n8n_files docker run --rm --entrypoint /bin/sh -v "${restore_project}_n8n_files:/target" -v "$bundle_dir:/backup:ro" "$n8n_image" -c 'tar -C /target -xzf /backup/n8n-files.tar.gz'
-probe restored_n8n_start "${compose[@]}" --project-name "$restore_project" up -d --wait n8n
-probe restored_n8n_health "${compose[@]}" --project-name "$restore_project" exec -T n8n wget -q --spider http://localhost:5678/healthz
+probe restored_n8n_start "${compose[@]}" --project-name "$restore_project" up -d n8n
+probe restored_n8n_health wait_for_service "$restore_project" n8n wget -q --spider http://localhost:5678/healthz
 
 {
   printf 'schema_version=cs-ai-lab.w1-synthetic-recovery.v1\n'
@@ -113,7 +124,7 @@ probe restored_n8n_health "${compose[@]}" --project-name "$restore_project" exec
   printf 'artifacts=postgres.sql.gz,n8n-data.tar.gz,n8n-files.tar.gz\n'
   printf 'git_revision=%s\n' "$(git rev-parse HEAD)"
 } > "$bundle_dir/manifest.txt"
-(cd "$bundle_dir" && sha256sum manifest.txt source_start.txt source_health.txt source_synthetic_file.txt source_dump.txt archive_n8n_data.txt archive_n8n_files.txt restore_postgres_start.txt restore_database.txt restore_n8n_data.txt restore_n8n_files.txt restored_n8n_start.txt restored_n8n_health.txt postgres.sql.gz n8n-data.tar.gz n8n-files.tar.gz > SHA256SUMS)
+(cd "$bundle_dir" && sha256sum manifest.txt source_start.txt source_health.txt source_synthetic_file.txt source_dump.txt archive_n8n_data.txt archive_n8n_files.txt restore_postgres_start.txt restore_postgres_ready.txt restore_database.txt restore_n8n_data.txt restore_n8n_files.txt restored_n8n_start.txt restored_n8n_health.txt postgres.sql.gz n8n-data.tar.gz n8n-files.tar.gz > SHA256SUMS)
 
 printf 'Wave 1 synthetic recovery evidence: %s\n' "$bundle_dir"
 printf 'Verify it with: ./scripts/verify-w1-synthetic-recovery-evidence.sh %q\n' "$bundle_dir"
