@@ -225,6 +225,16 @@ def test_dashboard_is_required_by_health_checks_but_boot_starts_the_minimum_depe
         assert "docker compose up -d n8n health_dashboard" not in command
 
 
+def test_m5_backup_status_is_fixed_read_only_manifest_verification():
+    operation = t480_adapter.OPERATIONS["m5_backup_status"]
+    script = operation["wsl_script"]
+    assert operation["approval_required"] is False
+    assert "find postgres/backup" in script
+    assert "backup_manifest.py verify" in script
+    assert "M5_BACKUP_VERIFY_OK" in script
+    assert "pg_dump" not in script and "docker compose up" not in script
+
+
 def test_dashboard_firewall_operations_are_fixed_and_private_profile_only():
     status = t480_adapter.OPERATIONS["health_dashboard_firewall_status"]
     enable = t480_adapter.OPERATIONS["health_dashboard_firewall_enable"]

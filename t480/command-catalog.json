@@ -189,6 +189,12 @@
       "execution": "adapter_owned"
     },
     {
+      "id": "m5_backup_status",
+      "purpose": "Read and verify the newest host-side PostgreSQL logical-backup manifest and dump hash for M5 maintenance preflight without changing T480.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
       "id": "m5_boot_system_wsl_probe",
       "purpose": "Create, run, read, and remove a temporary Local System task that reports whether that Windows account can see the Ubuntu WSL distribution; requires explicit approval.",
       "approval_required": true,

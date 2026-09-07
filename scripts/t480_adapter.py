@@ -427,6 +427,17 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "[pscustomobject]@{ uptime_since_utc = $os.LastBootUpTime.ToUniversalTime().ToString('o'); bios = $bios.SMBIOSBIOSVersion; battery = $battery; reboot_required = $rebootRequired; active_hours_start = $updateSettings.ActiveHoursStart; active_hours_end = $updateSettings.ActiveHoursEnd; smart_active_hours = $updateSettings.SmartActiveHoursState; bitlocker = $bitlocker; active_scheme = $scheme; ac_sleep = $sleep; ac_hibernate = $hibernate; wsl = $wsl; lab = $lab } | ConvertTo-Json -Depth 4 -Compress"
         ),
     },
+    "m5_backup_status": {
+        "approval_required": False,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "cd /home/chris/projects/cs-ai-lab-infra\n"
+            "manifest=\"$(find postgres/backup -maxdepth 1 -type f -name '*.manifest.json' -printf '%T@ %p\\n' | sort -nr | head -n 1 | cut -d' ' -f2-)\"\n"
+            "[[ -n \"$manifest\" && -f \"$manifest\" ]] || { printf 'M5_BACKUP_UNAVAILABLE no manifest\\n' >&2; exit 4; }\n"
+            "python3 scripts/backup_manifest.py verify \"$manifest\" >/dev/null\n"
+            "printf 'M5_BACKUP_VERIFY_OK manifest=%s captured_at=%s scope=postgres-logical\\n' \"$(basename \"$manifest\")\" \"$(stat -c %y \"$manifest\")\"\n"
+        ),
+    },
     "forex_m3_probe_directory_prepare": {
         "approval_required": True,
         "command": (
