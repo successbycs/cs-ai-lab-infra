@@ -1,5 +1,8 @@
 import base64
 import json
+import shutil
+import shlex
+import subprocess
 from pathlib import Path
 import sys
 from datetime import datetime
@@ -235,6 +238,37 @@ def test_dashboard_is_required_by_health_checks_but_boot_starts_the_minimum_depe
         command = t480_adapter.OPERATIONS[operation_id]["command"]
         assert "docker compose up -d n8n;" in command
         assert "docker compose up -d n8n health_dashboard" not in command
+
+
+@pytest.mark.skipif(shutil.which("powershell.exe") is None, reason="Windows PowerShell required")
+def test_boot_launcher_passes_one_complete_bash_command_and_waits():
+    command = t480_adapter.OPERATIONS["m5_boot_startup_enable"]["command"]
+    assignments = command[command.index("$bashCommand ="):command.index("$payload =")]
+    # Intercept process creation: exercise both PowerShell quoting layers without
+    # starting WSL or registering a scheduled task.
+    script = assignments + """
+function Start-Process {
+    param($FilePath, $ArgumentList, $WindowStyle, [switch]$Wait, [switch]$PassThru)
+    [pscustomobject]@{ arguments = $ArgumentList; wait = $Wait.IsPresent } | ConvertTo-Json -Compress | Write-Host
+    return [pscustomobject]@{ ExitCode = 0 }
+}
+& ([scriptblock]::Create($launcher))
+"""
+    encoded = base64.b64encode(script.encode("utf-16-le")).decode("ascii")
+    result = subprocess.run(
+        ["powershell.exe", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded],
+        capture_output=True, text=True, timeout=20, check=True,
+    )
+    payload = json.loads(result.stdout.strip())
+    arguments = shlex.split(payload["arguments"])
+    assert arguments[:5] == ["-d", "Ubuntu", "--", "bash", "-c"]
+    assert len(arguments) == 6
+    pipeline = arguments[5].split()
+    assert pipeline[0] == "echo"
+    assert pipeline[2:] == ["|", "base64", "-d", "|", "bash"]
+    decoded = base64.b64decode(pipeline[1]).decode()
+    assert "docker compose up -d n8n; exec tail -f /dev/null" in decoded
+    assert payload["wait"] is True
 
 
 def test_m5_backup_status_is_fixed_read_only_manifest_verification():
