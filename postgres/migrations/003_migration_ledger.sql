@@ -2,7 +2,7 @@
 -- existing monitoring schema has been installed. Do not edit an applied file:
 -- the governed adapter compares this SHA-256 record before every application.
 CREATE TABLE IF NOT EXISTS public.cs_ai_lab_migration_ledger (
-  filename text PRIMARY KEY CHECK (filename ~ '^[A-Za-z0-9][A-Za-z0-9_.-]*\\.sql$'),
+  filename text PRIMARY KEY CHECK (filename ~ '^[A-Za-z0-9][A-Za-z0-9_.-]*[.]sql$'),
   sha256 text NOT NULL CHECK (sha256 ~ '^[0-9a-f]{64}$'),
   applied_at timestamptz NOT NULL DEFAULT now()
 );
