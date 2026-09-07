@@ -211,7 +211,7 @@ def test_healthcheck_publisher_uses_only_fixed_database_and_rendering_commands(m
     assert "printf '%s\\n' \"$record_sql\" | docker compose exec" in captured["operation"].wsl_script
 
 
-def test_dashboard_is_required_by_compose_healthcheck_and_t480_startup_paths():
+def test_dashboard_is_required_by_health_checks_but_boot_starts_the_minimum_dependency_chain():
     compose = Path("compose.yaml").read_text(encoding="utf-8")
     health_check = Path("scripts/health-check.sh").read_text(encoding="utf-8")
 
@@ -219,8 +219,10 @@ def test_dashboard_is_required_by_compose_healthcheck_and_t480_startup_paths():
     assert "restart: unless-stopped" in compose
     assert "health_dashboard" in health_check
     assert "health_dashboard" in t480_adapter.OPERATIONS["lab_services_start"]["wsl_script"]
-    assert "health_dashboard" in t480_adapter.OPERATIONS["startup_enable"]["command"]
-    assert "health_dashboard" in t480_adapter.OPERATIONS["m5_boot_startup_enable"]["command"]
+    for operation_id in ("startup_enable", "m5_boot_startup_enable"):
+        command = t480_adapter.OPERATIONS[operation_id]["command"]
+        assert "docker compose up -d n8n;" in command
+        assert "docker compose up -d n8n health_dashboard" not in command
 
 
 def test_dashboard_firewall_operations_are_fixed_and_private_profile_only():
