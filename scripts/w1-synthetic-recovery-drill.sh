@@ -111,7 +111,7 @@ probe restore_postgres_start "${compose[@]}" --project-name "$restore_project" u
 probe restore_postgres_ready wait_for_service "$restore_project" postgres pg_isready -U w1_recovery -d "$restore_db"
 probe restore_database bash -c 'gunzip -c "$1" | docker compose --env-file "$2" -f compose.yaml -f postgres/recovery/w1-isolated-compose.yaml --project-name "$3" exec -T postgres psql -v ON_ERROR_STOP=1 -U w1_recovery -d "$4"' _ "$db_dump" "$test_env" "$restore_project" "$restore_db"
 probe restore_n8n_data docker run --rm --user 0:0 --entrypoint /bin/sh -v "${restore_project}_n8n_data:/target" -v "$bundle_dir:/backup:ro" "$n8n_image" -c 'tar -C /target -xzf /backup/n8n-data.tar.gz && chown -R 1000:1000 /target'
-probe restore_n8n_files docker run --rm --entrypoint /bin/sh -v "${restore_project}_n8n_files:/target" -v "$bundle_dir:/backup:ro" "$n8n_image" -c 'tar -C /target -xzf /backup/n8n-files.tar.gz'
+probe restore_n8n_files docker run --rm --user 0:0 --entrypoint /bin/sh -v "${restore_project}_n8n_files:/target" -v "$bundle_dir:/backup:ro" "$n8n_image" -c 'tar -C /target -xzf /backup/n8n-files.tar.gz && chown -R 1000:1000 /target'
 probe restored_n8n_start "${compose[@]}" --project-name "$restore_project" up -d n8n
 probe restored_n8n_health wait_for_service "$restore_project" n8n wget -q --spider http://localhost:5678/healthz
 
