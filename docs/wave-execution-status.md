@@ -41,8 +41,10 @@ and tampered synthetic evidence bundles.
 
 Wave 1 is **not complete**. The T16 target, its DPAPI recovery records, and the
 non-secret local policy have been prepared. An approved full-lab capture and
-several isolated synthetic recovery attempts have run. Completion still requires
-verified recovery and a verified retained T16 bundle.
+several isolated synthetic recovery attempts have run. Synthetic recovery
+evidence `20260907T081250Z` passed verification on T480 and, after copying all
+22 evidence files, independently on T16. Completion still requires a verified
+retained full-lab T16 bundle.
 
 The T16 is the sole encrypted, pull-only recovery target; its controls,
 limitations, and implemented transfer interface are in
@@ -90,24 +92,27 @@ volumes and evidence; new drills stop their own test containers on exit.
 The next synthetic attempt, `20260907T080304Z`, exposed a separate fresh-init
 failure: the migration ledger's SQL filename constraint rejected valid migration
 names. Migration 003 and its initialization checksum were corrected in
-`7519f3d`; the live database had no ledger table when checked. The change is
-published and locally tested, but its T480 deployment and another recovery drill
-remain pending because subsequent SSH connections timed out. The last confirmed
-T480 repository revision was `7ad07b4`; the boot-task repair was installed
-directly through the governed operation.
+`7519f3d`; the live database had no ledger table when checked. After connectivity
+returned, the change was deployed and fresh initialization and database restore
+passed. That attempt then exposed Docker address-pool exhaustion from earlier
+test networks. Twenty-six unused, labeled networks belonging to recorded test
+attempts were removed while preserving volumes and evidence. Commit `5044357`
+releases each drill's unused networks on exit and removes network access from
+its directory-initialization helper. It was deployed before the successful
+`20260907T081250Z` drill.
 
 The full-lab transfer now resumes fixed artifacts through Windows SFTP with
 strict host-key checking and keepalives. Failed transfers retain incoming bytes
 and source staging for retry. Only fully hash-verified bundles become retained
 backups. Source staging cleanup is checked separately from backup validity.
 
-The retained incoming PostgreSQL partial for `w1-20260907T060119Z` is
-36,203,520 bytes out of 3,636,612,802 bytes. The latest retry failed while
-connecting to SSH for source staging, before SFTP ran. No full-lab T16 copy has
-passed verification. Once SSH is reachable, update the T480 repository, rerun
-and independently verify the isolated recovery drill, then repeat the same
-full-lab bundle ID to resume and verify the T16 transfer. These are completion
-gates, not successful results.
+Incoming PostgreSQL data for `w1-20260907T060119Z` resumed from 36,203,520 bytes
+and was observed beyond 237 MB of 3,636,612,802 bytes. SSH connection timeouts
+remain intermittent; the boot task remained running during subsequent checks.
+The latest full-lab transfer is still running at this status update. No full-lab
+T16 copy has yet passed verification. If the transfer fails, inspect its lock
+and repeat the same bundle ID after the active process exits. Full artifact
+hash verification and retention remain completion gates.
 
 A local confirmation smoke check briefly set the recovery-record gate before
 the required password-manager evidence was available. It was reset immediately
