@@ -103,3 +103,8 @@ def test_failed_dump_stops_drill_even_when_gzip_succeeds(tmp_path: Path):
     assert 'source_dump' in result.stderr
     assert '--project-name w1_restore_' not in calls.read_text()
     assert not list(evidence.rglob('manifest.txt'))
+    commands = calls.read_text().splitlines()
+    releases = [line for line in commands if line.startswith('network rm ')]
+    assert len(releases) == 4
+    assert all(line.startswith(('network rm w1_source_', 'network rm w1_restore_')) for line in releases)
+    assert not any(line.startswith(('volume rm ', 'system prune ', 'network prune ')) for line in commands)

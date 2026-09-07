@@ -11,5 +11,8 @@ services:
   n8n:
     restart: "no"
     ports: !reset []
+  n8n_files_init:
+    # This helper only prepares a mounted directory and needs no network.
+    network_mode: none
   health_dashboard:
     ports: !reset []

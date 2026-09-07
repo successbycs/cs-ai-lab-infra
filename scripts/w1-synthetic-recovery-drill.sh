@@ -55,6 +55,15 @@ cleanup_sensitive_files() {
   if [[ "$restore_started" == true ]]; then
     "${compose[@]}" --project-name "$restore_project" stop --timeout 20 postgres n8n >/dev/null 2>&1 || printf 'Restored test containers need a stop retry.\n' >&2
   fi
+  # Stopped test containers and data remain inspectable. Release only this
+  # attempt's networks; Docker refuses removal if any active endpoint remains.
+  for project in "$source_project" "$restore_project"; do
+    for suffix in internal default; do
+      if docker network inspect "${project}_${suffix}" >/dev/null 2>&1; then
+        docker network rm "${project}_${suffix}" >/dev/null 2>&1 || printf 'Test network %s needs a release retry.\n' "${project}_${suffix}" >&2
+      fi
+    done
+  done
   rm -rf "$work_dir"
 }
 trap cleanup_sensitive_files EXIT
