@@ -57,7 +57,19 @@ def test_ssh_command_always_enforces_batch_and_strict_host_key_modes():
 def test_wsl_wrapper_propagates_the_wsl_process_exit_code():
     rendered = build_wsl_powershell_command("exit 7", TransportSettings())
 
-    assert "if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }" in rendered
+    assert rendered.endswith("exit $LASTEXITCODE")
+
+
+def test_wsl_script_reader_cannot_steal_following_commands():
+    import subprocess
+    from t480_core import build_wsl_powershell_command
+
+    script = "printf 'before\\n'\ncat >/dev/null\nprintf 'after\\n'\nexit 7\n"
+    wrapper = build_wsl_powershell_command(script, TransportSettings())
+    bash_command = wrapper.split(" -- bash -c '", 1)[1].split("';", 1)[0]
+    result = subprocess.run(['bash', '-c', bash_command], input=base64.b64encode(script.encode()), capture_output=True)
+    assert result.stdout == b'before\nafter\n'
+    assert result.returncode == 7
 
 
 def test_catalog_must_match_code_operations(tmp_path):

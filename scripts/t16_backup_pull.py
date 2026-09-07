@@ -14,6 +14,8 @@ import base64
 import os
 import re
 import shutil
+import hashlib
+import json
 import sys
 from pathlib import Path
 from typing import Any
@@ -145,9 +147,11 @@ def stage_full_lab_for_windows_scp(bundle_id: str) -> dict[str, Any]:
             f"source='{REMOTE_BACKUP_DIRECTORY}/full-lab/{bundle_id}'",
             f"staging='/mnt/c/Users/chris/AppData/Local/Temp/cs-ai-lab-t16-transfer/{bundle_id}'",
             '[[ -d "$source" ]] || { printf "Source recovery bundle is absent.\\n" >&2; exit 4; }',
-            '[[ ! -e "$staging" ]] || { printf "Windows transfer staging already exists.\\n" >&2; exit 5; }',
+            f'python3 {ROOT}/scripts/backup_manifest.py verify "$source/manifest.json" --require-full-lab >/dev/null',
             'mkdir -p "$(dirname "$staging")"',
-            'cp -a "$source" "$staging"',
+            'if [[ ! -e "$staging" ]]; then cp -a "$source" "$staging"; fi',
+            f'python3 {ROOT}/scripts/backup_manifest.py verify "$staging/manifest.json" --require-full-lab >/dev/null',
+            'cmp "$source/manifest.json" "$staging/manifest.json"',
         ]
     )
     return run_command(ssh_command(configured_target(), wsl_bash_script_command(script)))
@@ -159,23 +163,40 @@ def cleanup_windows_scp_staging(bundle_id: str) -> dict[str, Any]:
         [
             "set -euo pipefail",
             f"staging='/mnt/c/Users/chris/AppData/Local/Temp/cs-ai-lab-t16-transfer/{bundle_id}'",
-            '[[ -e "$staging" ]] && rm -rf "$staging" || true',
+            'if [[ -e "$staging" ]]; then rm -rf -- "$staging"; fi',
         ]
     )
     return run_command(ssh_command(configured_target(), wsl_bash_script_command(script)))
 
 
 def powershell_scp_full_lab(bundle_id: str, destination: Path) -> dict[str, Any]:
+    """Resume a fixed bundle over Windows SFTP (legacy internal function name)."""
     bundle_id = validate_full_lab_bundle_id(bundle_id)
-    destination_windows = windows_path(destination)
-    source = powershell_quote(f"{configured_target()}:{REMOTE_WINDOWS_STAGING_DIRECTORY}/{bundle_id}")
+    copied_bundle = destination / bundle_id
+    copied_bundle.mkdir(exist_ok=True)
+    source = f"{REMOTE_WINDOWS_STAGING_DIRECTORY}/{bundle_id}"
+    local = windows_path(copied_bundle).replace('\\', '/')
+    if any(character in local for character in ('"', '\r', '\n')):
+        raise ValueError('Unsafe SFTP destination path')
+    batch = destination / 'transfer.sftp'
+    # Refresh the manifest; only large, fixed artifacts use resume. No data
+    # becomes a retained backup until every complete artifact hash matches.
+    lines = [f'get "{source}/manifest.json" "{local}/manifest.json"']
+    lines += [f'reget "{source}/{name}" "{local}/{name}"' for name in (
+        'postgres.sql.gz', 'n8n-data.tar.gz', 'n8n-files.tar.gz')]
+    batch.write_text('\n'.join(lines) + '\n', encoding='utf-8')
     command = (
         "$ErrorActionPreference = 'Stop'; "
-        f"& scp.exe -r -B -o BatchMode=yes -o StrictHostKeyChecking=yes -- {source} {powershell_quote(destination_windows)}; "
-        "if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }"
+        f"& sftp.exe -b {powershell_quote(windows_path(batch))} "
+        "-o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=10 "
+        "-o ServerAliveInterval=15 -o ServerAliveCountMax=3 "
+        f"{powershell_quote(configured_target())}; exit $LASTEXITCODE"
     )
     encoded = base64.b64encode(command.encode("utf-16-le")).decode("ascii")
-    return run_command(["powershell.exe", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded])
+    try:
+        return run_command(["powershell.exe", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded])
+    finally:
+        batch.unlink(missing_ok=True)
 
 
 def pull(backup_name: str, target: Path) -> dict[str, Any]:
@@ -213,30 +234,37 @@ def pull_full_lab(bundle_id: str, target: Path) -> dict[str, Any]:
     if final_bundle.exists():
         raise RuntimeError("Refusing to overwrite an existing retained T16 full-lab bundle.")
     staging = target / f".incoming-{bundle_id}"
-    staging.mkdir()
+    staging.mkdir(exist_ok=True)
+    if staging.is_symlink():
+        raise RuntimeError('Incoming staging must not be a symlink')
+    lock = staging / '.transfer.lock'
+    try:
+        lock_fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    except FileExistsError:
+        raise RuntimeError('A transfer lock already exists; inspect the active transfer before retrying.') from None
+    os.close(lock_fd)
     try:
         staged = stage_full_lab_for_windows_scp(bundle_id)
         if not staged.get("ok"):
             return {"bundle_id": bundle_id, "transfer": staged, "ok": False}
-        try:
-            transfer = powershell_scp_full_lab(bundle_id, staging)
-        finally:
-            cleanup = cleanup_windows_scp_staging(bundle_id)
-        if not cleanup.get("ok"):
-            return {"bundle_id": bundle_id, "transfer": cleanup, "ok": False}
+        transfer = powershell_scp_full_lab(bundle_id, staging)
         if not transfer.get("ok"):
             return {"bundle_id": bundle_id, "transfer": transfer, "ok": False}
         copied_bundle = staging / bundle_id
         verification = verify_manifest(copied_bundle / "manifest.json", require_full_lab=True)
         shutil.move(str(copied_bundle), final_bundle)
+        cleanup = cleanup_windows_scp_staging(bundle_id)
         return {
             "bundle_id": bundle_id,
             "manifest_sha256": __import__("hashlib").sha256((final_bundle / "manifest.json").read_bytes()).hexdigest(),
             "scope": verification["scope"],
+            "source_staging_cleanup_ok": bool(cleanup.get('ok')),
             "ok": True,
         }
     finally:
-        shutil.rmtree(staging, ignore_errors=True)
+        lock.unlink(missing_ok=True)
+        if final_bundle.exists():
+            shutil.rmtree(staging)
 
 
 def parser() -> argparse.ArgumentParser:
@@ -275,7 +303,11 @@ def main(argv: list[str] | None = None) -> int:
     else:
         target = backup_target()
         result = pull(args.backup_name, target)
-    print({key: value for key, value in result.items() if key != "transfer"})
+    summary = {key: value for key, value in result.items() if key != 'transfer'}
+    if not result['ok']:
+        summary['transfer_exit_code'] = result.get('transfer', {}).get('exit_code')
+        summary['retry'] = 'Repeat the same bundle ID to resume incoming data.'
+    print(summary)
     return 0 if result["ok"] else 1
 
 

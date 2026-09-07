@@ -113,3 +113,38 @@ def test_full_lab_pull_verifies_bundle_before_retaining(tmp_path: Path):
         result = t16_backup_pull.pull_full_lab(bundle_id, target)
     assert result["ok"] is True
     assert (target / bundle_id / "manifest.json").is_file()
+
+
+def test_failed_transfer_keeps_incoming_bytes_and_source_for_resume(tmp_path):
+    target = tmp_path / 'target'
+    t16_backup_pull.prepare_target(target)
+    identifier = 'w1-20260907T120000Z'
+    def interrupted(_identifier, destination):
+        bundle = destination / identifier
+        bundle.mkdir(exist_ok=True)
+        (bundle / 'postgres.sql.gz').write_bytes(b'partial')
+        return {'ok': False, 'exit_code': 255}
+    with mock.patch.object(t16_backup_pull, 'stage_full_lab_for_windows_scp', return_value={'ok': True}), mock.patch.object(
+        t16_backup_pull, 'powershell_scp_full_lab', side_effect=interrupted
+    ), mock.patch.object(t16_backup_pull, 'cleanup_windows_scp_staging') as cleanup:
+        result = t16_backup_pull.pull_full_lab(identifier, target)
+    assert not result['ok']
+    assert not (target / identifier).exists()
+    assert (target / ('.incoming-' + identifier) / identifier / 'postgres.sql.gz').read_bytes() == b'partial'
+    assert not (target / ('.incoming-' + identifier) / '.transfer.lock').exists()
+    cleanup.assert_not_called()
+
+
+def test_sftp_resumes_fixed_artifacts_and_refreshes_manifest(tmp_path):
+    identifier = 'w1-20260907T120000Z'
+    captured = []
+    def run(_command):
+        captured.append((tmp_path / 'transfer.sftp').read_text())
+        return {'ok': True}
+    with mock.patch.object(t16_backup_pull, 'run_command', side_effect=run), mock.patch.object(
+        t16_backup_pull, 'windows_path', side_effect=lambda p: 'C:/backup/' + p.name
+    ), mock.patch.object(t16_backup_pull, 'configured_target', return_value='configured-target'):
+        assert t16_backup_pull.powershell_scp_full_lab(identifier, tmp_path)['ok']
+    assert captured[0].splitlines()[0].startswith('get ')
+    assert len([line for line in captured[0].splitlines() if line.startswith('reget ')]) == 3
+    assert not (tmp_path / 'transfer.sftp').exists()

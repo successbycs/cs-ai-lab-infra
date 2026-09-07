@@ -159,7 +159,7 @@ def build_ssh_command(target: str, powershell_command: str, settings: TransportS
             + "'; "
             "$sshArguments=@('-o','BatchMode=yes','-o','StrictHostKeyChecking=yes','-o','ConnectTimeout="
             + str(settings.connect_timeout_seconds)
-            + "',$target,$remoteCommand); & ssh.exe @sshArguments"
+            + "','-o','ServerAliveInterval=15','-o','ServerAliveCountMax=3',$target,$remoteCommand); & ssh.exe @sshArguments; exit $LASTEXITCODE"
         ),
     ]
 
@@ -180,7 +180,7 @@ def build_wsl_powershell_command(
         + "' | wsl.exe -d "
         + distribution
         + user_argument
-        + " -- bash -c 'base64 -d | bash'; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }"
+        + " -- bash -c 'bash <(base64 -d) </dev/null'; exit $LASTEXITCODE"
     )
 
 

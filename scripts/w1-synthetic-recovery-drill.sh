@@ -79,9 +79,12 @@ probe() {
   shift
   local output="$bundle_dir/${id}.txt"
   local exit_code=0
-  { printf 'probe: %s\nstarted_at: %s\n' "$id" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"; "$@"; } >"$output" 2>&1 || exit_code=$?
+  { printf 'probe: %s\nstarted_at: %s\n' "$id" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"; "$@" </dev/null; } >"$output" 2>&1 || exit_code=$?
   printf 'finished_at: %s\nexit_code: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$exit_code" >>"$output"
-  (( exit_code == 0 )) || status=1
+  if (( exit_code != 0 )); then
+    printf 'Recovery probe failed: %s (exit %s); evidence retained.\n' "$id" "$exit_code" >&2
+    exit "$exit_code"
+  fi
 }
 
 wait_for_service() {
@@ -99,7 +102,9 @@ wait_for_service() {
 probe source_start "${compose[@]}" --project-name "$source_project" up -d postgres n8n_files_init n8n
 probe source_health wait_for_service "$source_project" n8n wget -q --spider http://localhost:5678/healthz
 probe source_synthetic_file "${compose[@]}" --project-name "$source_project" exec -T n8n sh -c 'printf synthetic-recovery > /home/node/.n8n-files/w1-synthetic.txt'
-probe source_dump bash -c 'docker compose --env-file "$1" -f compose.yaml -f postgres/recovery/w1-isolated-compose.yaml --project-name "$2" exec -T postgres pg_dump --clean --if-exists -U w1_recovery -d "$3" | gzip -9 > "$4"' _ "$test_env" "$source_project" "$source_db" "$db_dump"
+probe source_database_marker "${compose[@]}" --project-name "$source_project" exec -T postgres psql -v ON_ERROR_STOP=1 -U w1_recovery -d "$source_db" -c "CREATE TABLE public.w1_restore_probe (value text); INSERT INTO public.w1_restore_probe VALUES ('synthetic-recovery');"
+probe source_quiesce "${compose[@]}" --project-name "$source_project" stop n8n
+probe source_dump bash -o pipefail -c 'docker compose --env-file "$1" -f compose.yaml -f postgres/recovery/w1-isolated-compose.yaml --project-name "$2" exec -T postgres pg_dump --clean --if-exists -U w1_recovery -d "$3" | gzip -9 > "$4"' _ "$test_env" "$source_project" "$source_db" "$db_dump"
 probe archive_n8n_data docker run --rm --entrypoint /bin/sh -v "${source_project}_n8n_data:/source:ro" -v "$bundle_dir:/backup" "$n8n_image" -c 'tar -C /source -czf /backup/n8n-data.tar.gz .'
 probe archive_n8n_files docker run --rm --entrypoint /bin/sh -v "${source_project}_n8n_files:/source:ro" -v "$bundle_dir:/backup" "$n8n_image" -c 'tar -C /source -czf /backup/n8n-files.tar.gz .'
 
@@ -109,14 +114,16 @@ probe archive_n8n_files docker run --rm --entrypoint /bin/sh -v "${source_projec
 sed -i "s/^POSTGRES_DB=.*/POSTGRES_DB=$restore_db/" "$test_env"
 probe restore_postgres_start "${compose[@]}" --project-name "$restore_project" up -d postgres
 probe restore_postgres_ready wait_for_service "$restore_project" postgres pg_isready -U w1_recovery -d "$restore_db"
-probe restore_database bash -c 'gunzip -c "$1" | docker compose --env-file "$2" -f compose.yaml -f postgres/recovery/w1-isolated-compose.yaml --project-name "$3" exec -T postgres psql -v ON_ERROR_STOP=1 -U w1_recovery -d "$4"' _ "$db_dump" "$test_env" "$restore_project" "$restore_db"
+probe restore_database bash -o pipefail -c 'gunzip -c "$1" | docker compose --env-file "$2" -f compose.yaml -f postgres/recovery/w1-isolated-compose.yaml --project-name "$3" exec -T postgres psql -v ON_ERROR_STOP=1 -U w1_recovery -d "$4"' _ "$db_dump" "$test_env" "$restore_project" "$restore_db"
+probe restored_database_marker "${compose[@]}" --project-name "$restore_project" exec -T postgres psql -v ON_ERROR_STOP=1 -U w1_recovery -d "$restore_db" -c "DO \$\$ BEGIN IF (SELECT count(*) FROM public.w1_restore_probe WHERE value = 'synthetic-recovery') <> 1 THEN RAISE EXCEPTION 'restored marker missing'; END IF; END \$\$;"
 probe restore_n8n_data docker run --rm --user 0:0 --entrypoint /bin/sh -v "${restore_project}_n8n_data:/target" -v "$bundle_dir:/backup:ro" "$n8n_image" -c 'tar -C /target -xzf /backup/n8n-data.tar.gz && chown -R 1000:1000 /target'
 probe restore_n8n_files docker run --rm --user 0:0 --entrypoint /bin/sh -v "${restore_project}_n8n_files:/target" -v "$bundle_dir:/backup:ro" "$n8n_image" -c 'tar -C /target -xzf /backup/n8n-files.tar.gz && chown -R 1000:1000 /target'
 probe restored_n8n_start "${compose[@]}" --project-name "$restore_project" up -d n8n
 probe restored_n8n_health wait_for_service "$restore_project" n8n wget -q --spider http://localhost:5678/healthz
+probe restored_synthetic_file "${compose[@]}" --project-name "$restore_project" exec -T n8n sh -c 'test "$(cat /home/node/.n8n-files/w1-synthetic.txt)" = synthetic-recovery'
 
 {
-  printf 'schema_version=cs-ai-lab.w1-synthetic-recovery.v1\n'
+  printf 'schema_version=cs-ai-lab.w1-synthetic-recovery.v2\n'
   printf 'captured_at=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   printf 'source_project=%s\nrestore_project=%s\n' "$source_project" "$restore_project"
   printf 'source_database=%s\nrestore_database=%s\n' "$source_db" "$restore_db"
@@ -124,7 +131,7 @@ probe restored_n8n_health wait_for_service "$restore_project" n8n wget -q --spid
   printf 'artifacts=postgres.sql.gz,n8n-data.tar.gz,n8n-files.tar.gz\n'
   printf 'git_revision=%s\n' "$(git rev-parse HEAD)"
 } > "$bundle_dir/manifest.txt"
-(cd "$bundle_dir" && sha256sum manifest.txt source_start.txt source_health.txt source_synthetic_file.txt source_dump.txt archive_n8n_data.txt archive_n8n_files.txt restore_postgres_start.txt restore_postgres_ready.txt restore_database.txt restore_n8n_data.txt restore_n8n_files.txt restored_n8n_start.txt restored_n8n_health.txt postgres.sql.gz n8n-data.tar.gz n8n-files.tar.gz > SHA256SUMS)
+(cd "$bundle_dir" && sha256sum manifest.txt source_start.txt source_health.txt source_synthetic_file.txt source_database_marker.txt source_quiesce.txt source_dump.txt archive_n8n_data.txt archive_n8n_files.txt restore_postgres_start.txt restore_postgres_ready.txt restore_database.txt restored_database_marker.txt restore_n8n_data.txt restore_n8n_files.txt restored_n8n_start.txt restored_n8n_health.txt restored_synthetic_file.txt postgres.sql.gz n8n-data.tar.gz n8n-files.tar.gz > SHA256SUMS)
 
 printf 'Wave 1 synthetic recovery evidence: %s\n' "$bundle_dir"
 printf 'Verify it with: ./scripts/verify-w1-synthetic-recovery-evidence.sh %q\n' "$bundle_dir"

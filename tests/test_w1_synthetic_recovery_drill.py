@@ -1,4 +1,5 @@
 import subprocess
+import os
 from pathlib import Path
 
 
@@ -75,3 +76,30 @@ def test_evidence_verifier_rejects_tampered_synthetic_bundle(tmp_path: Path):
         ["bash", "scripts/verify-w1-synthetic-recovery-evidence.sh", str(bundle)], text=True, capture_output=True, cwd=ROOT
     )
     assert result.returncode != 0
+
+
+def test_evidence_verifier_rejects_missing_checksum_coverage(tmp_path: Path):
+    bundle = tmp_path / 'bundle'
+    write_bundle(bundle)
+    sums = bundle / 'SHA256SUMS'
+    sums.write_text(''.join(line for line in sums.read_text().splitlines(True) if 'postgres.sql.gz' not in line))
+    result = subprocess.run(['bash', 'scripts/verify-w1-synthetic-recovery-evidence.sh', str(bundle)], capture_output=True, cwd=ROOT)
+    assert result.returncode != 0
+
+
+def test_failed_dump_stops_drill_even_when_gzip_succeeds(tmp_path: Path):
+    bin_dir = tmp_path / 'bin'
+    bin_dir.mkdir()
+    docker = bin_dir / 'docker'
+    calls = tmp_path / 'calls'
+    docker.write_text('#!/bin/bash\nprintf "%s\\n" "$*" >> "$TEST_CALLS"\ncase "$*" in *pg_dump*) exit 23;; esac\n')
+    docker.chmod(0o755)
+    key = tmp_path / 'key'
+    key.write_text('synthetic-only')
+    evidence = tmp_path / 'evidence'
+    result = subprocess.run(['bash', str(SCRIPT), '--approve', '--test-encryption-key-file', str(key)],
+        env={**os.environ, 'PATH': str(bin_dir) + ':' + os.environ['PATH'], 'TEST_CALLS': str(calls), 'W1_EVIDENCE_DIR': str(evidence)}, capture_output=True, text=True)
+    assert result.returncode == 23
+    assert 'source_dump' in result.stderr
+    assert '--project-name w1_restore_' not in calls.read_text()
+    assert not list(evidence.rglob('manifest.txt'))
