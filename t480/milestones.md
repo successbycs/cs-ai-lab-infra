@@ -35,7 +35,12 @@ python3 scripts/t480_milestones.py prove --id M0
 | M9 | Health monitoring review remediation proven — [execution prompt](prompts/m9-health-monitoring-remediation.md) |
 | M10 | Private remote access over tailnet proven — [execution prompt](prompts/m10-tailnet-remote-access.md) |
 
-M6's post-upgrade validation includes the `validation_integrity_corrections` subtask. It corrects stale M2 image evidence expectations, prevents unfiltered workflow-export metadata from reaching the n8n API, and makes the default test command reliably execute the adapter suite.
+M6's post-upgrade validation includes the `validation_integrity_corrections`
+subtask. It records a versioned M2 evidence contract for the configured n8n
+image while retaining the immutable legacy contract for earlier bundles,
+prevents unfiltered workflow-export metadata from reaching the n8n API, and
+makes the default test command reliably execute the adapter suite. It is not
+proven until its code, tests, and T480 evidence requirements all pass.
 
 M7 adds a read-only operational routine after M2. It proves the T16 control path and verifies the required private services without treating an intentionally stopped optional Ollama profile as a fault or performing automatic recovery.
 

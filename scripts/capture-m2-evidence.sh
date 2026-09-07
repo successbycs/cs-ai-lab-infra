@@ -7,6 +7,26 @@ set -euo pipefail
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root_dir"
 
+contract_file="$root_dir/t480/evidence-contracts/m2-current-n8n-1.123.76.json"
+if [[ ! -f "$contract_file" ]]; then
+  printf 'Refusing M2 evidence capture: current evidence contract is missing.\n' >&2
+  exit 1
+fi
+evidence_contract="$(python3 - "$contract_file" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    contract = json.load(handle)
+if contract.get("schema_version") != "cs-ai-lab.m2-evidence-contract.v1":
+    raise SystemExit("Unsupported M2 evidence contract schema.")
+contract_id = contract.get("id")
+if not isinstance(contract_id, str) or not contract_id:
+    raise SystemExit("M2 evidence contract requires a non-empty id.")
+print(contract_id)
+PY
+)"
+
 if [[ ! -f .env ]]; then
   printf 'Refusing M2 evidence capture: .env is missing.\n' >&2
   exit 1
@@ -50,6 +70,7 @@ run_probe postgres_vector_distance docker compose exec -T postgres psql -v ON_ER
 
 {
   printf 'milestone=M2\n'
+  printf 'evidence_contract=%s\n' "$evidence_contract"
   printf 'captured_at=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   printf 'git_revision=%s\n' "$(git rev-parse HEAD)"
   printf 'capture_host=%s\n' "$(hostname)"

@@ -18,10 +18,18 @@ mkdir -p "$backup_dir"
 timestamp="$(date +%Y%m%dT%H%M%S%z)"
 backup_file="$backup_dir/${POSTGRES_DB}-${timestamp}.sql.gz"
 temporary_file="${backup_file}.partial"
+manifest_file="${backup_file%.sql.gz}.manifest.json"
 
 trap 'rm -f "$temporary_file"' EXIT
 printf 'Creating PostgreSQL backup: %s\n' "$backup_file"
 docker compose exec -T postgres pg_dump --clean --if-exists --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" </dev/null | gzip > "$temporary_file"
 mv "$temporary_file" "$backup_file"
 trap - EXIT
+python3 scripts/backup_manifest.py create-postgres-logical \
+  --dump "$backup_file" \
+  --compose compose.yaml \
+  --source-revision "$(git rev-parse HEAD)" \
+  --output "$manifest_file"
 printf 'Backup complete: %s\n' "$backup_file"
+printf 'Backup manifest: %s\n' "$manifest_file"
+printf 'Verify it with: python3 scripts/backup_manifest.py verify %q\n' "$manifest_file"

@@ -1,0 +1,12 @@
+# Copy to the repository root as .w1-recovery.local.
+# IDs name owner-controlled password-manager records; they are not secrets.
+W1_ENVIRONMENT_RECOVERY_RECORD_ID=owner-password-manager-cs-ai-lab-env-v1
+W1_N8N_ENCRYPTION_KEY_RECOVERY_RECORD_ID=owner-password-manager-cs-ai-lab-n8n-key-v1
+
+# The operator may set this to yes only after creating and independently
+# checking both password-manager records. Capture refuses any other value.
+W1_RECOVERY_RECORDS_CONFIRMED=no
+W1_RPO_HOURS=24
+W1_RTO_HOURS=4
+W1_T16_RETENTION_DAILY=30
+W1_OLLAMA_MODEL_DISPOSITION=redownload-reviewed-models

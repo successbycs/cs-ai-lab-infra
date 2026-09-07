@@ -1,0 +1,9 @@
+# Compose override for the Wave 1 synthetic recovery drill. It removes every
+# host publication so both recovery projects remain Docker-internal.
+services:
+  postgres:
+    ports: !reset []
+  n8n:
+    ports: !reset []
+  health_dashboard:
+    ports: !reset []

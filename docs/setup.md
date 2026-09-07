@@ -26,7 +26,14 @@ Alternatively, install Ollama natively on the host as described in [Ollama guida
 
 ## Private-LAN health dashboard
 
-The default stack also starts a status-only health dashboard on port `8080`, bound by `HEALTH_DASHBOARD_BIND_ADDRESS` (default `0.0.0.0` for the trusted LAN). Apply the reviewed `postgres/migrations/001_health_dashboard.sql` migration to an existing T480 database with the approval-gated PostgreSQL adapter, then run `Healthcheck` from the T16 to publish the first result:
+The default stack also starts a status-only health dashboard on port `8080`,
+bound by `HEALTH_DASHBOARD_BIND_ADDRESS` (default `0.0.0.0` for the trusted
+LAN). That bind is not sufficient evidence of LAN access; it requires the
+fixed Windows Private-profile firewall rule and approved effective-state
+validation described in the [network exposure policy](network-exposure.md).
+Apply the reviewed `postgres/migrations/001_health_dashboard.sql` migration to
+an existing T480 database with the approval-gated PostgreSQL adapter, then run
+`Healthcheck` from the T16 to publish the first result:
 
 ```bash
 python3 scripts/postgres_pgvector_adapter.py apply-migration --migration-file 001_health_dashboard.sql --approve
@@ -49,7 +56,9 @@ python3 scripts/t480_adapter.py execute --operation health_dashboard_lan_proxy_e
 
 Do not port-forward the dashboard or expose it publicly. The page deliberately has no sign-in or control functions, so it displays only redacted service status, timestamps, and recommended actions.
 
-PostgreSQL now defaults to loopback-only binding through `POSTGRES_BIND_ADDRESS=127.0.0.1`. Keep that setting; it is not required for the dashboard and prevents direct LAN database access.
+PostgreSQL defaults to loopback-only binding through
+`POSTGRES_BIND_ADDRESS=127.0.0.1`. Keep that setting: it is not required for
+the dashboard and direct LAN database access is outside the v1 policy.
 
 ## Windows host power policy
 

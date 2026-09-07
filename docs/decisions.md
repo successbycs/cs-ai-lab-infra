@@ -12,4 +12,5 @@
 | Task-based routing is a future goal | optimise quality, cost, latency, and privacy per task | evaluation harness exists |
 | No public exposure in v1 | avoids premature security and operations burden | explicit private-access design is approved |
 | Secrets remain outside Git | protects credentials and enables environment-specific configuration | never as a default |
+| T16 as the interim recovery target | the development workstation can hold an encrypted, pull-only copy while a durable off-site target is selected | before the first full-lab recovery declaration or any change to the T16's encryption/recovery ownership |
 | Customer Success AI is the project filter | infrastructure serves the professional learning mission | a change has clear transferable value |

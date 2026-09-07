@@ -1,6 +1,35 @@
 # Backup and restore
 
-`./scripts/backup.sh` creates a compressed, timestamped logical PostgreSQL dump on the host at `postgres/backup/`. It runs `pg_dump` in the database container but redirects the result outside it, so the backup survives container recreation. Backup files are ignored by Git; copy tested backups to storage outside the T480.
+`./scripts/backup.sh` creates a compressed, timestamped logical PostgreSQL dump on the host at `postgres/backup/`, with a non-secret JSON manifest beside it. It runs `pg_dump` in the database container but redirects the result outside it, so the backup survives container recreation. The manifest records the dump SHA-256, capture time, Git revision, Compose-file hash, and its deliberately limited recovery scope. Backup files and manifests are ignored by Git.
+
+Verify a captured logical backup without contacting Docker:
+
+```bash
+python3 scripts/backup_manifest.py verify postgres/backup/<file>.manifest.json
+```
+
+This is a PostgreSQL-logical backup, not a full-lab recovery claim. It cannot
+restore `.env`, the n8n encryption key, `n8n_data`, `n8n_files`, dashboard
+output, or Ollama models. The full inventory and owner decisions are in
+[the recovery contract](recovery-contract.md). The full-lab preflight is
+expected to fail until the required protected recovery records exist:
+
+```bash
+python3 scripts/backup_manifest.py verify postgres/backup/<file>.manifest.json --require-full-lab
+```
+
+## Full-lab capture for the prepared T16 target
+
+`scripts/capture-w1-recovery-bundle.sh` captures the PostgreSQL dump plus
+`n8n_data` and `n8n_files` archives into one local bundle and builds a
+full-lab manifest. It requires the ignored `.w1-recovery.local` file, based on
+`w1/recovery-records.local.example`, to contain opaque identifiers for the
+protected environment and n8n-key recovery records. It never accepts or copies
+the secret values themselves.
+
+The command requires explicit approval and a prior operator confirmation that
+n8n writes are quiesced. It does not transfer the result; the prepared T16
+target remains the only approved transfer destination.
 
 To restore into a deliberately selected running lab database, first stop application writers, identify the exact backup, and run:
 

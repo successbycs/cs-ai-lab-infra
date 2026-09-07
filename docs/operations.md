@@ -2,6 +2,11 @@
 
 Run all commands from the repository root. First copy `.env.example` to `.env` and replace every placeholder. Inspect the resolved configuration with `docker compose config`, start the default services with `docker compose up -d`, and check them with `./scripts/health-check.sh`.
 
+The required v1 exposure policy is [network exposure](network-exposure.md).
+`docker compose port` reports Docker's requested host publication only; use it
+to verify the desired bind, not to infer a Windows firewall profile, router
+state, public reachability, or an approved T16 result.
+
 Use `docker compose ps` for status and `docker compose logs -f <service>` for troubleshooting. `docker compose down` stops and removes containers and the network but preserves named volumes. Do not add `-v` unless you deliberately intend to erase persistent data.
 
 ## T480 check routine

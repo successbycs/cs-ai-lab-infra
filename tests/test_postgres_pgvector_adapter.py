@@ -31,7 +31,7 @@ class PostgresPgvectorAdapterTests(unittest.TestCase):
             postgres_pgvector_adapter.preflight()
         self.assertIn("</dev/null", remote.call_args.args[0])
 
-    def test_migration_is_hash_checked_and_streamed_to_psql(self):
+    def test_migration_is_hash_checked_transactional_and_ledgered(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             migrations = Path(temporary_directory)
             (migrations / "001_create_notes.sql").write_text("SELECT 1;", encoding="utf-8")
@@ -40,7 +40,20 @@ class PostgresPgvectorAdapterTests(unittest.TestCase):
             ) as remote:
                 postgres_pgvector_adapter.apply_migration("001_create_notes.sql")
         self.assertIn("actual_sha256", remote.call_args.args[0])
-        self.assertIn('< "$migration_file"', remote.call_args.args[0])
+        self.assertIn("--single-transaction", remote.call_args.args[0])
+        self.assertIn("cs_ai_lab_migration_ledger", remote.call_args.args[0])
+        self.assertIn("MIGRATION_ALREADY_APPLIED", remote.call_args.args[0])
+        self.assertIn("checksum drift", remote.call_args.args[0])
+        self.assertIn('safe_name="${migration_file##*/}"', remote.call_args.args[0])
+        self.assertIn("pg_advisory_xact_lock", remote.call_args.args[0])
+
+    def test_migration_status_is_read_only(self):
+        with mock.patch.object(postgres_pgvector_adapter, "remote_script", return_value={"ok": True}) as remote:
+            payload = postgres_pgvector_adapter.migration_status()
+        self.assertTrue(payload["ok"])
+        self.assertIn("to_regclass", remote.call_args.args[0])
+        self.assertIn("MIGRATION_LEDGER_ABSENT", remote.call_args.args[0])
+        self.assertNotIn("CREATE TABLE", remote.call_args.args[0])
 
     def test_forex_m2_schema_is_fixed_hash_bound_asset(self):
         with tempfile.TemporaryDirectory() as temporary_directory:

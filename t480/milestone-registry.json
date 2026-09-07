@@ -239,8 +239,8 @@
             {
               "id": "validation_integrity_corrections",
               "name": "Validation-integrity corrections",
-              "action": "Correct the M2 evidence verifier's pinned n8n-image assertion, ensure the n8n workflow upsert path uploads a deliberately filtered API payload rather than an arbitrary workflow export, and make the repository's default automated test command discover and execute its test suite.",
-              "success_criteria": "A fresh M2 evidence bundle for the configured n8n image verifies successfully; a regression test proves workflow metadata outside the supported import payload is not sent to the n8n API; and the documented default test command exits successfully only after discovering and running the adapter tests.",
+              "action": "Replace the M2 evidence verifier's stale pinned n8n-image assertion with a versioned evidence contract selected by the bundle manifest, retain the immutable legacy contract for earlier bundles, ensure the n8n workflow upsert path uploads a deliberately filtered API payload rather than an arbitrary workflow export, and make the repository's default automated test command discover and execute its test suite.",
+              "success_criteria": "A fresh M2 evidence bundle for the configured n8n image verifies successfully against its reviewed manifest contract, retained historical bundles verify against the immutable legacy contract, a regression test proves workflow metadata outside the supported import payload is not sent to the n8n API, and the documented default test command exits successfully only after discovering and running the adapter tests.",
               "evidence": "Record the corrected image reference, test-command output with a non-zero test count, and the independent M2 evidence-verifier result. Do not include credentials, workflow secrets, or raw service data."
             }
           ]

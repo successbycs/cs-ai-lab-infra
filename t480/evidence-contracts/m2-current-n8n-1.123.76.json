@@ -1,0 +1,6 @@
+{
+  "schema_version": "cs-ai-lab.m2-evidence-contract.v1",
+  "id": "m2-current-n8n-1.123.76",
+  "n8n_image": "n8nio/n8n:1.123.76@sha256:66b6bfd6716877591d9c21340250f44f842e6b03f97ccaed09b9f95e13cf5331",
+  "postgres_image_prefix": "pgvector/pgvector:pg16@sha256:"
+}

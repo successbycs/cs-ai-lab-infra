@@ -1,6 +1,8 @@
 .env
 .env.*
 !.env.example
+.t16-backup.local
+.w1-recovery.local
 .t480-milestones.local.json
 .t480-execution.local.jsonl
 .tailscale-execution.local.jsonl
@@ -20,6 +22,7 @@ evidence/
 postgres/backup/*.sql
 postgres/backup/*.sql.gz
 postgres/backup/*.dump
+postgres/backup/*.manifest.json
 !postgres/backup/.gitkeep
 
 # Editor and OS files

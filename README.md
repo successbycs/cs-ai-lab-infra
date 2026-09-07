@@ -26,12 +26,16 @@ The T16 is the development workstation. The T480 is a persistent, private runtim
 
 | Service | Purpose | Exposure |
 | --- | --- | --- |
-| PostgreSQL + pgvector | reusable structured data, vector-search, and redacted health-result foundation | closed LAN on port 5432 |
+| PostgreSQL + pgvector | reusable structured data, vector-search, and redacted health-result foundation | `127.0.0.1:5432` on the T480 only |
 | n8n | workflow and orchestration learning platform | `127.0.0.1:5678` only |
 | Ollama (optional profile) | CPU-friendly local inference experimentation | Docker network only |
-| Health dashboard | status-only view of redacted Healthcheck results | private LAN on port 8080 |
+| Health dashboard | status-only view of redacted Healthcheck results | trusted private LAN on port 8080, subject to host Private-profile policy |
 
-Persistent state is held in named Docker volumes. The database is intentionally not published to the host. See [architecture](docs/architecture.md), [T480 setup](docs/setup.md), [operations](docs/operations.md), and [model strategy](docs/model-strategy.md).
+Persistent state is held in named Docker volumes. PostgreSQL and n8n are
+published only to the T480 loopback interface; the dashboard is the sole v1
+LAN publication. See the [network exposure policy](docs/network-exposure.md),
+[architecture](docs/architecture.md), [T480 setup](docs/setup.md),
+[operations](docs/operations.md), and [model strategy](docs/model-strategy.md).
 
 Track the real T480 setup journey in the [provisioning log](docs/t480-provisioning-log.md). It records commands and verified outcomes without storing credentials or private network details.
 
@@ -78,7 +82,12 @@ docker compose down                 # stops services; named volumes remain
 
 ## Security and backups
 
-`.env` never enters Git. Replace all placeholders before startup, keep ports loopback-only, and do not expose this v1 lab to the public internet. `backup.sh` writes timestamped PostgreSQL dumps outside the container to `postgres/backup/`; those files are ignored by Git. Follow the restore procedure in [backup and restore](docs/backup-restore.md).
+`.env` never enters Git. Keep PostgreSQL and n8n loopback-only, allow the
+status-only dashboard only under the [network exposure policy](docs/network-exposure.md),
+and do not expose this v1 lab to the public internet. `backup.sh` writes
+timestamped PostgreSQL dumps outside the container to `postgres/backup/`; those
+files are ignored by Git. Follow the restore procedure in [backup and
+restore](docs/backup-restore.md).
 
 ## Roadmap
 

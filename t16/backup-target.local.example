@@ -1,0 +1,4 @@
+# Copy to the repository root as .t16-backup.local on the T16.
+# This file is intentionally ignored. Use an encrypted dedicated T16 volume.
+T16_BACKUP_ROOT=C:\CS-AI-Lab-Backups
+T16_BACKUP_ENCRYPTION_CONFIRMED=yes

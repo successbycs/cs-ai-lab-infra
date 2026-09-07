@@ -6,15 +6,14 @@ It does not use Supabase, accept raw SQL, or copy database credentials to the
 T16. Commands route through the proven T16-to-T480 bridge and execute `psql`
 inside the PostgreSQL container.
 
-## Closed-LAN administrator access
+## Controller-only administration
 
-PostgreSQL is published on standard port `5432` for the T480 home/closed-LAN
-MVP. Connect using the T480's LAN IP (currently `192.168.0.210`) and do not
-forward the port to the public internet or place credentials in this
-repository.
-
-Connect a desktop PostgreSQL client to `postgresql://192.168.0.210:5432` with
-the credentials held only in the T480 `.env`.
+PostgreSQL is published only to `127.0.0.1:5432` on the T480. Direct LAN
+database clients are outside the v1 policy; use the governed controller path
+for inspection and reviewed migrations. Do not add a desktop connection URI,
+LAN firewall exception, router port-forward, or public ingress. The
+[network exposure policy](../docs/network-exposure.md) distinguishes desired
+Compose publication from effective host reachability.
 
 After M2 is running, use the read-only operations first:
 

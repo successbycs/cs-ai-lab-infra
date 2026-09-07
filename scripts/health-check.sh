@@ -121,11 +121,11 @@ else
   note SKIP ollama 'optional profile is not running'
 fi
 
-check_command postgres_exposure 'is loopback-only' \
+check_command postgres_exposure 'Docker publishes the desired loopback binding' \
   bash -c 'docker compose port postgres 5432 | grep -Eq "^127\\.0\\.0\\.1:"'
-check_command n8n_exposure 'is loopback-only' \
+check_command n8n_exposure 'Docker publishes the desired loopback binding' \
   bash -c 'docker compose port n8n 5678 | grep -Eq "^127\\.0\\.0\\.1:"'
-check_command dashboard_exposure 'is available on its configured private-LAN binding' \
+check_command dashboard_exposure 'Docker reports a dashboard binding; host policy is checked separately' \
   bash -c 'docker compose port health_dashboard 8080 | grep -Eq "^(0\\.0\\.0\\.0|127\\.0\\.0\\.1):"'
 check_command revision 'checkout is clean and matches fetched origin/main' \
   bash -c 'test -z "$(git status --porcelain --untracked-files=normal)" && test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"'

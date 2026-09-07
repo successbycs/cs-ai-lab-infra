@@ -1,0 +1,4 @@
+# Copy to the repository root as .w1-recovery.local and record opaque IDs only.
+# Do not put a destination, password, .env content, or encryption key here.
+W1_ENVIRONMENT_RECOVERY_RECORD_ID=owner-password-manager-env-record
+W1_N8N_ENCRYPTION_KEY_RECOVERY_RECORD_ID=owner-password-manager-n8n-key-record

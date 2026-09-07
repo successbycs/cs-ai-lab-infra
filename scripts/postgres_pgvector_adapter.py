@@ -32,6 +32,7 @@ FOREX_M2_IMPORTER = "scripts/build_m2_postgres_import.py"
 LOG_PATH = ROOT / ".postgres-pgvector-execution.local.jsonl"
 TOOL_ID = "postgres_pgvector_t480"
 MIGRATION_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]*\.sql\Z")
+MIGRATION_LEDGER_TABLE = "public.cs_ai_lab_migration_ledger"
 
 
 def now() -> str:
@@ -93,12 +94,46 @@ def apply_migration(filename: str) -> dict[str, Any]:
     expected_sha256 = hashlib.sha256((MIGRATIONS_ROOT / safe_name).read_bytes()).hexdigest()
     result = remote_script(f"""migration_file="postgres/migrations/{safe_name}"
 [[ -f "$migration_file" ]] || {{ printf 'Migration is absent on T480: %s\\n' "$migration_file" >&2; exit 4; }}
+safe_name="${{migration_file##*/}}"
 expected_sha256="{expected_sha256}"
 actual_sha256="$(sha256sum "$migration_file" | head -c 64)"
 [[ "$actual_sha256" == "$expected_sha256" ]] || {{ printf 'Migration hash differs from reviewed T16 file.\\n' >&2; exit 5; }}
-docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" < "$migration_file"
+docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" <<'SQL'
+CREATE TABLE IF NOT EXISTS {MIGRATION_LEDGER_TABLE} (
+  filename text PRIMARY KEY CHECK (filename ~ '^[A-Za-z0-9][A-Za-z0-9_.-]*\\.sql$'),
+  sha256 text NOT NULL CHECK (sha256 ~ '^[0-9a-f]{{64}}$'),
+  applied_at timestamptz NOT NULL DEFAULT now()
+);
+SQL
+recorded_sha256="$(docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc \\
+  "SELECT sha256 FROM {MIGRATION_LEDGER_TABLE} WHERE filename = '{safe_name}';" </dev/null)"
+if [[ -n "$recorded_sha256" ]]; then
+  [[ "$recorded_sha256" == "$expected_sha256" ]] || {{ printf 'Refusing migration: ledger checksum drift for %s.\\n' "$safe_name" >&2; exit 6; }}
+  printf 'MIGRATION_ALREADY_APPLIED filename=%s sha256=%s\\n' "$safe_name" "$expected_sha256"
+  exit 0
+fi
+{{
+  printf "SELECT pg_advisory_xact_lock(hashtext('cs-ai-lab-infra.migration-ledger'));\\n"
+  printf "DO \\\u0024\\\u0024 BEGIN IF EXISTS (SELECT 1 FROM {MIGRATION_LEDGER_TABLE} WHERE filename = '%s') THEN RAISE EXCEPTION 'migration ledger changed concurrently'; END IF; END \\\u0024\\\u0024;\\n" "$safe_name"
+  cat "$migration_file"
+  printf "\\nINSERT INTO {MIGRATION_LEDGER_TABLE} (filename, sha256) VALUES ('%s', '%s');\\n" "$safe_name" "$expected_sha256"
+}} | docker compose exec -T postgres psql -v ON_ERROR_STOP=1 --single-transaction -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 """)
     return {"tool_id": TOOL_ID, "operation": "apply_migration", "migration": safe_name, "result": result, "ok": result["ok"]}
+
+
+def migration_status() -> dict[str, Any]:
+    """Read the ledger only; absence is reported without creating it."""
+    result = remote_script(f"""docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -At <<'SQL'
+SELECT to_regclass('{MIGRATION_LEDGER_TABLE}') IS NOT NULL AS ledger_exists \\gset
+\\if :ledger_exists
+SELECT filename || '|' || sha256 || '|' || applied_at FROM {MIGRATION_LEDGER_TABLE} ORDER BY filename;
+\\else
+\\echo MIGRATION_LEDGER_ABSENT
+\\endif
+SQL
+""")
+    return {"tool_id": TOOL_ID, "operation": "migration_status", "result": result, "ok": result["ok"]}
 
 
 def _forex_m2_asset(relative_path: str) -> tuple[Path, str]:
@@ -171,7 +206,7 @@ def append_log(command: str, approved: bool, payload: dict[str, Any]) -> None:
 
 def parser() -> argparse.ArgumentParser:
     command_parser = argparse.ArgumentParser(description="Governed T480 PostgreSQL + pgvector adapter.")
-    command_parser.add_argument("command", choices=["describe-requirements", "preflight", "inspect", "vector-probe", "apply-migration", "forex-m2-apply-schema", "forex-m2-import", "forex-m2-verify"])
+    command_parser.add_argument("command", choices=["describe-requirements", "preflight", "inspect", "vector-probe", "migration-status", "apply-migration", "forex-m2-apply-schema", "forex-m2-import", "forex-m2-verify"])
     command_parser.add_argument("--migration-file")
     command_parser.add_argument("--approve", action="store_true")
     return command_parser
@@ -186,7 +221,7 @@ def main(argv: list[str] | None = None) -> int:
             "tool_id": TOOL_ID,
             "source": "AF Supabase adapter capability and approval model, adapted for local PostgreSQL",
             "requirements": ["M2 PostgreSQL service running", "T480-local .env", "reviewed SQL file in postgres/migrations"],
-            "read_only_commands": ["preflight", "inspect", "vector-probe"],
+            "read_only_commands": ["preflight", "inspect", "vector-probe", "migration-status"],
             "mutating_commands": ["apply-migration", "forex-m2-apply-schema", "forex-m2-import"],
         }
     elif args.command == "preflight":
@@ -201,6 +236,8 @@ def main(argv: list[str] | None = None) -> int:
         payload = import_forex_m2_snapshot()
     elif args.command == "forex-m2-verify":
         payload = verify_forex_m2_snapshot()
+    elif args.command == "migration-status":
+        payload = migration_status()
     else:
         if not args.migration_file:
             raise SystemExit("--migration-file is required for apply-migration")
