@@ -43,8 +43,18 @@ source_data_archive="$bundle_dir/n8n-data.tar.gz"
 source_files_archive="$bundle_dir/n8n-files.tar.gz"
 compose=(docker compose --env-file "$test_env" -f compose.yaml -f postgres/recovery/w1-isolated-compose.yaml)
 n8n_image="n8nio/n8n:1.123.76@sha256:66b6bfd6716877591d9c21340250f44f842e6b03f97ccaed09b9f95e13cf5331"
+source_started=false
+restore_started=false
 
 cleanup_sensitive_files() {
+  # Retain the generated volumes and containers for review without leaving
+  # every failed attempt consuming runtime capacity or restarting after boot.
+  if [[ "$source_started" == true ]]; then
+    "${compose[@]}" --project-name "$source_project" stop --timeout 20 postgres n8n >/dev/null 2>&1 || printf 'Source test containers need a stop retry.\n' >&2
+  fi
+  if [[ "$restore_started" == true ]]; then
+    "${compose[@]}" --project-name "$restore_project" stop --timeout 20 postgres n8n >/dev/null 2>&1 || printf 'Restored test containers need a stop retry.\n' >&2
+  fi
   rm -rf "$work_dir"
 }
 trap cleanup_sensitive_files EXIT
@@ -99,6 +109,7 @@ wait_for_service() {
 
 # All project names, databases, and volumes are generated above. Do not replace
 # them with active Compose names or POSTGRES_DB values from a live environment.
+source_started=true
 probe source_start "${compose[@]}" --project-name "$source_project" up -d postgres n8n_files_init n8n
 probe source_health wait_for_service "$source_project" n8n wget -q --spider http://localhost:5678/healthz
 probe source_synthetic_file "${compose[@]}" --project-name "$source_project" exec -T n8n sh -c 'printf synthetic-recovery > /home/node/.n8n-files/w1-synthetic.txt'
@@ -112,6 +123,7 @@ probe archive_n8n_files docker run --rm --entrypoint /bin/sh -v "${source_projec
 # database name changes before startup, so a restore can never connect to the
 # source or an active lab database.
 sed -i "s/^POSTGRES_DB=.*/POSTGRES_DB=$restore_db/" "$test_env"
+restore_started=true
 probe restore_postgres_start "${compose[@]}" --project-name "$restore_project" up -d postgres
 probe restore_postgres_ready wait_for_service "$restore_project" postgres pg_isready -h 127.0.0.1 -U w1_recovery -d "$restore_db"
 probe restore_database bash -o pipefail -c 'gunzip -c "$1" | docker compose --env-file "$2" -f compose.yaml -f postgres/recovery/w1-isolated-compose.yaml --project-name "$3" exec -T postgres psql -v ON_ERROR_STOP=1 -U w1_recovery -d "$4"' _ "$db_dump" "$test_env" "$restore_project" "$restore_db"

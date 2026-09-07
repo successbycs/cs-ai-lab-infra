@@ -1,4 +1,5 @@
 import subprocess
+import os
 from pathlib import Path
 
 
@@ -25,3 +26,13 @@ def test_capture_archives_only_labeled_n8n_volumes_and_uses_full_contract():
     assert "create-full-lab" in source
     assert "--require-full-lab" in source
     assert "source .env" in source
+
+
+def test_capture_rejects_running_n8n_despite_operator_flag(tmp_path):
+    docker = tmp_path / 'docker'
+    docker.write_text('#!/bin/sh\nprintf "running-container\\n"\n')
+    docker.chmod(0o755)
+    result = subprocess.run(['bash', str(SCRIPT), '--approve', '--n8n-quiesced'],
+        env={**os.environ, 'PATH': str(tmp_path) + ':' + os.environ['PATH']}, capture_output=True, text=True)
+    assert result.returncode == 2
+    assert 'n8n is still running' in result.stderr

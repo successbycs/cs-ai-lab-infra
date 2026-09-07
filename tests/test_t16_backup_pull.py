@@ -148,3 +148,32 @@ def test_sftp_resumes_fixed_artifacts_and_refreshes_manifest(tmp_path):
     assert captured[0].splitlines()[0].startswith('get ')
     assert len([line for line in captured[0].splitlines() if line.startswith('reget ')]) == 3
     assert not (tmp_path / 'transfer.sftp').exists()
+
+
+def test_full_lab_hash_mismatch_never_retains_or_deletes_source(tmp_path):
+    target = tmp_path / 'target'
+    t16_backup_pull.prepare_target(target)
+    identifier = 'w1-20260907T120000Z'
+    def corrupt(_identifier, destination):
+        bundle = destination / identifier
+        bundle.mkdir(exist_ok=True)
+        (bundle / 'manifest.json').write_text('{}')
+        return {'ok': True}
+    with mock.patch.object(t16_backup_pull, 'stage_full_lab_for_windows_scp', return_value={'ok': True}), mock.patch.object(
+        t16_backup_pull, 'powershell_scp_full_lab', side_effect=corrupt
+    ), mock.patch.object(t16_backup_pull, 'cleanup_windows_scp_staging') as cleanup, pytest.raises(ValueError):
+        t16_backup_pull.pull_full_lab(identifier, target)
+    assert not (target / identifier).exists()
+    cleanup.assert_not_called()
+
+
+def test_full_lab_existing_lock_refuses_second_transfer(tmp_path):
+    target = tmp_path / 'target'
+    t16_backup_pull.prepare_target(target)
+    identifier = 'w1-20260907T120000Z'
+    staging = target / ('.incoming-' + identifier)
+    staging.mkdir()
+    (staging / '.transfer.lock').touch()
+    with mock.patch.object(t16_backup_pull, 'stage_full_lab_for_windows_scp') as remote, pytest.raises(RuntimeError, match='lock'):
+        t16_backup_pull.pull_full_lab(identifier, target)
+    remote.assert_not_called()

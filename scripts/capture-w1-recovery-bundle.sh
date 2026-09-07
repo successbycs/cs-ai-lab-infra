@@ -20,6 +20,9 @@ while (($#)); do
 done
 [[ "$approve" == true ]] || { printf 'Refusing recovery capture without --approve after explicit operator approval.\n' >&2; exit 2; }
 [[ "$n8n_quiesced" == true ]] || { printf 'Refusing recovery capture until the operator confirms n8n writes are quiesced.\n' >&2; exit 2; }
+running_n8n="$(docker ps -q --filter label=com.docker.compose.project=cs-ai-lab --filter label=com.docker.compose.service=n8n)"
+[[ -z "$running_n8n" ]] || { printf 'Refusing recovery capture: n8n is still running.\n' >&2; exit 2; }
+umask 077
 [[ -f .env ]] || { printf 'Refusing recovery capture: .env is missing.\n' >&2; exit 2; }
 [[ -f .w1-recovery.local ]] || { printf 'Refusing recovery capture: .w1-recovery.local with opaque recovery record IDs is missing.\n' >&2; exit 2; }
 
@@ -59,7 +62,7 @@ volume_for() {
 mkdir -p "$(dirname "$bundle_dir")"
 [[ ! -e "$bundle_dir" && ! -e "$temporary_dir" ]] || { printf 'Recovery bundle destination already exists.\n' >&2; exit 2; }
 mkdir "$temporary_dir"
-trap 'rm -rf "$temporary_dir"' EXIT
+trap 'printf "Incomplete recovery bundle preserved for inspection.\\n" >&2' EXIT
 
 n8n_data_volume="$(volume_for n8n_data)"
 n8n_files_volume="$(volume_for n8n_files)"
