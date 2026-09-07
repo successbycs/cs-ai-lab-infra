@@ -25,17 +25,20 @@ try:
         local_path_from_windows_folder,
         powershell_quote,
         run_command,
+        ssh_command,
+        wsl_bash_script_command,
         windows_path,
     )
 except ModuleNotFoundError:  # pragma: no cover - direct script execution
     from backup_manifest import verify_manifest
-    from t480_adapter import configured_target, local_path_from_windows_folder, powershell_quote, run_command, windows_path
+    from t480_adapter import configured_target, local_path_from_windows_folder, powershell_quote, run_command, ssh_command, wsl_bash_script_command, windows_path
 
 ROOT = Path(__file__).resolve().parents[1]
 LOCAL_CONFIG_PATH = ROOT / ".t16-backup.local"
 TARGET_MARKER = ".cs-ai-lab-t16-backup-target"
 TARGET_MARKER_VALUE = "cs-ai-lab-t16-backup-target-v1\n"
 REMOTE_BACKUP_DIRECTORY = "/home/chris/projects/cs-ai-lab-infra/postgres/backup"
+REMOTE_WINDOWS_STAGING_DIRECTORY = "C:/Users/chris/AppData/Local/Temp/cs-ai-lab-t16-transfer"
 BACKUP_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]*-[0-9]{8}T[0-9]{6}[+-][0-9]{4}\.sql\.gz\Z")
 FULL_LAB_BUNDLE_ID = re.compile(r"w1-[0-9]{8}T[0-9]{6}Z\Z")
 
@@ -133,10 +136,39 @@ def powershell_scp(remote_files: list[str], destination: Path) -> dict[str, Any]
     return run_command(["powershell.exe", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded])
 
 
+def stage_full_lab_for_windows_scp(bundle_id: str) -> dict[str, Any]:
+    """Create one short-lived Windows-visible copy of a fixed WSL bundle."""
+    bundle_id = validate_full_lab_bundle_id(bundle_id)
+    script = "\n".join(
+        [
+            "set -euo pipefail",
+            f"source='{REMOTE_BACKUP_DIRECTORY}/full-lab/{bundle_id}'",
+            f"staging='/mnt/c/Users/chris/AppData/Local/Temp/cs-ai-lab-t16-transfer/{bundle_id}'",
+            '[[ -d "$source" ]] || { printf "Source recovery bundle is absent.\\n" >&2; exit 4; }',
+            '[[ ! -e "$staging" ]] || { printf "Windows transfer staging already exists.\\n" >&2; exit 5; }',
+            'mkdir -p "$(dirname "$staging")"',
+            'cp -a "$source" "$staging"',
+        ]
+    )
+    return run_command(ssh_command(configured_target(), wsl_bash_script_command(script)))
+
+
+def cleanup_windows_scp_staging(bundle_id: str) -> dict[str, Any]:
+    bundle_id = validate_full_lab_bundle_id(bundle_id)
+    script = "\n".join(
+        [
+            "set -euo pipefail",
+            f"staging='/mnt/c/Users/chris/AppData/Local/Temp/cs-ai-lab-t16-transfer/{bundle_id}'",
+            '[[ -e "$staging" ]] && rm -rf "$staging" || true',
+        ]
+    )
+    return run_command(ssh_command(configured_target(), wsl_bash_script_command(script)))
+
+
 def powershell_scp_full_lab(bundle_id: str, destination: Path) -> dict[str, Any]:
     bundle_id = validate_full_lab_bundle_id(bundle_id)
     destination_windows = windows_path(destination)
-    source = powershell_quote(f"{configured_target()}:{REMOTE_BACKUP_DIRECTORY}/full-lab/{bundle_id}")
+    source = powershell_quote(f"{configured_target()}:{REMOTE_WINDOWS_STAGING_DIRECTORY}/{bundle_id}")
     command = (
         "$ErrorActionPreference = 'Stop'; "
         f"& scp.exe -r -B -o BatchMode=yes -o StrictHostKeyChecking=yes -- {source} {powershell_quote(destination_windows)}; "
@@ -183,7 +215,15 @@ def pull_full_lab(bundle_id: str, target: Path) -> dict[str, Any]:
     staging = target / f".incoming-{bundle_id}"
     staging.mkdir()
     try:
-        transfer = powershell_scp_full_lab(bundle_id, staging)
+        staged = stage_full_lab_for_windows_scp(bundle_id)
+        if not staged.get("ok"):
+            return {"bundle_id": bundle_id, "transfer": staged, "ok": False}
+        try:
+            transfer = powershell_scp_full_lab(bundle_id, staging)
+        finally:
+            cleanup = cleanup_windows_scp_staging(bundle_id)
+        if not cleanup.get("ok"):
+            return {"bundle_id": bundle_id, "transfer": cleanup, "ok": False}
         if not transfer.get("ok"):
             return {"bundle_id": bundle_id, "transfer": transfer, "ok": False}
         copied_bundle = staging / bundle_id

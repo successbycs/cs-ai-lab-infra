@@ -64,6 +64,11 @@ This recursively copies only the fixed full-lab bundle directory and retains it
 only after `manifest.json` verifies its PostgreSQL and both n8n volume archives
 plus the required opaque recovery-record identifiers.
 
+Because the source bundle lives in T480 WSL while the pull endpoint is Windows
+OpenSSH, the pull creates a fixed, short-lived Windows-visible staging copy of
+that exact bundle. It removes the staging copy after each transfer attempt; the
+T16 remains the only retained backup target.
+
 ## Per-copy preflight and evidence
 
 Before an approved transfer, verify the T16 volume is encrypted, unlocked for

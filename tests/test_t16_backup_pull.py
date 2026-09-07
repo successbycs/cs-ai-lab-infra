@@ -107,7 +107,9 @@ def test_full_lab_pull_verifies_bundle_before_retaining(tmp_path: Path):
         (bundle / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
         return {"ok": True}
 
-    with mock.patch.object(t16_backup_pull, "powershell_scp_full_lab", side_effect=fake_scp):
+    with mock.patch.object(t16_backup_pull, "stage_full_lab_for_windows_scp", return_value={"ok": True}), mock.patch.object(
+        t16_backup_pull, "cleanup_windows_scp_staging", return_value={"ok": True}
+    ), mock.patch.object(t16_backup_pull, "powershell_scp_full_lab", side_effect=fake_scp):
         result = t16_backup_pull.pull_full_lab(bundle_id, target)
     assert result["ok"] is True
     assert (target / bundle_id / "manifest.json").is_file()
