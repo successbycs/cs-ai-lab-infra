@@ -99,7 +99,7 @@ wait_for_service() {
 probe source_start "${compose[@]}" --project-name "$source_project" up -d postgres n8n_files_init n8n
 probe source_health wait_for_service "$source_project" n8n wget -q --spider http://localhost:5678/healthz
 probe source_synthetic_file "${compose[@]}" --project-name "$source_project" exec -T n8n sh -c 'printf synthetic-recovery > /home/node/.n8n-files/w1-synthetic.txt'
-probe source_dump bash -c 'docker compose --env-file "$1" -f compose.yaml -f postgres/recovery/w1-isolated-compose.yaml --project-name "$2" exec -T postgres pg_dump -U w1_recovery -d "$3" | gzip -9 > "$4"' _ "$test_env" "$source_project" "$source_db" "$db_dump"
+probe source_dump bash -c 'docker compose --env-file "$1" -f compose.yaml -f postgres/recovery/w1-isolated-compose.yaml --project-name "$2" exec -T postgres pg_dump --clean --if-exists -U w1_recovery -d "$3" | gzip -9 > "$4"' _ "$test_env" "$source_project" "$source_db" "$db_dump"
 probe archive_n8n_data docker run --rm --entrypoint /bin/sh -v "${source_project}_n8n_data:/source:ro" -v "$bundle_dir:/backup" "$n8n_image" -c 'tar -C /source -czf /backup/n8n-data.tar.gz .'
 probe archive_n8n_files docker run --rm --entrypoint /bin/sh -v "${source_project}_n8n_files:/source:ro" -v "$bundle_dir:/backup" "$n8n_image" -c 'tar -C /source -czf /backup/n8n-files.tar.gz .'
 

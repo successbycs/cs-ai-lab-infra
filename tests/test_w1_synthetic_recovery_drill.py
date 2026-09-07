@@ -30,6 +30,7 @@ def test_drill_uses_isolated_projects_volumes_and_no_env_loading():
     assert 'restore_postgres_ready wait_for_service "$restore_project" postgres pg_isready' in source
     assert 'restore_n8n_data docker run --rm --user 0:0' in source
     assert 'restore_n8n_files docker run --rm --user 0:0' in source
+    assert 'pg_dump --clean --if-exists' in source
 
 
 def write_bundle(bundle: Path):
