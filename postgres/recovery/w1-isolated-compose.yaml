@@ -3,6 +3,10 @@
 services:
   postgres:
     ports: !reset []
+    healthcheck:
+      # The entrypoint's temporary initialization server accepts Unix sockets.
+      # Only the final server listens on TCP after initialization has finished.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $$POSTGRES_USER -d $$POSTGRES_DB"]
   n8n:
     ports: !reset []
   health_dashboard:
