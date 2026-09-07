@@ -23,6 +23,7 @@ postgres/backup/*.sql
 postgres/backup/*.sql.gz
 postgres/backup/*.dump
 postgres/backup/*.manifest.json
+postgres/backup/full-lab/
 !postgres/backup/.gitkeep
 
 # Editor and OS files
