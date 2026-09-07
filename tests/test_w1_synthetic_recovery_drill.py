@@ -27,6 +27,8 @@ def test_drill_uses_isolated_projects_volumes_and_no_env_loading():
     assert "source .env" not in source
     assert "test-only-preserved-not-recorded" in source
     assert "--wait" in source
+    assert 'restore_postgres_start "${compose[@]}" --project-name "$restore_project" up -d --wait postgres' in source
+    assert 'restore_n8n_data docker run --rm --user 0:0' in source
 
 
 def write_bundle(bundle: Path):
