@@ -18,8 +18,8 @@ local evidence required for any T480 or T16 claim.
 - `scripts/capture-w1-recovery-bundle.sh` defines the approved full-lab capture
   sequence: PostgreSQL dump plus labeled `n8n_data` and `n8n_files` archives,
   with opaque environment/key recovery-record IDs. The T16 pull tool verifies a
-  complete full-lab bundle before retaining it. Neither command has been run
-  against the T480.
+  complete full-lab bundle before retaining it. The T480 bundle `w1-20260907T060119Z` was captured and verified;
+  earlier T16 transfers failed without retaining a verified copy.
 - `postgres/migrations/003_migration_ledger.sql`, the matching init file, and
   `scripts/postgres_pgvector_adapter.py` record migration filenames, checksums,
   and applied times. Re-runs are no-ops, checksum drift is rejected, and a
@@ -31,7 +31,7 @@ local evidence required for any T480 or T16 claim.
 
 ### Local validation
 
-On 2026-09-07, the local suite passed with **90 tests**. Shell syntax checks,
+On 2026-09-07, the local suite passed with **102 tests**. Shell syntax checks,
 Python compilation, and `git diff --check` also passed. Tests cover manifest
 integrity and missing artifacts; fresh, upgrade, re-run, and checksum-drift
 ledger decisions; migration adapter transaction/lock behavior; and successful
@@ -40,9 +40,9 @@ and tampered synthetic evidence bundles.
 ### Gate status and required handoff
 
 Wave 1 is **not complete**. The T16 target, its DPAPI recovery records, and the
-non-secret local policy have been prepared. No full-lab capture, T16 bundle
-transfer, Docker/database/volume recovery action, or raw recovery evidence has
-been performed.
+non-secret local policy have been prepared. An approved full-lab capture and
+several isolated synthetic recovery attempts have run. Completion still requires
+verified recovery and a verified retained T16 bundle.
 
 The T16 is the sole encrypted, pull-only recovery target; its controls,
 limitations, and implemented transfer interface are in
@@ -51,9 +51,8 @@ four-hour RTO, 30 retained daily bundles, and reviewed-model re-downloads.
 On 2026-09-07, the deployed T480 environment was streamed through the governed
 strict-host-key connection to create two current-user T16 DPAPI records. Their
 round-trip verification succeeded, and the ignored local policy now records the
-two opaque IDs and an enabled recovery-record gate. The operator still needs to
-approve the isolated drill and separately approve the T480/T16 capture and
-evidence sequence. The resulting evidence bundle must pass
+two opaque IDs and an enabled recovery-record gate. The owner subsequently authorized the drill, capture, transfer, and scoped
+repairs. The resulting evidence bundle must pass
 `scripts/verify-w1-synthetic-recovery-evidence.sh` independently.
 
 The owner-approved T16 target configuration and marker were prepared locally
@@ -67,9 +66,48 @@ independently round-trip verified.
 
 ### Failure and rollback guidance
 
-The only implementation failure was an indentation error in the migration
-adapter detected by the full local test suite. It was corrected before the
-successful validation above; no database or evidence artifact was affected.
+Earlier validation caught a migration-adapter indentation error. Live attempts
+also exposed missing executable modes, archive ownership errors, schema
+collisions, and unreliable transport behavior. These were repaired in scoped
+commits.
+
+The transport now runs scripts with child standard input isolated and propagates
+exit codes through Windows SSH and WSL. A live test printed both sides of an
+input-consuming command and correctly returned exit 7. The recovery drill uses
+pipefail, stops at its first failed probe, quiesces its source n8n before
+capture, and verifies restored database/file markers. Version 2 evidence
+requires complete checksum coverage; version 1 fixtures remain verifiable.
+
+Further live diagnostics found repeated WSL shutdowns and a malformed Windows
+boot-task command. The corrected launcher preserves the complete Bash command,
+waits for the WSL process, and reports its exit code. Its PowerShell quoting is
+covered by an executable regression test. The corrected boot task was installed
+and observed running, with a WSL keepalive process present. The live PostgreSQL,
+n8n, dashboard, and Ollama containers subsequently reported healthy. Eighteen
+older generated synthetic containers were stopped while preserving their
+volumes and evidence; new drills stop their own test containers on exit.
+
+The next synthetic attempt, `20260907T080304Z`, exposed a separate fresh-init
+failure: the migration ledger's SQL filename constraint rejected valid migration
+names. Migration 003 and its initialization checksum were corrected in
+`7519f3d`; the live database had no ledger table when checked. The change is
+published and locally tested, but its T480 deployment and another recovery drill
+remain pending because subsequent SSH connections timed out. The last confirmed
+T480 repository revision was `7ad07b4`; the boot-task repair was installed
+directly through the governed operation.
+
+The full-lab transfer now resumes fixed artifacts through Windows SFTP with
+strict host-key checking and keepalives. Failed transfers retain incoming bytes
+and source staging for retry. Only fully hash-verified bundles become retained
+backups. Source staging cleanup is checked separately from backup validity.
+
+The retained incoming PostgreSQL partial for `w1-20260907T060119Z` is
+36,203,520 bytes out of 3,636,612,802 bytes. The latest retry failed while
+connecting to SSH for source staging, before SFTP ran. No full-lab T16 copy has
+passed verification. Once SSH is reachable, update the T480 repository, rerun
+and independently verify the isolated recovery drill, then repeat the same
+full-lab bundle ID to resume and verify the T16 transfer. These are completion
+gates, not successful results.
 
 A local confirmation smoke check briefly set the recovery-record gate before
 the required password-manager evidence was available. It was reset immediately

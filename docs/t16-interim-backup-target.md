@@ -60,14 +60,18 @@ python3 scripts/t16_backup_pull.py pull-full-lab \
   --approve
 ```
 
-This recursively copies only the fixed full-lab bundle directory and retains it
+This copies only the fixed full-lab manifest and three archives and retains them
 only after `manifest.json` verifies its PostgreSQL and both n8n volume archives
 plus the required opaque recovery-record identifiers.
 
 Because the source bundle lives in T480 WSL while the pull endpoint is Windows
 OpenSSH, the pull creates a fixed, short-lived Windows-visible staging copy of
-that exact bundle. It removes the staging copy after each transfer attempt; the
-T16 remains the only retained backup target.
+that exact bundle. The transfer uses SFTP `reget` for the three fixed archives
+and refreshes the manifest on every attempt. Incoming files and source staging are preserved on
+network failure so the same bundle ID can resume. After successful local hash
+verification, the T16 retains the bundle and source staging is removed. A
+cleanup failure is reported separately and cannot discard a verified T16 copy.
+The T16 remains the only retained backup target.
 
 ## Per-copy preflight and evidence
 
