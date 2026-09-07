@@ -180,7 +180,7 @@ def build_wsl_powershell_command(
         + "' | wsl.exe -d "
         + distribution
         + user_argument
-        + " -- bash -c 'base64 -d | bash'"
+        + " -- bash -c 'base64 -d | bash'; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }"
     )
 
 

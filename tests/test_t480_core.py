@@ -11,6 +11,7 @@ from t480_core import (
     TransportSettings,
     append_execution_log,
     build_ssh_command,
+    build_wsl_powershell_command,
     fingerprint_files,
     load_transport_settings,
     validate_catalog,
@@ -51,6 +52,12 @@ def test_ssh_command_always_enforces_batch_and_strict_host_key_modes():
     assert "BatchMode=yes" in rendered
     assert "StrictHostKeyChecking=yes" in rendered
     assert "ConnectTimeout=10" in rendered
+
+
+def test_wsl_wrapper_propagates_the_wsl_process_exit_code():
+    rendered = build_wsl_powershell_command("exit 7", TransportSettings())
+
+    assert "if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }" in rendered
 
 
 def test_catalog_must_match_code_operations(tmp_path):
