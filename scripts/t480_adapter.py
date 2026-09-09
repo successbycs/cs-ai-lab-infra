@@ -240,6 +240,17 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "[pscustomobject]@{ rdp_tcp = $rdp; openssh_service = $sshd; openssh_security_directives = $sshDirectives; winrm_service = $winrm } | ConvertTo-Json -Depth 5 -Compress"
         ),
     },
+    "rdp_session_diagnostics": {
+        "approval_required": False,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "$sessions = (quser.exe 2>&1 | Out-String).Trim(); "
+            "$names = @('explorer','winlogon','dwm','LogonUI','userinit','ShellExperienceHost','StartMenuExperienceHost'); "
+            "$shell = @(Get-Process -ErrorAction SilentlyContinue | Where-Object { $names -contains $_.ProcessName } | Select-Object ProcessName,Id,SessionId,Responding,@{Name='working_set_mib';Expression={[math]::Round($_.WorkingSet64/1MB,1)}},@{Name='cpu_seconds';Expression={if ($null -eq $_.CPU) {$null} else {[math]::Round($_.CPU,1)}}}); "
+            "$events = @(Get-WinEvent -FilterHashtable @{LogName='Microsoft-Windows-TerminalServices-LocalSessionManager/Operational'; StartTime=(Get-Date).AddHours(-2)} -ErrorAction SilentlyContinue | Select-Object -First 30 TimeCreated,Id,LevelDisplayName | ForEach-Object {[pscustomobject]@{time_utc=$_.TimeCreated.ToUniversalTime().ToString('o');id=$_.Id;level=$_.LevelDisplayName}}); "
+            "[pscustomobject]@{rdp_sessions=$sessions;shell_processes=$shell;recent_terminal_session_events=$events}|ConvertTo-Json -Depth 5 -Compress"
+        ),
+    },
     "security_persistence": {
         "approval_required": False,
         "command": (

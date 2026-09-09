@@ -281,6 +281,16 @@ def test_m5_backup_status_is_fixed_read_only_manifest_verification():
     assert "pg_dump" not in script and "docker compose up" not in script
 
 
+def test_rdp_session_diagnostics_is_bounded_and_read_only():
+    operation = t480_adapter.OPERATIONS["rdp_session_diagnostics"]
+    command = operation["command"]
+    assert operation["approval_required"] is False
+    assert "quser.exe" in command
+    assert "TerminalServices-LocalSessionManager/Operational" in command
+    assert "Select-Object -First 30" in command
+    assert "Stop-Process" not in command and "Restart-Service" not in command
+
+
 def test_dashboard_firewall_operations_are_fixed_and_private_profile_only():
     status = t480_adapter.OPERATIONS["health_dashboard_firewall_status"]
     enable = t480_adapter.OPERATIONS["health_dashboard_firewall_enable"]
