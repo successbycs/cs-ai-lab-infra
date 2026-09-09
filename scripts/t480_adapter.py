@@ -248,7 +248,9 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "$names = @('explorer','winlogon','dwm','LogonUI','userinit','ShellExperienceHost','StartMenuExperienceHost'); "
             "$shell = @(Get-Process -ErrorAction SilentlyContinue | Where-Object { $names -contains $_.ProcessName } | Select-Object ProcessName,Id,SessionId,Responding,@{Name='working_set_mib';Expression={[math]::Round($_.WorkingSet64/1MB,1)}},@{Name='cpu_seconds';Expression={if ($null -eq $_.CPU) {$null} else {[math]::Round($_.CPU,1)}}}); "
             "$events = @(Get-WinEvent -FilterHashtable @{LogName='Microsoft-Windows-TerminalServices-LocalSessionManager/Operational'; StartTime=(Get-Date).AddHours(-2)} -ErrorAction SilentlyContinue | Select-Object -First 30 TimeCreated,Id,LevelDisplayName | ForEach-Object {[pscustomobject]@{time_utc=$_.TimeCreated.ToUniversalTime().ToString('o');id=$_.Id;level=$_.LevelDisplayName}}); "
-            "[pscustomobject]@{rdp_sessions=$sessions;shell_processes=$shell;recent_terminal_session_events=$events}|ConvertTo-Json -Depth 5 -Compress"
+            "$profiles = @(Get-WinEvent -FilterHashtable @{LogName='Application'; ProviderName='Microsoft-Windows-User Profiles Service'; StartTime=(Get-Date).AddHours(-2)} -ErrorAction SilentlyContinue | Select-Object -First 20 TimeCreated,Id,LevelDisplayName,Message | ForEach-Object {[pscustomobject]@{time_utc=$_.TimeCreated.ToUniversalTime().ToString('o');id=$_.Id;level=$_.LevelDisplayName;message=$_.Message}}); "
+            "$services = @(Get-Service -Name 'ProfSvc','AppReadiness','TermService' -ErrorAction SilentlyContinue | Select-Object Name,Status,StartType); "
+            "[pscustomobject]@{rdp_sessions=$sessions;shell_processes=$shell;recent_terminal_session_events=$events;recent_profile_events=$profiles;session_services=$services}|ConvertTo-Json -Depth 5 -Compress"
         ),
     },
     "security_persistence": {

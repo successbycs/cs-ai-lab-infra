@@ -287,6 +287,8 @@ def test_rdp_session_diagnostics_is_bounded_and_read_only():
     assert operation["approval_required"] is False
     assert "quser.exe" in command
     assert "TerminalServices-LocalSessionManager/Operational" in command
+    assert "Microsoft-Windows-User Profiles Service" in command
+    assert "'ProfSvc','AppReadiness','TermService'" in command
     assert "Select-Object -First 30" in command
     assert "Stop-Process" not in command and "Restart-Service" not in command
 
