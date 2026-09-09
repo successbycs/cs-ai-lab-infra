@@ -253,6 +253,16 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "[pscustomobject]@{rdp_sessions=$sessions;shell_processes=$shell;recent_terminal_session_events=$events;recent_profile_events=$profiles;session_services=$services}|ConvertTo-Json -Depth 5 -Compress"
         ),
     },
+    "rdp_app_readiness_start": {
+        "approval_required": True,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "$service=Get-Service -Name 'AppReadiness' -ErrorAction Stop; "
+            "if($service.Status -ne 'Running'){Start-Service -Name 'AppReadiness' -ErrorAction Stop}; "
+            "Start-Sleep -Seconds 2; $service=Get-Service -Name 'AppReadiness' -ErrorAction Stop; "
+            "[pscustomobject]@{service=$service.Name;status=$service.Status.ToString();action='START_ONLY'}|ConvertTo-Json -Compress"
+        ),
+    },
     "security_persistence": {
         "approval_required": False,
         "command": (

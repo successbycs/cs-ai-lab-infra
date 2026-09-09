@@ -293,6 +293,15 @@ def test_rdp_session_diagnostics_is_bounded_and_read_only():
     assert "Stop-Process" not in command and "Restart-Service" not in command
 
 
+def test_rdp_app_readiness_recovery_starts_only_that_service():
+    operation = t480_adapter.OPERATIONS["rdp_app_readiness_start"]
+    command = operation["command"]
+    assert operation["approval_required"] is True
+    assert "Get-Service -Name 'AppReadiness'" in command
+    assert "Start-Service -Name 'AppReadiness'" in command
+    assert "Stop-Service" not in command and "Restart-Service" not in command
+
+
 def test_dashboard_firewall_operations_are_fixed_and_private_profile_only():
     status = t480_adapter.OPERATIONS["health_dashboard_firewall_status"]
     enable = t480_adapter.OPERATIONS["health_dashboard_firewall_enable"]

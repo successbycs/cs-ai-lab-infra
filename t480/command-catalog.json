@@ -81,6 +81,12 @@
       "execution": "adapter_owned"
     },
     {
+      "id": "rdp_app_readiness_start",
+      "purpose": "Start only the Windows App Readiness service to recover a stalled RDP shell initialisation; it does not log off users or restart RDP.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
       "id": "security_persistence",
       "purpose": "Inspect startup commands, Run keys, and non-Microsoft scheduled tasks without changing the T480.",
       "approval_required": false,
