@@ -43,6 +43,10 @@ The reviewed recurring-run design is [healthcheck-schedule.json](../monitoring/h
 
 The governed `startup_enable` T480 operation creates a Windows Scheduled Task named `CS AI Lab Start`. At the configured Windows user's sign-in, it starts Ubuntu WSL, waits for Docker, then runs `docker compose up -d n8n health_dashboard`; Compose starts the PostgreSQL dependency as well. The task retains a minimal `tail -f /dev/null` WSL process so the WSL instance and its Docker containers are not shut down immediately after startup. It starts the status-only private-LAN dashboard but does not expose n8n or start the optional Ollama profile. `startup_run` starts it immediately; `startup_disable` removes it.
 
+## T480 MT5 boot startup
+
+`mt5_startup_enable --approve` creates a separate boot-triggered, passwordless S4U Windows task named `CS AI Lab MT5 Start`. It launches only the approved GO Markets terminal at `C:\Program Files\GO Markets MT5\terminal64.exe` if no `terminal64` process is already running. It does not supply credentials, interact with accounts, retrieve market data, or place orders. Use `mt5_status` to inspect its executable, task, and process state, or `mt5_start --approve` to run the task now and verify that the terminal remains running.
+
 ## T480 power policy
 
 The active Windows Balanced plan is configured on AC power with sleep and timed hibernation disabled, plus a no-action lid-close policy. The fixed `power_policy_status` adapter operation reads these settings; `power_policy_ac_always_on` applies them with explicit approval. Battery settings are deliberately unchanged. This prevents normal AC idle or lid use from stopping WSL and Docker, but it does not provide unattended recovery after a Windows restart. That requires the boot-triggered Local System task defined in M5; the current task is sign-in triggered.

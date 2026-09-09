@@ -240,6 +240,19 @@ def test_dashboard_is_required_by_health_checks_but_boot_starts_the_minimum_depe
         assert "docker compose up -d n8n health_dashboard" not in command
 
 
+def test_mt5_launch_operations_are_fixed_and_boot_triggered():
+    status = t480_adapter.OPERATIONS["mt5_status"]["command"]
+    enable = t480_adapter.OPERATIONS["mt5_startup_enable"]["command"]
+    start = t480_adapter.OPERATIONS["mt5_start"]["command"]
+
+    assert "C:\\Program Files\\GO Markets MT5\\terminal64.exe" in status
+    assert "C:\\Program Files\\GO Markets MT5\\terminal64.exe" in enable
+    assert "New-ScheduledTaskTrigger -AtStartup" in enable
+    assert "-LogonType S4U" in enable
+    assert "Start-Process -FilePath $terminal" in enable
+    assert "Start-ScheduledTask -TaskName 'CS AI Lab MT5 Start'" in start
+
+
 @pytest.mark.skipif(shutil.which("powershell.exe") is None, reason="Windows PowerShell required")
 def test_boot_launcher_passes_one_complete_bash_command_and_waits():
     command = t480_adapter.OPERATIONS["m5_boot_startup_enable"]["command"]

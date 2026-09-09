@@ -19,6 +19,9 @@ This MVP adopts the Autonomous Framework's adapter and tool-registry conventions
 - `m5_boot_startup_compatibility` — inspect current WSL distribution visibility and startup-task context before boot-task changes.
 - `m5_boot_system_wsl_probe` — temporary, self-cleaning Local System WSL visibility test; requires explicit approval.
 - `m5_boot_s4u_wsl_probe` — temporary, self-cleaning passwordless S4U WSL visibility test; requires explicit approval.
+- `mt5_status` — inspect the fixed GO Markets MT5 executable, terminal process, and boot-start task without changing the T480.
+- `mt5_startup_enable` — create or update the boot-triggered task that launches only the approved GO Markets MT5 terminal; requires explicit approval and performs no trading or account action.
+- `mt5_start` — run that fixed MT5 launch task now and verify the terminal process remains running; requires explicit approval.
 - `wsl_status` — WSL state and installed distributions.
 - `docker_status` — Docker/Compose availability inside Ubuntu.
 - `docker_preflight` — potentially conflicting Docker/container-runtime packages inside Ubuntu.

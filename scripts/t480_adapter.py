@@ -555,6 +555,49 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "[pscustomobject]@{ principal = $task.Principal.UserId; logon_type = $task.Principal.LogonType.ToString(); triggers = (($task.Triggers | ForEach-Object { $_.CimClass.CimClassName }) -join ','); state = $task.State.ToString(); last_result = $info.LastTaskResult } | ConvertTo-Json -Compress"
         ),
     },
+    "mt5_status": {
+        "approval_required": False,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "$terminal = 'C:\\Program Files\\GO Markets MT5\\terminal64.exe'; "
+            "$task = Get-ScheduledTask -TaskName 'CS AI Lab MT5 Start' -ErrorAction SilentlyContinue; "
+            "$info = if ($null -eq $task) { $null } else { Get-ScheduledTaskInfo -TaskName 'CS AI Lab MT5 Start' }; "
+            "$processes = @(Get-Process -Name terminal64 -ErrorAction SilentlyContinue | Select-Object Id,StartTime,Path); "
+            "[pscustomobject]@{ executable = $terminal; executable_present = Test-Path -LiteralPath $terminal -PathType Leaf; "
+            "running = ($processes.Count -gt 0); processes = $processes; startup_task_present = ($null -ne $task); "
+            "startup_task_state = if ($null -eq $task) { $null } else { $task.State.ToString() }; "
+            "startup_task_last_result = if ($null -eq $info) { $null } else { $info.LastTaskResult }; "
+            "startup_task_triggers = if ($null -eq $task) { @() } else { @($task.Triggers | ForEach-Object { $_.CimClass.CimClassName }) } } | ConvertTo-Json -Depth 4 -Compress"
+        ),
+    },
+    "mt5_startup_enable": {
+        "approval_required": True,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "$terminal = 'C:\\Program Files\\GO Markets MT5\\terminal64.exe'; "
+            "if (-not (Test-Path -LiteralPath $terminal -PathType Leaf)) { throw 'Approved GO Markets MT5 terminal executable is absent.' }; "
+            "$taskName = 'CS AI Lab MT5 Start'; $stateDir = Join-Path $env:ProgramData 'CSAILab'; New-Item -ItemType Directory -Force -Path $stateDir | Out-Null; "
+            "$rollbackPath = Join-Path $stateDir 'CS-AI-Lab-MT5-Start.pre-change.xml'; "
+            "$existing = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue; if ($null -ne $existing) { Export-ScheduledTask -TaskName $taskName | Set-Content -Path $rollbackPath -Encoding utf8 }; "
+            "$launcher = '$ErrorActionPreference = ''Stop''; $terminal = ''C:\\Program Files\\GO Markets MT5\\terminal64.exe''; if (-not (Test-Path -LiteralPath $terminal -PathType Leaf)) { throw ''Approved GO Markets MT5 terminal executable is absent.'' }; if (-not (Get-Process -Name terminal64 -ErrorAction SilentlyContinue)) { Start-Process -FilePath $terminal | Out-Null }; Start-Sleep -Seconds 15; if (-not (Get-Process -Name terminal64 -ErrorAction SilentlyContinue)) { throw ''MT5 did not remain running after launch.'' }'; "
+            "$payload = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($launcher)); "
+            "$action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument ('-NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand ' + $payload); "
+            "$trigger = New-ScheduledTaskTrigger -AtStartup; $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType S4U -RunLevel Highest; "
+            "$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Minutes 2) -MultipleInstances IgnoreNew; "
+            "Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Description 'Starts only the approved GO Markets MT5 terminal at Windows boot; it performs no trading or account action.' -Force | Out-Null; "
+            "$task = Get-ScheduledTask -TaskName $taskName; [pscustomobject]@{ task_name = $task.TaskName; principal = $task.Principal.UserId; logon_type = $task.Principal.LogonType.ToString(); triggers = @($task.Triggers | ForEach-Object { $_.CimClass.CimClassName }); rollback_saved = Test-Path $rollbackPath } | ConvertTo-Json -Compress"
+        ),
+    },
+    "mt5_start": {
+        "approval_required": True,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "$task = Get-ScheduledTask -TaskName 'CS AI Lab MT5 Start' -ErrorAction SilentlyContinue; if ($null -eq $task) { throw 'MT5 startup task is absent; enable it first.' }; "
+            "Start-ScheduledTask -TaskName 'CS AI Lab MT5 Start'; "
+            "for ($attempt = 1; $attempt -le 20; $attempt++) { $processes = @(Get-Process -Name terminal64 -ErrorAction SilentlyContinue | Select-Object Id,StartTime,Path); if ($processes.Count -gt 0) { [pscustomobject]@{ running = $true; processes = $processes } | ConvertTo-Json -Depth 3 -Compress; exit 0 }; Start-Sleep -Seconds 2 }; "
+            "throw 'MT5 did not become running after the governed startup task.'"
+        ),
+    },
     "wsl_status": {
         "approval_required": False,
         "command": "$ErrorActionPreference = 'Stop'; wsl.exe --status; wsl.exe --list --verbose",

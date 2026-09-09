@@ -231,6 +231,24 @@
       "execution": "adapter_owned"
     },
     {
+      "id": "mt5_status",
+      "purpose": "Inspect the fixed GO Markets MT5 executable, process presence, and its boot-start task without changing T480.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "mt5_startup_enable",
+      "purpose": "Create or update the fixed boot-triggered S4U task that launches only the approved GO Markets MT5 terminal; requires explicit approval and performs no trading or account action.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "mt5_start",
+      "purpose": "Run the fixed GO Markets MT5 startup task and verify the terminal process remains running; requires explicit approval and performs no trading or account action.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
       "id": "wsl_status",
       "purpose": "Inspect WSL status and installed distributions.",
       "approval_required": false,
