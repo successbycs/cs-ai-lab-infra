@@ -944,14 +944,14 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "fi\n"
             "mkdir -p projects\n"
             "docker compose config --quiet\n"
-            "docker compose up -d --build\n"
-            "for attempt in $(seq 1 30); do\n"
-            "  curl --fail --silent --max-time 5 http://127.0.0.1:8765/v1/health >/dev/null && curl --fail --silent --max-time 5 http://127.0.0.1:8780 >/dev/null && break\n"
-            "  sleep 2\n"
-            "done\n"
-            "curl --fail --silent --max-time 5 http://127.0.0.1:8765/v1/health >/dev/null\n"
-            "curl --fail --silent --max-time 5 http://127.0.0.1:8780 >/dev/null\n"
-            "docker compose ps\n"
+            "state_dir=/home/chris/.local/state/cs-ai-lab\n"
+            "mkdir -p \"$state_dir\"\n"
+            "log_file=\"$state_dir/openworker-deploy.log\"\n"
+            "pid_file=\"$state_dir/openworker-deploy.pid\"\n"
+            "if [[ -f \"$pid_file\" ]] && kill -0 \"$(cat \"$pid_file\")\" 2>/dev/null; then printf 'OpenWorker deployment is already running.\\n'; exit 0; fi\n"
+            "nohup bash -c 'set -euo pipefail; cd /home/chris/projects/openworker; docker compose up -d --build; for attempt in $(seq 1 60); do curl --fail --silent --max-time 5 http://127.0.0.1:8765/v1/health >/dev/null && curl --fail --silent --max-time 5 http://127.0.0.1:8780 >/dev/null && exit 0; sleep 2; done; exit 1' >\"$log_file\" 2>&1 < /dev/null &\n"
+            "echo $! > \"$pid_file\"\n"
+            "printf 'OpenWorker deployment started: pid=%s log=%s\\n' \"$(cat \"$pid_file\")\" \"$log_file\"\n"
         ),
     },
     "openworker_status": {
@@ -973,13 +973,15 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "docker compose config --quiet\n"
             "echo valid\n"
             "echo ---images---\n"
-            "docker compose images\n"
+            "docker compose images || true\n"
             "echo ---containers---\n"
             "docker compose ps -a\n"
             "echo ---api-log---\n"
             "docker compose logs --tail 100 api || true\n"
             "echo ---ui-log---\n"
             "docker compose logs --tail 100 ui || true\n"
+            "echo ---deployment-log---\n"
+            "tail -n 100 /home/chris/.local/state/cs-ai-lab/openworker-deploy.log 2>/dev/null || true\n"
         ),
     },
     "lab_services_start": {
