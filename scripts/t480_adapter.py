@@ -956,6 +956,26 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "./scripts/openworker-status.sh\n"
         ),
     },
+    "openworker_diagnostics": {
+        "approval_required": False,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "cd /home/chris/projects/openworker\n"
+            "echo ---revision---\n"
+            "git rev-parse HEAD\n"
+            "echo ---compose-validation---\n"
+            "docker compose config --quiet\n"
+            "echo valid\n"
+            "echo ---images---\n"
+            "docker compose images\n"
+            "echo ---containers---\n"
+            "docker compose ps -a\n"
+            "echo ---api-log---\n"
+            "docker compose logs --tail 100 api || true\n"
+            "echo ---ui-log---\n"
+            "docker compose logs --tail 100 ui || true\n"
+        ),
+    },
     "lab_services_start": {
         "approval_required": True,
         "wsl_script": (

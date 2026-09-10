@@ -399,6 +399,12 @@
       "execution": "adapter_owned"
     },
     {
+      "id": "openworker_diagnostics",
+      "purpose": "Inspect the fixed OpenWorker checkout, Compose configuration, images, containers, and bounded container logs after a failed deployment without changing the T480.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
       "id": "lab_services_start",
       "purpose": "Start the existing private PostgreSQL and n8n Compose services plus the status-only dashboard, then wait for their health checks.",
       "approval_required": true,
