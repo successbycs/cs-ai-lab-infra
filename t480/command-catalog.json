@@ -387,6 +387,18 @@
       "execution": "adapter_owned"
     },
     {
+      "id": "openworker_deploy",
+      "purpose": "Clone the reviewed OpenWorker Docker deployment revision into its fixed T480 checkout, generate its local API token, build and start its loopback-only containers, and verify its local UI and API; requires explicit approval.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "openworker_status",
+      "purpose": "Inspect the fixed OpenWorker Docker deployment and its local API and browser UI endpoints without changing the T480.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
       "id": "lab_services_start",
       "purpose": "Start the existing private PostgreSQL and n8n Compose services plus the status-only dashboard, then wait for their health checks.",
       "approval_required": true,

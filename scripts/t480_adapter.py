@@ -912,6 +912,48 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "docker compose ps -a\n"
         ),
     },
+    "openworker_deploy": {
+        "approval_required": True,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "repository_url='https://github.com/successbycs/openworker.git'\n"
+            "revision='f91a013'\n"
+            "deployment_root='/home/chris/projects/openworker'\n"
+            "if [[ -e \"$deployment_root\" ]]; then\n"
+            "  printf 'Refusing OpenWorker deployment: target already exists: %s\\n' \"$deployment_root\" >&2\n"
+            "  exit 4\n"
+            "fi\n"
+            "mkdir -p /home/chris/projects\n"
+            "git clone --no-checkout \"$repository_url\" \"$deployment_root\"\n"
+            "cd \"$deployment_root\"\n"
+            "git fetch --depth 1 origin \"$revision\"\n"
+            "git checkout --detach FETCH_HEAD\n"
+            "test \"$(git rev-parse --short HEAD)\" = \"$revision\"\n"
+            "umask 077\n"
+            "cp .env.example .env\n"
+            "api_token=\"$(openssl rand -hex 32)\"\n"
+            "sed -i \"s/REPLACE_WITH_A_RANDOM_TOKEN/$api_token/\" .env\n"
+            "chmod 600 .env\n"
+            "mkdir -p projects\n"
+            "docker compose config --quiet\n"
+            "docker compose up -d --build\n"
+            "for attempt in $(seq 1 30); do\n"
+            "  curl --fail --silent --max-time 5 http://127.0.0.1:8765/v1/health >/dev/null && curl --fail --silent --max-time 5 http://127.0.0.1:8780 >/dev/null && break\n"
+            "  sleep 2\n"
+            "done\n"
+            "curl --fail --silent --max-time 5 http://127.0.0.1:8765/v1/health >/dev/null\n"
+            "curl --fail --silent --max-time 5 http://127.0.0.1:8780 >/dev/null\n"
+            "docker compose ps\n"
+        ),
+    },
+    "openworker_status": {
+        "approval_required": False,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "cd /home/chris/projects/openworker\n"
+            "./scripts/openworker-status.sh\n"
+        ),
+    },
     "lab_services_start": {
         "approval_required": True,
         "wsl_script": (
