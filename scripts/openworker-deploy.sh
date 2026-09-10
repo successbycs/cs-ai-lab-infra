@@ -37,8 +37,11 @@ log_file="$state_dir/openworker-deploy.log"
 if [[ -f "$pid_file" ]] && kill -0 "$(cat "$pid_file")" 2>/dev/null; then
   current_command=$(ps -p "$(cat "$pid_file")" -o args= 2>/dev/null || true)
   if [[ "$current_command" == *'/home/chris/projects/openworker'* ]]; then
-    echo "OpenWorker deployment is already running: $(cat "$pid_file")"
-    exit 0
+    if curl --fail --silent --max-time 3 http://127.0.0.1:8765/v1/health >/dev/null; then
+      echo "OpenWorker deployment is already running: $(cat "$pid_file")"
+      exit 0
+    fi
+    kill "$(cat "$pid_file")"
   fi
 fi
 
