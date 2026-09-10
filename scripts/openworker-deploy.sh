@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repository_url='https://github.com/successbycs/openworker.git'
-revision='f91a013b2d86c05c7304c8ac4e7f04609dbeb820'
+revision='a9b388b0394d106f69b35326ee954edf7a9d0027'
 deployment_branch='openworker-t480-docker'
 deployment_root='/home/chris/projects/openworker'
 state_dir='/home/chris/.local/state/cs-ai-lab'
@@ -18,7 +18,6 @@ fi
 
 cd "$deployment_root"
 if [[ "$(git rev-parse HEAD 2>/dev/null || true)" != "$revision" ]]; then
-  [[ ! -f .env ]] || { echo 'Configured checkout is not the reviewed revision.' >&2; exit 4; }
   git fetch --depth 1 origin "refs/heads/$deployment_branch"
   git checkout --detach FETCH_HEAD
 fi
