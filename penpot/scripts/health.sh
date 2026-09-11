@@ -15,7 +15,7 @@ expected_services=$'penpot-backend\npenpot-exporter\npenpot-frontend\npenpot-mcp
   exit 5
 }
 
-curl --fail --silent --show-error --max-time 10 http://127.0.0.1:9001/api/health >/dev/null
+curl --fail --silent --show-error --max-time 10 http://127.0.0.1:9001/ >/dev/null
 compose exec -T penpot-postgres psql -U penpot -d penpot -Atqc 'select 1' | grep -qx 1
 compose exec -T penpot-valkey valkey-cli ping | grep -qx PONG
 
