@@ -54,17 +54,18 @@ await fetch(url, {
 
 const listed = await post(2, "tools/list", {}, sessionId);
 const toolNames = listed.payload.result.tools.map((tool) => tool.name).sort();
-const expectedTools = ["execute_code", "export_shape", "get_high_level_overview", "get_penpot_api_info"];
+const expectedTools = ["execute_code", "export_shape", "high_level_overview", "penpot_api_info"];
 if (JSON.stringify(toolNames) !== JSON.stringify(expectedTools)) {
   throw new Error(`Unexpected remote-mode tools: ${toolNames.join(",")}`);
 }
+const apiInfoTool = listed.payload.result.tools.find((tool) => tool.name === "penpot_api_info");
 
 const info = await post(3, "tools/call", {
-  name: "get_penpot_api_info",
-  arguments: {},
+  name: "penpot_api_info",
+  arguments: { type: "all" },
 }, sessionId);
 if (info.payload.error || info.payload.result?.isError) {
-  throw new Error("MCP read-only API information operation failed");
+  throw new Error(`MCP read-only API information operation failed: ${JSON.stringify(info.payload.error || info.payload.result)}`);
 }
 
-console.log(`PENPOT_MCP_SMOKE_OK tools=${toolNames.length} read_only=true filesystem_tools=false`);
+console.log(`PENPOT_MCP_SMOKE_OK tools=${toolNames.length} read_only=true filesystem_tools=false api_type=${apiInfoTool.inputSchema?.properties?.type ? "validated" : "unknown"}`);

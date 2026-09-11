@@ -6,17 +6,24 @@ import argparse, asyncio, re, signal, sys
 SAFE_TARGET = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.@:-]*\Z")
 
 async def relay(reader, writer):
-    while data := await reader.read(65536):
-        writer.write(data)
-        await writer.drain()
-    writer.close()
-    await writer.wait_closed()
+    try:
+        while data := await reader.read(65536):
+            writer.write(data)
+            await writer.drain()
+    except (BrokenPipeError, ConnectionResetError):
+        pass
+    finally:
+        writer.close()
+        try:
+            await writer.wait_closed()
+        except ConnectionResetError:
+            pass
 
 async def handle(client_reader, client_writer, target):
     command = "& ssh.exe -o BatchMode=yes -o StrictHostKeyChecking=yes -o ExitOnForwardFailure=yes -W 127.0.0.1:9001 " + target
     process = await asyncio.create_subprocess_exec("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", command, stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL)
     try:
-        await asyncio.gather(relay(client_reader, process.stdin), relay(process.stdout, client_writer))
+        await asyncio.gather(relay(client_reader, process.stdin), relay(process.stdout, client_writer), return_exceptions=True)
     finally:
         if process.returncode is None: process.terminate()
         await process.wait()
