@@ -42,7 +42,7 @@ cd /home/chris/projects/cs-ai-lab-infra
 ./penpot/scripts/create-profile.sh
 ```
 
-Use a unique password of at least 20 characters stored in Chris's password
+Use a unique password of at least 10 characters stored in Chris's password
 manager. Penpot does not expose a separate global-admin role in this setup;
 host/CLI administration remains separate from the owner design identity.
 
