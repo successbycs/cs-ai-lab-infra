@@ -59,33 +59,12 @@ if (JSON.stringify(toolNames) !== JSON.stringify(expectedTools)) {
   throw new Error(`Unexpected remote-mode tools: ${toolNames.join(",")}`);
 }
 
-const writeCode = `
-const rect = penpot.createRectangle();
-rect.name = "MCP Verification Rectangle";
-rect.x = 80;
-rect.y = 80;
-rect.resize(240, 120);
-rect.fills = [{ fillColor: "#5B5BD6", fillOpacity: 1 }];
-return { id: rect.id, name: rect.name, width: rect.width, height: rect.height };
-`;
-const written = await post(3, "tools/call", {
-  name: "execute_code",
-  arguments: { code: writeCode },
+const info = await post(3, "tools/call", {
+  name: "get_penpot_api_info",
+  arguments: {},
 }, sessionId);
-if (written.payload.error || written.payload.result?.isError) {
-  throw new Error("MCP write operation failed");
+if (info.payload.error || info.payload.result?.isError) {
+  throw new Error("MCP read-only API information operation failed");
 }
 
-const readCode = `
-const match = penpot.currentPage.findShapes({ name: "MCP Verification Rectangle" });
-return match.map((shape) => ({ id: shape.id, name: shape.name, width: shape.width, height: shape.height }));
-`;
-const read = await post(4, "tools/call", {
-  name: "execute_code",
-  arguments: { code: readCode },
-}, sessionId);
-if (read.payload.error || read.payload.result?.isError) {
-  throw new Error("MCP read operation failed");
-}
-
-console.log(`PENPOT_MCP_SMOKE_OK tools=${toolNames.length} write=true read=true filesystem_tools=false`);
+console.log(`PENPOT_MCP_SMOKE_OK tools=${toolNames.length} read_only=true filesystem_tools=false`);

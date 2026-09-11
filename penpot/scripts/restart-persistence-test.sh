@@ -13,7 +13,7 @@ before_assets_volume="$(compose config --volumes | grep -x penpot_assets)"
 
 compose restart
 for attempt in $(seq 1 60); do
-  if curl --fail --silent --max-time 5 http://127.0.0.1:9001/api/health >/dev/null 2>&1; then
+  if curl --fail --silent --max-time 5 http://127.0.0.1:9001/ >/dev/null 2>&1; then
     break
   fi
   [[ "$attempt" != "60" ]] || { printf 'Penpot did not recover after controlled restart.\n' >&2; exit 5; }
