@@ -18,6 +18,22 @@ Never use `down -v` for routine work.
 
 ## Owner and user access
 
+### Shared Codex MCP bootstrap
+
+For shared Codex access from any repository on this workstation, save a
+personal Penpot MCP key in the mode-0600 host file
+`/home/chris/.config/cs-ai-lab/penpot-mcp.token`, then run:
+
+```bash
+./penpot/scripts/bootstrap-global-codex-mcp.sh
+```
+
+The bootstrap reads the protected T480 target, starts a loopback-only WSL TCP
+proxy over the trusted Windows SSH client, verifies the Penpot web endpoint,
+and installs the `penpot_t480` entry in the mode-0600 user-level
+`~/.codex/config.toml`. Codex then discovers it from every repository;
+application Docker containers never receive this connection or its token.
+
 No account ships with the deployment. On the T480 console, create Chris's
 owner account without placing credentials in shell history:
 
