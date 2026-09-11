@@ -55,6 +55,17 @@ This MVP adopts the Autonomous Framework's adapter and tool-registry conventions
 - `forex_stage_m1_evidence` — hash-check and stage only the reviewed M1 capture for the fixed M2 import; requires explicit approval.
 - `m3_recovery_proof` — run the isolated M3 synthetic database backup and restore drill; requires explicit approval.
 - `m3_latest_evidence_manifest` — reverify the newest M3 recovery evidence bundle and return its fingerprint.
+- `penpot_preflight` — check Docker, WSL capacity, fixed port 9001, and any existing private Penpot configuration without changing services.
+- `penpot_deploy` — generate protected host-only secrets and start only the separate digest-pinned, loopback-only Penpot stack; requires explicit approval.
+- `penpot_start` — start only the existing private Penpot stack and verify health; requires explicit approval.
+- `penpot_health` — verify the six Penpot services, application/database/Valkey health, loopback publication, and MCP isolation controls.
+- `penpot_disable` — stop and remove only Penpot containers/network while preserving all Penpot volumes; requires explicit approval.
+- `penpot_verification_profile` — create the fixed disposable Penpot-only MCP verification profile with credentials in a mode-0600 host file; requires explicit approval.
+- `penpot_backup` — capture the Penpot database and assets with checksums and retention, excluding secrets; requires explicit approval.
+- `penpot_restore_test` — restore the newest Penpot backup into timestamped isolated test volumes, verify it, and remove only those test resources; requires explicit approval.
+- `penpot_persistence_test` — restart only the Penpot project and verify profile/file counts persist; requires explicit approval.
+- `penpot_rollback_test` — simulate a failed candidate-image pull, prove live IDs remain unchanged, and reapply the pinned Penpot configuration; requires explicit approval.
+- `penpot_resource_report` — report current Penpot container CPU/memory and host filesystem use without changing services.
 - `transcription_preflight` — inspect the fixed private MP4 transcriber checkout, cache/image readiness, and transient inbox state.
 - `transcription_diagnostics` — inspect transcriber containers, inbox, and the latest job metadata after an interruption or failure.
 - `transcription_completed_hashes` — inspect completed input SHA-256 values to make a resumed folder submission idempotent.

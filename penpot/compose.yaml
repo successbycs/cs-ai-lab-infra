@@ -1,0 +1,194 @@
+name: penpot-private
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-common-environment: &common-environment
+  PENPOT_FLAGS: ${PENPOT_FLAGS:?PENPOT_FLAGS is required}
+  PENPOT_PUBLIC_URI: ${PENPOT_PUBLIC_URI:?PENPOT_PUBLIC_URI is required}
+  PENPOT_HTTP_SERVER_MAX_BODY_SIZE: "104857600"
+  TZ: ${TZ:-Pacific/Auckland}
+
+services:
+  penpot-frontend:
+    image: penpotapp/frontend:2.17.2@sha256:94fa2864d8fc0cd62245af95c03cca89306a7fd23c206a98a3e9dc9a376ea27e
+    restart: unless-stopped
+    depends_on:
+      penpot-backend:
+        condition: service_started
+      penpot-exporter:
+        condition: service_started
+      penpot-mcp:
+        condition: service_started
+    environment:
+      <<: *common-environment
+    ports:
+      - "${PENPOT_BIND_ADDRESS:-127.0.0.1}:${PENPOT_HTTP_PORT:-9001}:8080"
+    volumes:
+      - penpot_assets:/opt/data/assets
+    networks:
+      - penpot_internal
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 90s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+
+  penpot-backend:
+    image: penpotapp/backend:2.17.2@sha256:770b55f6e51bfcee49152b30858ca6a47143256de8d43953a50b952b5c60bb55
+    restart: unless-stopped
+    depends_on:
+      penpot-postgres:
+        condition: service_healthy
+      penpot-valkey:
+        condition: service_healthy
+    environment:
+      <<: *common-environment
+      PENPOT_SECRET_KEY: ${PENPOT_SECRET_KEY:?PENPOT_SECRET_KEY is required}
+      PENPOT_DATABASE_URI: postgresql://penpot-postgres/penpot
+      PENPOT_DATABASE_USERNAME: penpot
+      PENPOT_DATABASE_PASSWORD: ${PENPOT_DATABASE_PASSWORD:?PENPOT_DATABASE_PASSWORD is required}
+      PENPOT_REDIS_URI: redis://penpot-valkey/0
+      PENPOT_OBJECTS_STORAGE_BACKEND: fs
+      PENPOT_OBJECTS_STORAGE_FS_DIRECTORY: /opt/data/assets
+      PENPOT_TELEMETRY_ENABLED: "false"
+    volumes:
+      - penpot_assets:/opt/data/assets
+    networks:
+      - penpot_internal
+    deploy:
+      resources:
+        limits:
+          cpus: "1.50"
+          memory: 2G
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 45s
+
+  penpot-exporter:
+    image: penpotapp/exporter:2.17.2@sha256:72a8061e88069b9baf0767bc11fbf3310d2527bb5964ca084cf8c844d84306c8
+    restart: unless-stopped
+    depends_on:
+      penpot-valkey:
+        condition: service_healthy
+    environment:
+      PENPOT_SECRET_KEY: ${PENPOT_SECRET_KEY:?PENPOT_SECRET_KEY is required}
+      PENPOT_PUBLIC_URI: ${PENPOT_PUBLIC_URI:?PENPOT_PUBLIC_URI is required}
+      PENPOT_INTERNAL_URI: http://penpot-frontend:8080
+      PENPOT_REDIS_URI: redis://penpot-valkey/0
+      TZ: ${TZ:-Pacific/Auckland}
+    networks:
+      - penpot_internal
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 1G
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+
+  penpot-mcp:
+    image: penpotapp/mcp:2.17.2@sha256:84f3f07ead11745ad95c2c1db90d33d00c550cff76844791ca4389d307f1be37
+    restart: unless-stopped
+    environment:
+      PENPOT_MCP_REMOTE_MODE: "true"
+      PENPOT_MCP_DEVENV: "false"
+      PENPOT_MCP_REPL_ENABLE: "false"
+      PENPOT_MCP_LOG_LEVEL: warn
+      TZ: ${TZ:-Pacific/Auckland}
+    networks:
+      - penpot_internal
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 512M
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+
+  penpot-postgres:
+    image: postgres:15.18-bookworm@sha256:e8db9bd3e9e1751eb639fb17be53cc6d1b62a322adf75b99e791767a7a16ce69
+    restart: unless-stopped
+    stop_signal: SIGINT
+    environment:
+      POSTGRES_INITDB_ARGS: --data-checksums
+      POSTGRES_DB: penpot
+      POSTGRES_USER: penpot
+      POSTGRES_PASSWORD: ${PENPOT_DATABASE_PASSWORD:?PENPOT_DATABASE_PASSWORD is required}
+      TZ: ${TZ:-Pacific/Auckland}
+    volumes:
+      - penpot_postgres:/var/lib/postgresql/data
+    networks:
+      - penpot_internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U penpot -d penpot"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 1G
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 60s
+
+  penpot-valkey:
+    image: valkey/valkey:8.1.4-alpine@sha256:e706d1213aaba6896c162bb6a3a9e1894e1a435f28f8f856d14fab2e10aa098b
+    restart: unless-stopped
+    command:
+      - valkey-server
+      - --maxmemory
+      - 128mb
+      - --maxmemory-policy
+      - volatile-lfu
+      - --appendonly
+      - "yes"
+    volumes:
+      - penpot_valkey:/data
+    networks:
+      - penpot_internal
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 192M
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  penpot_internal:
+    driver: bridge
+
+volumes:
+  penpot_postgres:
+  penpot_assets:
+  penpot_valkey:

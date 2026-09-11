@@ -1249,6 +1249,97 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "sha256sum \"$bundle_path/SHA256SUMS\"\n"
         ),
     },
+    "penpot_preflight": {
+        "approval_required": False,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "cd /home/chris/projects/cs-ai-lab-infra\n"
+            "./penpot/scripts/preflight.sh\n"
+            "if [[ -f /home/chris/.config/cs-ai-lab/penpot.env ]]; then ./penpot/scripts/bootstrap.sh; fi\n"
+        ),
+    },
+    "penpot_deploy": {
+        "approval_required": True,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "cd /home/chris/projects/cs-ai-lab-infra\n"
+            "./penpot/scripts/preflight.sh\n"
+            "./penpot/scripts/bootstrap.sh\n"
+            "./penpot/scripts/start.sh\n"
+        ),
+    },
+    "penpot_start": {
+        "approval_required": True,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "cd /home/chris/projects/cs-ai-lab-infra\n"
+            "./penpot/scripts/start.sh\n"
+        ),
+    },
+    "penpot_health": {
+        "approval_required": False,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "cd /home/chris/projects/cs-ai-lab-infra\n"
+            "./penpot/scripts/health.sh\n"
+        ),
+    },
+    "penpot_disable": {
+        "approval_required": True,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "cd /home/chris/projects/cs-ai-lab-infra\n"
+            "./penpot/scripts/stop.sh\n"
+        ),
+    },
+    "penpot_verification_profile": {
+        "approval_required": True,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "cd /home/chris/projects/cs-ai-lab-infra\n"
+            "./penpot/scripts/create-verification-profile.sh\n"
+        ),
+    },
+    "penpot_backup": {
+        "approval_required": True,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "cd /home/chris/projects/cs-ai-lab-infra\n"
+            "./penpot/scripts/backup.sh\n"
+        ),
+    },
+    "penpot_restore_test": {
+        "approval_required": True,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "cd /home/chris/projects/cs-ai-lab-infra\n"
+            "./penpot/scripts/restore-test.sh\n"
+        ),
+    },
+    "penpot_persistence_test": {
+        "approval_required": True,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "cd /home/chris/projects/cs-ai-lab-infra\n"
+            "./penpot/scripts/restart-persistence-test.sh\n"
+        ),
+    },
+    "penpot_rollback_test": {
+        "approval_required": True,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "cd /home/chris/projects/cs-ai-lab-infra\n"
+            "./penpot/scripts/rollback-test.sh\n"
+        ),
+    },
+    "penpot_resource_report": {
+        "approval_required": False,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "cd /home/chris/projects/cs-ai-lab-infra\n"
+            "./penpot/scripts/resource-report.sh\n"
+        ),
+    },
     "transcription_preflight": {
         "approval_required": False,
         "wsl_script": (

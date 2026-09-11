@@ -1,0 +1,91 @@
+#!/usr/bin/env node
+
+const [endpoint, tokenFile] = process.argv.slice(2);
+if (!endpoint || !tokenFile) {
+  console.error("usage: mcp-smoke.mjs <base-endpoint> <token-file>");
+  process.exit(4);
+}
+
+const fs = await import("node:fs");
+const token = fs.readFileSync(tokenFile, "utf8").trim();
+if (!token || token.length < 20) {
+  throw new Error("MCP token file is empty or invalid");
+}
+const url = `${endpoint}?userToken=${encodeURIComponent(token)}`;
+
+function parsePayload(body) {
+  const dataLine = body.split("\n").find((line) => line.startsWith("data: "));
+  return JSON.parse(dataLine ? dataLine.slice(6) : body);
+}
+
+async function post(id, method, params, sessionId) {
+  const headers = {
+    "content-type": "application/json",
+    accept: "application/json, text/event-stream",
+  };
+  if (sessionId) headers["mcp-session-id"] = sessionId;
+  const response = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ jsonrpc: "2.0", id, method, params }),
+  });
+  const body = await response.text();
+  if (!response.ok) throw new Error(`MCP ${method} returned HTTP ${response.status}`);
+  return { payload: parsePayload(body), sessionId: response.headers.get("mcp-session-id") || sessionId };
+}
+
+const initialized = await post(1, "initialize", {
+  protocolVersion: "2025-03-26",
+  capabilities: {},
+  clientInfo: { name: "penpot-infrastructure-smoke", version: "1.0.0" },
+});
+const sessionId = initialized.sessionId;
+if (!sessionId) throw new Error("MCP initialization did not return a session ID");
+
+await fetch(url, {
+  method: "POST",
+  headers: {
+    "content-type": "application/json",
+    accept: "application/json, text/event-stream",
+    "mcp-session-id": sessionId,
+  },
+  body: JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized", params: {} }),
+});
+
+const listed = await post(2, "tools/list", {}, sessionId);
+const toolNames = listed.payload.result.tools.map((tool) => tool.name).sort();
+const expectedTools = ["execute_code", "export_shape", "get_high_level_overview", "get_penpot_api_info"];
+if (JSON.stringify(toolNames) !== JSON.stringify(expectedTools)) {
+  throw new Error(`Unexpected remote-mode tools: ${toolNames.join(",")}`);
+}
+
+const writeCode = `
+const rect = penpot.createRectangle();
+rect.name = "MCP Verification Rectangle";
+rect.x = 80;
+rect.y = 80;
+rect.resize(240, 120);
+rect.fills = [{ fillColor: "#5B5BD6", fillOpacity: 1 }];
+return { id: rect.id, name: rect.name, width: rect.width, height: rect.height };
+`;
+const written = await post(3, "tools/call", {
+  name: "execute_code",
+  arguments: { code: writeCode },
+}, sessionId);
+if (written.payload.error || written.payload.result?.isError) {
+  throw new Error("MCP write operation failed");
+}
+
+const readCode = `
+const match = penpot.currentPage.findShapes({ name: "MCP Verification Rectangle" });
+return match.map((shape) => ({ id: shape.id, name: shape.name, width: shape.width, height: shape.height }));
+`;
+const read = await post(4, "tools/call", {
+  name: "execute_code",
+  arguments: { code: readCode },
+}, sessionId);
+if (read.payload.error || read.payload.result?.isError) {
+  throw new Error("MCP read operation failed");
+}
+
+console.log(`PENPOT_MCP_SMOKE_OK tools=${toolNames.length} write=true read=true filesystem_tools=false`);

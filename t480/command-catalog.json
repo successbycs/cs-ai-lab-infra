@@ -525,6 +525,72 @@
       "execution": "adapter_owned"
     },
     {
+      "id": "penpot_preflight",
+      "purpose": "Check Docker, WSL capacity, fixed port 9001, and existing private Penpot configuration without changing services.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "penpot_deploy",
+      "purpose": "Generate protected host-only secrets and start the separate digest-pinned, loopback-only Penpot stack.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "penpot_start",
+      "purpose": "Start the existing private Penpot stack and verify health.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "penpot_health",
+      "purpose": "Verify the six Penpot services, application/database/Valkey health, loopback publication, and MCP isolation controls.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "penpot_disable",
+      "purpose": "Stop and remove only Penpot containers and network while preserving Penpot volumes.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "penpot_verification_profile",
+      "purpose": "Create the fixed disposable Penpot-only MCP verification profile with credentials in a mode-0600 host file.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "penpot_backup",
+      "purpose": "Capture the Penpot database and assets with checksums and retention, excluding secrets.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "penpot_restore_test",
+      "purpose": "Restore the newest Penpot backup into timestamped isolated test volumes, verify it, and remove only the test resources.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "penpot_persistence_test",
+      "purpose": "Restart only the Penpot project and verify profile/file counts persist.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "penpot_rollback_test",
+      "purpose": "Simulate a failed candidate-image pull, prove live IDs remain unchanged, and reapply the pinned Penpot configuration.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "penpot_resource_report",
+      "purpose": "Report current Penpot container CPU/memory and host filesystem use without changing services.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
       "id": "transcription_preflight",
       "purpose": "Inspect the fixed private MP4 transcription checkout, its local configuration, built image, and whether its temporary inbox is empty.",
       "approval_required": false,

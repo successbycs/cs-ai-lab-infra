@@ -27,6 +27,11 @@ postgres/backup/full-lab/
 postgres/backup/*.partial
 !postgres/backup/.gitkeep
 
+# Penpot runtime secrets, verification state, and recovery artefacts
+penpot/backups/*
+!penpot/backups/.gitkeep
+penpot/.verification-*.local
+
 # Editor and OS files
 .DS_Store
 .vscode/
