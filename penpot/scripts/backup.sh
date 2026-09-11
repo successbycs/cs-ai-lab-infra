@@ -40,7 +40,7 @@ retention_days="${PENPOT_BACKUP_RETENTION_DAYS:-14}"
   exit 4
 }
 find "$PENPOT_ROOT/backups" -mindepth 1 -maxdepth 1 -type d \
-  -name '20????????T??????Z' -mtime "+$retention_days" -print -exec rm -rf -- {} +
+  -name '20??????T??????Z' -mtime "+$retention_days" -print -exec rm -rf -- {} +
 
 printf 'PENPOT_BACKUP_OK bundle=%s retention_days=%s\n' "$backup_root" "$retention_days"
 sha256sum "$backup_root/SHA256SUMS"

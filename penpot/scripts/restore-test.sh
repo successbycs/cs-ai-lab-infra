@@ -6,7 +6,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$script_dir/lib.sh"
 
 require_env_file
-backup_root="$(find "$PENPOT_ROOT/backups" -mindepth 1 -maxdepth 1 -type d -name '20????????T??????Z' -printf '%T@ %p\n' | sort -nr | head -n 1 | cut -d' ' -f2-)"
+backup_root="$(find "$PENPOT_ROOT/backups" -mindepth 1 -maxdepth 1 -type d -name '20??????T??????Z' -printf '%T@ %p\n' | sort -nr | head -n 1 | cut -d' ' -f2-)"
 [[ -n "$backup_root" && -f "$backup_root/SHA256SUMS" ]] || {
   printf 'No Penpot backup bundle is available.\n' >&2
   exit 4
