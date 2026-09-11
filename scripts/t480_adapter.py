@@ -1284,6 +1284,17 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "./penpot/scripts/health.sh\n"
         ),
     },
+    "penpot_diagnostics": {
+        "approval_required": False,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "cd /home/chris/projects/cs-ai-lab-infra\n"
+            "source ./penpot/scripts/lib.sh\n"
+            "require_env_file\n"
+            "compose ps\n"
+            "compose logs --tail 80 penpot-frontend penpot-backend penpot-exporter penpot-mcp\n"
+        ),
+    },
     "penpot_disable": {
         "approval_required": True,
         "wsl_script": (

@@ -549,6 +549,12 @@
       "execution": "adapter_owned"
     },
     {
+      "id": "penpot_diagnostics",
+      "purpose": "Inspect the fixed Penpot project's service state and bounded recent application logs without changing services.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
       "id": "penpot_disable",
       "purpose": "Stop and remove only Penpot containers and network while preserving Penpot volumes.",
       "approval_required": true,

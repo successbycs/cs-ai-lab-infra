@@ -59,6 +59,7 @@ This MVP adopts the Autonomous Framework's adapter and tool-registry conventions
 - `penpot_deploy` — generate protected host-only secrets and start only the separate digest-pinned, loopback-only Penpot stack; requires explicit approval.
 - `penpot_start` — start only the existing private Penpot stack and verify health; requires explicit approval.
 - `penpot_health` — verify the six Penpot services, application/database/Valkey health, loopback publication, and MCP isolation controls.
+- `penpot_diagnostics` — inspect the fixed Penpot project state and bounded recent application logs without changing services.
 - `penpot_disable` — stop and remove only Penpot containers/network while preserving all Penpot volumes; requires explicit approval.
 - `penpot_verification_profile` — create the fixed disposable Penpot-only MCP verification profile with credentials in a mode-0600 host file; requires explicit approval.
 - `penpot_backup` — capture the Penpot database and assets with checksums and retention, excluding secrets; requires explicit approval.
