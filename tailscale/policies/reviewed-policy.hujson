@@ -1,0 +1,15 @@
+// Review-only template. Do not apply until M10's identity and recovery gates pass.
+{
+  "groups": {},
+  "tagOwners": {},
+  "acls": [
+    // Replace each placeholder only after independent review. This rule permits
+    // T16 development access to explicitly selected private services.
+    { "action": "accept", "src": ["tag:REPLACE_T16"], "dst": ["tag:REPLACE_T480:REPLACE_T16_PORT"] },
+    // A device-specific iPhone selector—not a user-wide selector—may read only
+    // the dashboard port after M10 approval.
+    { "action": "accept", "src": ["tag:REPLACE_IPHONE"], "dst": ["tag:REPLACE_T480:8080"] },
+  ],
+  "ssh": [],
+  "autoApprovers": { "routes": {}, "exitNode": [] },
+}

@@ -1,5 +1,9 @@
 name: cs-ai-lab
 
+include:
+  - path: ./plane/compose.yaml
+    env_file: ./plane/plane.env
+
 services:
   postgres:
     image: pgvector/pgvector:pg16@sha256:84a355869251af1a3379cfc9fa7b4dbf962c03f642a4bb7b339a203925071c43

@@ -111,6 +111,17 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "@{Name='free_gib'; Expression={[math]::Round($_.FreeSpace / 1GB, 1)}} | ConvertTo-Json -Compress"
         ),
     },
+    "hardware_and_wsl_storage": {
+        "approval_required": False,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "$memory = @(Get-CimInstance Win32_PhysicalMemory | Select-Object BankLabel,DeviceLocator,@{Name='capacity_gib';Expression={[math]::Round($_.Capacity / 1GB,1)}},Speed,ConfiguredClockSpeed,PartNumber); "
+            "$disk = @(Get-CimInstance Win32_DiskDrive | Select-Object Model,SerialNumber,@{Name='size_gib';Expression={[math]::Round($_.Size / 1GB,1)}},MediaType,InterfaceType); "
+            "$lxss = @(Get-ChildItem 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss' -ErrorAction SilentlyContinue | ForEach-Object { $base=(Get-ItemProperty $_.PSPath).BasePath; if ($base) { Get-Item -LiteralPath (Join-Path $base 'ext4.vhdx') -ErrorAction SilentlyContinue | Select-Object FullName,@{Name='virtual_size_gib';Expression={[math]::Round($_.Length / 1GB,2)}},LastWriteTimeUtc } }); "
+            "$docker = wsl.exe -d Ubuntu -- bash -lc 'docker info --format ''{{.DockerRootDir}}'' 2>/dev/null' 2>$null; "
+            "[pscustomobject]@{ memory_modules=$memory; physical_disks=$disk; registered_wsl_virtual_disks=$lxss; docker_root_in_ubuntu=$docker } | ConvertTo-Json -Depth 5 -Compress"
+        ),
+    },
     "tailscale_windows_status": {
         "approval_required": False,
         "command": (

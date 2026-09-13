@@ -32,3 +32,6 @@ Ask separately before each of these actions:
 5. Any restart or any device revocation/disable test.
 
 Do not record passwords, keys, private IP addresses, unredacted service output, or cellular details in the milestone ledger or repository evidence.
+# Prerequisite reminder
+
+Before any policy placeholder is replaced or policy applied, require a reviewed identity inventory, selected T16 service ports, owner MFA and local-console recovery evidence, M5 proof, and independent review. The tracked template is offline-only; it does not authorize tailnet changes.

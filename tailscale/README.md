@@ -27,3 +27,10 @@ python3 scripts/tailscale_adapter.py set-device-authorization --device-id DEVICE
 `apply-policy` always validates the exact reviewed file first. `set-device-authorization` can approve or revoke a device but never deletes it. All mutation attempts require `--approve`, and the local execution log stores only timestamps, operation names, output sizes, and hashes.
 
 Tailscale policy changes are version-controlled HuJSON under `tailscale/policies/`; validate them before applying. Do not use a user-wide source rule for the iPhone’s read-only dashboard access, because it would cover every device owned by that user. Use a device-specific selector after the T16 and iPhone identities are confirmed.
+
+`policies/reviewed-policy.hujson` is a deny-by-default review template, not an
+approved policy to apply. Before replacing its placeholders or invoking any
+adapter command, record the device/tag identity inventory, selected T16 ports,
+owner MFA and local-console recovery evidence, M5 boot-recovery proof, and an
+independent review. It grants no routes, exit nodes, public ingress, SSH, or
+user-wide iPhone access.

@@ -10,6 +10,7 @@ This MVP adopts the Autonomous Framework's adapter and tool-registry conventions
 
 - `health` — Windows hostname, operating system, and installed memory.
 - `storage` — filesystem capacity and free space.
+- `hardware_and_wsl_storage` — RAM modules, physical disk models, and host-side WSL virtual-disk file sizes.
 - `health_dashboard_firewall_status` — inspect the fixed private-LAN TCP 8080 dashboard firewall rule.
 - `health_dashboard_firewall_enable` — create or repair the fixed private-LAN TCP 8080 dashboard firewall rule; requires explicit approval.
 - `windows_restart` — schedule a controlled Windows restart; requires explicit approval.

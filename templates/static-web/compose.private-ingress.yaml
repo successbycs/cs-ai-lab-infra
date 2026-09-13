@@ -1,0 +1,4 @@
+services:
+  web:
+    ports:
+      - "${STATIC_WEB_BIND_ADDRESS:-127.0.0.1}:${STATIC_WEB_PORT:?Set STATIC_WEB_PORT}:80"

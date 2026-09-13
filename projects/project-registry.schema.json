@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CS AI Lab project registry",
+  "type": "object",
+  "required": ["schema_version", "projects"],
+  "properties": {
+    "schema_version": {"const": "cs-ai-lab.projects.v1"},
+    "projects": {"type": "array", "items": {"$ref": "#/$defs/project"}}
+  },
+  "$defs": {
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "owner", "repository", "revision_or_image", "service", "exposure", "secrets_file_reference", "storage_backup", "resource_estimate", "update", "rollback"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,62}$"},
+        "owner": {"type": "string", "minLength": 1},
+        "repository": {"type": "string", "minLength": 1},
+        "revision_or_image": {"type": "string", "minLength": 1},
+        "service": {"type": "object", "required": ["name", "health_url"], "properties": {"name": {"type": "string"}, "health_url": {"type": ["string", "null"]}}},
+        "exposure": {"enum": ["none", "loopback", "private-ingress", "external-hosted"]},
+        "secrets_file_reference": {"type": "string", "pattern": "^/"},
+        "storage_backup": {"type": "object", "required": ["persistent_state", "backup_plan"], "properties": {"persistent_state": {"type": "string"}, "backup_plan": {"type": "string"}}},
+        "resource_estimate": {"type": "object", "required": ["cpu", "memory", "pids"], "properties": {"cpu": {"type": "string"}, "memory": {"type": "string"}, "pids": {"type": "integer", "minimum": 1}}},
+        "update": {"type": "string", "minLength": 1},
+        "rollback": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

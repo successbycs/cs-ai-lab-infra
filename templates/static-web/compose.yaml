@@ -1,0 +1,31 @@
+name: ${COMPOSE_PROJECT_NAME:?Set a unique project name}
+
+services:
+  web:
+    image: ${WEB_IMAGE:?Set a reviewed, rollback-capable image reference}
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/var/cache/nginx, /var/run]
+    volumes:
+      - ./site:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks: [private]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/healthz || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: "${WEB_CPU_LIMIT:-0.25}"
+          memory: "${WEB_MEMORY_LIMIT:-128M}"
+          pids: ${WEB_PIDS_LIMIT:-64}
+    logging:
+      driver: local
+      options: {max-size: "10m", max-file: "3"}
+
+networks:
+  private:
+    driver: bridge

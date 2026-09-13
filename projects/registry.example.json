@@ -1,0 +1,20 @@
+{
+  "schema_version": "cs-ai-lab.projects.v1",
+  "projects": [
+    {
+      "id": "example-static-web", "owner": "Chris", "repository": "https://example.invalid/example-static-web", "revision_or_image": "main (build before rollout)",
+      "service": {"name": "web", "health_url": "http://web/healthz (inside the Compose private network)"}, "exposure": "none",
+      "secrets_file_reference": "/home/chris/.config/cs-ai-lab/projects/example-static-web.env",
+      "storage_backup": {"persistent_state": "none; source and generated build output are project-owned", "backup_plan": "Git remote and normal project asset backup; no lab volume"},
+      "resource_estimate": {"cpu": "0.25", "memory": "128M", "pids": 64},
+      "update": "cd to the project checkout; review revision; docker compose --env-file /home/chris/.config/cs-ai-lab/projects/example-static-web.env pull && docker compose --env-file /home/chris/.config/cs-ai-lab/projects/example-static-web.env up -d --wait web",
+      "rollback": "restore the prior reviewed product checkout (site exports and nginx.conf), set the prior reviewed WEB_IMAGE in /home/chris/.config/cs-ai-lab/projects/example-static-web.env, then run docker compose --env-file /home/chris/.config/cs-ai-lab/projects/example-static-web.env up -d --force-recreate --wait web"
+    },
+    {
+      "id": "pt-chev-water-times", "owner": "Pt Chev product owner", "repository": "externally hosted product repository", "revision_or_image": "Vercel production; not a T480 deployment",
+      "service": {"name": "external web", "health_url": null}, "exposure": "external-hosted", "secrets_file_reference": "/provider-managed; not stored by this lab",
+      "storage_backup": {"persistent_state": "owned by Vercel/Supabase", "backup_plan": "owned by the product's Vercel/Supabase operations"},
+      "resource_estimate": {"cpu": "0", "memory": "0", "pids": 1}, "update": "Use the product's existing Vercel/Supabase workflow.", "rollback": "Use the product's existing provider rollback workflow."
+    }
+  ]
+}

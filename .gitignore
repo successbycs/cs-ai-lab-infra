@@ -32,6 +32,11 @@ penpot/backups/*
 !penpot/backups/.gitkeep
 penpot/.verification-*.local
 
+# Plane CE runtime state and credentials
+plane/plane.env
+plane/backups/
+plane/evidence/
+
 # Editor and OS files
 .DS_Store
 .vscode/

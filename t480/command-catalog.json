@@ -15,6 +15,12 @@
       "execution": "adapter_owned"
     },
     {
+      "id": "hardware_and_wsl_storage",
+      "purpose": "Inspect installed RAM modules, physical disk models, and WSL ext4.vhdx host-file size without changing the T480.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
       "id": "tailscale_windows_status",
       "purpose": "Inspect the Windows-host Tailscale client, service, and non-secret backend state without changing the T480.",
       "approval_required": false,
