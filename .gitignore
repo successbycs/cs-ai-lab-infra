@@ -34,6 +34,7 @@ penpot/.verification-*.local
 
 # Plane CE runtime state and credentials
 plane/plane.env
+plane/plane-access.local.env
 plane/backups/
 plane/evidence/
 
