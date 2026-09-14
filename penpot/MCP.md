@@ -6,7 +6,7 @@ The only approved agent path is:
 
 ```text
 Codex/OpenWorker MCP client
-  -> authenticated SSH local forward (operator-owned)
+  -> bounded loopback-only relay over trusted SSH (operator-owned)
   -> T480 127.0.0.1:9001/mcp/stream?userToken=...
   -> penpot-frontend proxy
   -> penpot-mcp (remote mode, no mounts)
@@ -22,21 +22,32 @@ and `get_penpot_api_info`; `mcp-smoke.mjs` fails closed if it differs.
 
 The service account is a Penpot design identity, not a host account. Put only
 the intended design project/files in its team. Keep Chris's owner account
-separate. For each agent session, open the intended file in the service
-account browser, choose **File → MCP Server → Connect**, and keep that tab
-active. Disconnect or close the tab at the end.
+separate. The service-account browser must run in its own interactive T480
+Windows session: Windows services and scheduled tasks run in session 0 and
+cannot attach the Penpot plugin. For each agent session, open the intended
+file in that browser, choose **File → MCP Server → Connect**, and keep that
+tab active. Disconnect or close the tab at the end.
 
-## Local forward
+`scripts/managed-service-browser.ps1` is the approved launcher. It takes an
+existing dedicated Chrome profile and file URL, refuses to create a profile or
+handle credentials, and opens the browser in an interactive session. It does
+not prove attachment; use the file menu and a harmless MCP read to do that.
 
-From an approved controller with the existing strict host-key SSH profile:
+## Controller relay
+
+From an approved controller, run the bootstrap in this repository:
 
 ```bash
-ssh -N -o BatchMode=yes -o StrictHostKeyChecking=yes \
-  -L 127.0.0.1:9001:127.0.0.1:9001 t480
+./penpot/scripts/bootstrap-global-codex-mcp.sh
 ```
 
-This opens no T480 firewall or router port. If local port 9001 is occupied,
-use a different left-hand port and keep the remote side at `127.0.0.1:9001`.
+It starts a loopback-only WSL relay at `127.0.0.1:19001` by default. Windows OpenSSH does not support the Unix
+ControlMaster socket used by the earlier persistent-master attempt, so the
+current transport caps live channels at four and reaps each SSH child as soon
+as either half of its HTTP/SSE stream closes. It opens no T480 firewall or
+router port. A native Windows persistent-tunnel service remains a future
+replacement once it can be installed with an administrator-approved firewall
+rule and a service-account interactive browser session.
 
 ## Create and store an MCP key
 

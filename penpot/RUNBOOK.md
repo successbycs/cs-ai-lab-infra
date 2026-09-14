@@ -29,10 +29,28 @@ personal Penpot MCP key in the mode-0600 host file
 ```
 
 The bootstrap reads the protected T480 target, starts a loopback-only WSL TCP
-proxy over the trusted Windows SSH client, verifies the Penpot web endpoint,
-and installs the `penpot_t480` entry in the mode-0600 user-level
+relay over the trusted Windows SSH client, caps concurrent streams at four,
+verifies the Penpot web endpoint, and installs the `penpot_t480` entry in the mode-0600 user-level
 `~/.codex/config.toml`. Codex then discovers it from every repository;
 application Docker containers never receive this connection or its token.
+
+### Managed service-account browser
+
+MCP operations require the specific Penpot file to be open and attached from
+the dedicated Penpot service identity in an interactive browser on the **T480**.
+Do not use Chris's owner browser, a manually maintained random tab, a Windows
+service, or Task Scheduler: non-interactive session 0 cannot host the browser
+plugin.
+
+Once, from the dedicated T480 Windows account, launch the known existing Chrome
+profile with `penpot/scripts/managed-service-browser.ps1`, passing the file
+URL and that profile's existing user-data directory. The launcher refuses to
+create profiles or use credentials. Then open **File → MCP Server → Connect**
+in Penpot and leave the file tab open. On later starts, use the same launcher
+and check prerequisites with `managed-service-browser-status.ps1`; the final
+attachment check is the green connected state in that file plus a harmless MCP
+read. Do not place the profile path, cookies, credentials, or MCP token in Git
+or shell output.
 
 No account ships with the deployment. On the T480 console, create Chris's
 owner account without placing credentials in shell history:
