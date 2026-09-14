@@ -63,7 +63,7 @@ x-app-env: &app-env
 
 services:
   web:
-    image: makeplane/plane-frontend:${APP_RELEASE:-v1.4.2}
+    image: makeplane/plane-frontend@sha256:22fd2434fb8d6658439f669ab72f999ce0773abe587663da21a77d70bd63ff61
     deploy:
       replicas: ${WEB_REPLICAS:-1}
       restart_policy:
@@ -73,7 +73,7 @@ services:
       - worker
 
   space:
-    image: makeplane/plane-space:${APP_RELEASE:-v1.4.2}
+    image: makeplane/plane-space@sha256:f8f842f05f41a16e9fe8c4f5e17a3bb175338ccdc094620e58ae49764ffbd671
     deploy:
       replicas: ${SPACE_REPLICAS:-1}
       restart_policy:
@@ -84,7 +84,7 @@ services:
       - web
 
   admin:
-    image: makeplane/plane-admin:${APP_RELEASE:-v1.4.2}
+    image: makeplane/plane-admin@sha256:6e1bb1d800d3c7ce84a09f810d5588db8613b35d4464e722a1bec12556ca0ebb
     deploy:
       replicas: ${ADMIN_REPLICAS:-1}
       restart_policy:
@@ -94,7 +94,7 @@ services:
       - web
 
   live:
-    image: makeplane/plane-live:${APP_RELEASE:-v1.4.2}
+    image: makeplane/plane-live@sha256:cbb630ccaea24bb9998040cb45c11619a7501e8b6c75d449df2f8fd9b9cddbd0
     environment:
       <<: [*live-env, *redis-env]
     deploy:
@@ -106,7 +106,7 @@ services:
       - web
 
   api:
-    image: makeplane/plane-backend:${APP_RELEASE:-v1.4.2}
+    image: makeplane/plane-backend@sha256:90032ce088708889b60c00d491897916f4deb882facda27db59fd10fb68729ef
     command: ./bin/docker-entrypoint-api.sh
     deploy:
       replicas: ${API_REPLICAS:-1}
@@ -122,7 +122,7 @@ services:
       - plane-mq
 
   worker:
-    image: makeplane/plane-backend:${APP_RELEASE:-v1.4.2}
+    image: makeplane/plane-backend@sha256:90032ce088708889b60c00d491897916f4deb882facda27db59fd10fb68729ef
     command: ./bin/docker-entrypoint-worker.sh
     deploy:
       replicas: ${WORKER_REPLICAS:-1}
@@ -139,7 +139,7 @@ services:
       - plane-mq
 
   beat-worker:
-    image: makeplane/plane-backend:${APP_RELEASE:-v1.4.2}
+    image: makeplane/plane-backend@sha256:90032ce088708889b60c00d491897916f4deb882facda27db59fd10fb68729ef
     command: ./bin/docker-entrypoint-beat.sh
     deploy:
       replicas: ${BEAT_WORKER_REPLICAS:-1}
@@ -156,7 +156,7 @@ services:
       - plane-mq
 
   migrator:
-    image: makeplane/plane-backend:${APP_RELEASE:-v1.4.2}
+    image: makeplane/plane-backend@sha256:90032ce088708889b60c00d491897916f4deb882facda27db59fd10fb68729ef
     command: ./bin/docker-entrypoint-migrator.sh
     deploy:
       replicas: 1
@@ -172,7 +172,7 @@ services:
 
   # Comment this if you already have a database running
   plane-db:
-    image: postgres:15.7-alpine
+    image: postgres@sha256:468d34fefd6338031787c7b8e94078975b3aaf4d66c7ead25c39cd3ba46a15c6
     command: postgres -c 'max_connections=1000'
     deploy:
       replicas: 1
@@ -184,7 +184,7 @@ services:
       - pgdata:/var/lib/postgresql/data
 
   plane-redis:
-    image: valkey/valkey:7.2.11-alpine
+    image: valkey/valkey@sha256:10328d00120dc14fbc87b2ed61b7677ddbb0d011e705361b4788329a0ec69a93
     deploy:
       replicas: 1
       restart_policy:
@@ -193,7 +193,7 @@ services:
       - redisdata:/data
 
   plane-mq:
-    image: rabbitmq:3.13.6-management-alpine
+    image: rabbitmq@sha256:611107e29cce05c2acd968325d5dcbde7e2fee404970f1ead75fdb22be2821b3
     deploy:
       replicas: 1
       restart_policy:
@@ -205,7 +205,7 @@ services:
 
   # Comment this if you using any external s3 compatible storage
   plane-minio:
-    image: quay.io/minio/minio:latest
+    image: quay.io/minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
     command: server /export --console-address ":9090"
     deploy:
       replicas: 1
@@ -218,7 +218,7 @@ services:
 
   # Comment this if you already have a reverse proxy running
   proxy:
-    image: makeplane/plane-proxy:${APP_RELEASE:-v1.4.2}
+    image: makeplane/plane-proxy@sha256:47e651c56749c287710cc26f82dc5d1046a2af76a332aa048ab7adb881cc4cd0
     deploy:
       replicas: 1
       restart_policy:
