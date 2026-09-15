@@ -7,6 +7,9 @@ set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root_dir"
+# shellcheck source=backup-pause.sh
+source "$root_dir/scripts/backup-pause.sh"
+backup_pause_guard || exit $?
 
 [[ -f .env ]] || { printf 'Refusing M3 recovery proof: .env is missing.\n' >&2; exit 1; }
 set -a

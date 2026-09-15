@@ -28,3 +28,6 @@ python3 scripts/plane_adapter.py open-browser --approve
 The adapter has no SSH-tunnel or firewall operation. Use the already-approved
 private T16-to-T480 transport where necessary; do not create public ingress or
 weaken loopback bindings to make Plane reachable.
+
+For deployment lifecycle, safe validation, diagnostics, and recovery limits,
+use the [Plane runbook](../plane/RUNBOOK.md).

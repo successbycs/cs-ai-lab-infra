@@ -36,3 +36,14 @@ Use task-based routing later: inexpensive local models for bounded classificatio
 ## Portability
 
 Containers, environment configuration, and persistent backing services make migration practical. In a cloud deployment, application containers can move to a container platform, PostgreSQL to a managed database, volumes to managed/object storage, and local inference to a GPU or hosted provider. The application contract should remain configuration, database connection strings, and APIs—not T480-specific paths or addresses. Details: [cloud portability](cloud-portability.md).
+
+
+## T16 access
+
+Development is performed on the T16 and deployments run on the T480. Every
+deployed application must provide the T16 operator an approved private access
+path appropriate to that component—for example, its governed adapter, an
+authenticated private web path, or a documented SSH relay. This requirement
+does not authorize direct LAN publication: PostgreSQL and n8n remain
+loopback-only, and each new access path must comply with the network exposure
+policy.

@@ -4,6 +4,10 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib.sh
 source "$script_dir/lib.sh"
+lab_root="$(cd "$script_dir/../.." && pwd)"
+# shellcheck source=../../scripts/backup-pause.sh
+source "$lab_root/scripts/backup-pause.sh"
+backup_pause_guard || exit $?
 
 require_env_file
 # shellcheck disable=SC1090

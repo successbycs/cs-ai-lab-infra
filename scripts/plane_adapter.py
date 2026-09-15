@@ -93,7 +93,7 @@ def _powershell_json(script: str) -> dict[str, Any]:
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise PlaneAccessError("Windows PowerShell Plane access is unavailable") from exc
     if result.returncode:
-        raise PlaneAccessError("Windows PowerShell Plane request failed")
+        raise PlaneAccessError(f"Windows PowerShell Plane request failed (exit {result.returncode})")
     try:
         payload = json.loads(result.stdout)
     except json.JSONDecodeError as exc:
@@ -109,7 +109,16 @@ def _windows_wsl_path(path: str) -> str:
 
 def web_status(settings: dict[str, str]) -> dict[str, Any]:
     origin = settings["PLANE_ORIGIN"]
-    payload = _powershell_json("$ErrorActionPreference='Stop'; $r=Invoke-WebRequest -UseBasicParsing -TimeoutSec 10 " + _ps_quote(origin + "/") + "; @{http_status=[int]$r.StatusCode}|ConvertTo-Json -Compress")
+    payload = _powershell_json(
+        "$ErrorActionPreference='Stop'; try { $r=Invoke-WebRequest -UseBasicParsing -TimeoutSec 10 "
+        + _ps_quote(origin + "/")
+        + "; @{http_status=[int]$r.StatusCode}|ConvertTo-Json -Compress } catch { $response=$_.Exception.Response; if ($response) { @{error_class='http'; http_status=[int]$response.StatusCode}|ConvertTo-Json -Compress } else { @{error_class='transport'}|ConvertTo-Json -Compress } }"
+    )
+    if payload.get("error_class") in {"http", "transport"}:
+        detail = payload["error_class"]
+        if isinstance(payload.get("http_status"), int):
+            detail += f" status {payload['http_status']}"
+        raise PlaneAccessError(f"Plane web origin request failed ({detail})")
     if payload.get("http_status") != 200:
         raise PlaneAccessError("Plane web origin returned an unexpected status")
     return {"status": "PASS", "origin": origin, "http_status": 200}

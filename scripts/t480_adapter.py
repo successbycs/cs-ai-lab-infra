@@ -1034,6 +1034,23 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "docker compose --profile ollama logs --tail 80 ollama\n"
         ),
     },
+    "plane_status": {
+        "approval_required": False,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "cd /home/chris/projects/cs-ai-lab-infra\n"
+            "services=(web space admin live api worker beat-worker plane-db plane-redis plane-mq plane-minio proxy)\n"
+            "for service in \"${services[@]}\"; do\n"
+            "  container=$(docker compose ps -q \"$service\")\n"
+            "  [[ -n \"$container\" ]] || { printf 'PLANE_STATUS_FAIL service=%s reason=missing\\n' \"$service\" >&2; exit 1; }\n"
+            "  state=$(docker inspect --format '{{.State.Status}}|{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' \"$container\")\n"
+            "  case \"$state\" in running\\|healthy|running\\|none) ;; *) printf 'PLANE_STATUS_FAIL service=%s state=%s\\n' \"$service\" \"$state\" >&2; exit 1;; esac\n"
+            "done\n"
+            "proxy=$(docker compose ps -q proxy)\n"
+            "docker port \"$proxy\" 80 | grep -Eq '^127\\.0\\.0\\.1:' || { printf 'PLANE_STATUS_FAIL proxy=not-loopback\\n' >&2; exit 1; }\n"
+            "printf 'PLANE_STATUS_PASS services=11 proxy_loopback=true\\n'\n"
+        ),
+    },
     "n8n_upgrade_preflight": {
         "approval_required": False,
         "wsl_script": (

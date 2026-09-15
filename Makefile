@@ -1,6 +1,9 @@
-.PHONY: quality
+.PHONY: quality execplan-check
 
-quality:
+execplan-check:
+	python3 scripts/validate_execplan.py
+
+quality: execplan-check
 	python3 -m pytest -q
 	bash -n scripts/*.sh penpot/scripts/*.sh
 	python3 -m compileall -q scripts t480_core monitoring tests

@@ -1,21 +1,35 @@
 import subprocess
 import os
 from pathlib import Path
+from contextlib import contextmanager
 
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts/w1-synthetic-recovery-drill.sh"
+PAUSE = ROOT / "BACKUPS-PAUSED.md"
+
+
+@contextmanager
+def backup_creation_enabled_for_test():
+    held = ROOT / ".BACKUPS-PAUSED.test-hold"
+    PAUSE.rename(held)
+    try:
+        yield
+    finally:
+        held.rename(PAUSE)
 
 
 def test_drill_refuses_to_run_without_explicit_approval_before_docker():
-    result = subprocess.run(["bash", str(SCRIPT)], text=True, capture_output=True, cwd=ROOT)
+    with backup_creation_enabled_for_test():
+        result = subprocess.run(["bash", str(SCRIPT)], text=True, capture_output=True, cwd=ROOT)
     assert result.returncode == 2
     assert "without --approve" in result.stderr
     assert "docker" not in result.stdout.lower()
 
 
 def test_drill_requires_a_test_only_encryption_key_before_docker():
-    result = subprocess.run(["bash", str(SCRIPT), "--approve"], text=True, capture_output=True, cwd=ROOT)
+    with backup_creation_enabled_for_test():
+        result = subprocess.run(["bash", str(SCRIPT), "--approve"], text=True, capture_output=True, cwd=ROOT)
     assert result.returncode == 2
     assert "test-only encryption-key file" in result.stderr
 
@@ -97,8 +111,9 @@ def test_failed_dump_stops_drill_even_when_gzip_succeeds(tmp_path: Path):
     key = tmp_path / 'key'
     key.write_text('synthetic-only')
     evidence = tmp_path / 'evidence'
-    result = subprocess.run(['bash', str(SCRIPT), '--approve', '--test-encryption-key-file', str(key)],
-        env={**os.environ, 'PATH': str(bin_dir) + ':' + os.environ['PATH'], 'TEST_CALLS': str(calls), 'W1_EVIDENCE_DIR': str(evidence)}, capture_output=True, text=True)
+    with backup_creation_enabled_for_test():
+        result = subprocess.run(['bash', str(SCRIPT), '--approve', '--test-encryption-key-file', str(key)],
+            env={**os.environ, 'PATH': str(bin_dir) + ':' + os.environ['PATH'], 'TEST_CALLS': str(calls), 'W1_EVIDENCE_DIR': str(evidence)}, capture_output=True, text=True)
     assert result.returncode == 23
     assert 'source_dump' in result.stderr
     assert '--project-name w1_restore_' not in calls.read_text()

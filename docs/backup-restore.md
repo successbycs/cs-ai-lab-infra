@@ -1,6 +1,14 @@
 # Backup and restore
 
-`./scripts/backup.sh` creates a compressed, timestamped logical PostgreSQL dump on the host at `postgres/backup/`, with a non-secret JSON manifest beside it. It runs `pg_dump` in the database container but redirects the result outside it, so the backup survives container recreation. The manifest records the dump SHA-256, capture time, Git revision, Compose-file hash, and its deliberately limited recovery scope. Backup files and manifests are ignored by Git.
+Backup creation is currently paused until additional T480 disk capacity is
+attached; see [backup pause](../BACKUPS-PAUSED.md). Read-only verification of
+an existing manifest remains allowed. After an explicit resume decision,
+`./scripts/backup.sh` creates a compressed, timestamped logical PostgreSQL dump
+on the host at `postgres/backup/`, with a non-secret JSON manifest beside it. It
+runs `pg_dump` in the database container but redirects the result outside it,
+so the backup survives container recreation. The manifest records the dump
+SHA-256, capture time, Git revision, Compose-file hash, and its deliberately
+limited recovery scope. Backup files and manifests are ignored by Git.
 
 Verify a captured logical backup without contacting Docker:
 

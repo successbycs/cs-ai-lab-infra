@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import subprocess
 import pytest
 
 from scripts import plane_adapter
@@ -36,3 +37,14 @@ def test_projects_response_rejects_bad_shape(monkeypatch):
     monkeypatch.setattr(plane_adapter, "_powershell_json", lambda script: {})
     with pytest.raises(plane_adapter.PlaneAccessError, match="unexpected shape"):
         plane_adapter.list_projects({"PLANE_ORIGIN": "http://plane:8090", "PLANE_WORKSPACE_SLUG": "forex", "PLANE_API_KEY_FILE": "/unused", "PLANE_API_KEY_VARIABLE": "PLANE_API_KEY"})
+
+
+def test_powershell_failure_reports_only_exit_code(monkeypatch):
+    monkeypatch.setattr(
+        plane_adapter.subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(args, 7, "", "token=private-token"),
+    )
+    with pytest.raises(plane_adapter.PlaneAccessError, match=r"exit 7") as error:
+        plane_adapter._powershell_json("unused")
+    assert "private-token" not in str(error.value)
