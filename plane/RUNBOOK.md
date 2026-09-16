@@ -25,6 +25,7 @@ From the T16, prepare the local access configuration from
 bounded adapter:
 
 ```bash
+python3 scripts/plane_t16_relay.py start --approve
 python3 scripts/plane_adapter.py web-status
 python3 scripts/plane_adapter.py list-projects
 python3 scripts/plane_adapter.py open-browser --approve
@@ -47,11 +48,15 @@ This validates desired configuration only. A missing local root `.env` prevents
 meaningful local resolution; do not substitute placeholder secrets merely to
 make the command pass.
 
-The current T480 governed command catalog has no Plane status operation. Do
-not use arbitrary SSH or Docker commands to compensate. The required
-read-only status operation and health checks are specified in
-[`plans/plane-deployment-remediation.md`](../plans/plane-deployment-remediation.md)
-and need separate approval before implementation.
+Use the governed, read-only Plane status operation from the T16:
+
+```bash
+python3 scripts/t480_adapter.py execute --operation plane_status
+```
+
+It verifies the fixed service set, dependency health, and loopback-only proxy.
+The relay consumes its proxy-port result internally; do not copy runtime output
+into Git or use arbitrary SSH/Docker commands as a substitute.
 
 ## Lifecycle
 

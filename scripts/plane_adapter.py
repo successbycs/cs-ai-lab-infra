@@ -110,9 +110,9 @@ def _windows_wsl_path(path: str) -> str:
 def web_status(settings: dict[str, str]) -> dict[str, Any]:
     origin = settings["PLANE_ORIGIN"]
     payload = _powershell_json(
-        "$ErrorActionPreference='Stop'; try { $r=Invoke-WebRequest -UseBasicParsing -TimeoutSec 10 "
+        "$ErrorActionPreference='Stop'; try { $code=& curl.exe --noproxy '*' --connect-timeout 10 --max-time 15 --output NUL --write-out '%{http_code}' "
         + _ps_quote(origin + "/")
-        + "; @{http_status=[int]$r.StatusCode}|ConvertTo-Json -Compress } catch { $response=$_.Exception.Response; if ($response) { @{error_class='http'; http_status=[int]$response.StatusCode}|ConvertTo-Json -Compress } else { @{error_class='transport'}|ConvertTo-Json -Compress } }"
+        + "; if ($LASTEXITCODE -ne 0 -or $code -notmatch '^[0-9]{3}$') { @{error_class='transport'}|ConvertTo-Json -Compress } else { @{http_status=[int]$code}|ConvertTo-Json -Compress } } catch { @{error_class='transport'}|ConvertTo-Json -Compress }"
     )
     if payload.get("error_class") in {"http", "transport"}:
         detail = payload["error_class"]
@@ -127,8 +127,13 @@ def web_status(settings: dict[str, str]) -> dict[str, Any]:
 def list_projects(settings: dict[str, str]) -> dict[str, Any]:
     token_path, variable = _windows_wsl_path(settings["PLANE_API_KEY_FILE"]), settings["PLANE_API_KEY_VARIABLE"]
     url = settings["PLANE_ORIGIN"] + "/api/v1/workspaces/" + settings["PLANE_WORKSPACE_SLUG"] + "/projects/?per_page=100"
-    script = "$ErrorActionPreference='Stop'; $line=Get-Content -LiteralPath " + _ps_quote(token_path) + " | Where-Object { $_ -like " + _ps_quote(variable + "=*") + " } | Select-Object -First 1; if (-not $line) { throw 'Plane token missing' }; $token=$line.Substring(" + str(len(variable) + 1) + "); (Invoke-WebRequest -UseBasicParsing -TimeoutSec 10 -Headers @{'X-API-Key'=$token;'Accept'='application/json'} " + _ps_quote(url) + ").Content"
+    script = "$ErrorActionPreference='Stop'; try { Add-Type -AssemblyName System.Net.Http; $line=Get-Content -LiteralPath " + _ps_quote(token_path) + " | Where-Object { $_ -like " + _ps_quote(variable + "=*") + " } | Select-Object -First 1; if (-not $line) { throw 'Plane token missing' }; $token=$line.Substring(" + str(len(variable) + 1) + "); $handler=[System.Net.Http.HttpClientHandler]::new(); $handler.UseProxy=$false; $client=[System.Net.Http.HttpClient]::new($handler); $client.Timeout=[TimeSpan]::FromSeconds(10); $client.DefaultRequestHeaders.Add('X-API-Key',$token); $client.DefaultRequestHeaders.Accept.ParseAdd('application/json'); $response=$client.GetAsync(" + _ps_quote(url) + ").GetAwaiter().GetResult(); if (-not $response.IsSuccessStatusCode) { @{error_class='http'; http_status=[int]$response.StatusCode}|ConvertTo-Json -Compress } else { $response.Content.ReadAsStringAsync().GetAwaiter().GetResult() } } catch { @{error_class='transport'}|ConvertTo-Json -Compress }"
     payload = _powershell_json(script)
+    if payload.get("error_class") in {"http", "transport"}:
+        detail = payload["error_class"]
+        if isinstance(payload.get("http_status"), int):
+            detail += f" status {payload['http_status']}"
+        raise PlaneAccessError(f"Plane projects request failed ({detail})")
     records = payload.get("results") if isinstance(payload, dict) else None
     if not isinstance(records, list) or not all(isinstance(item, dict) and isinstance(item.get("name"), str) and isinstance(item.get("identifier"), str) for item in records):
         raise PlaneAccessError("Plane projects response has unexpected shape")

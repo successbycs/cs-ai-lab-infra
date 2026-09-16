@@ -1047,8 +1047,9 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "  case \"$state\" in running\\|healthy|running\\|none) ;; *) printf 'PLANE_STATUS_FAIL service=%s state=%s\\n' \"$service\" \"$state\" >&2; exit 1;; esac\n"
             "done\n"
             "proxy=$(docker compose ps -q proxy)\n"
-            "docker port \"$proxy\" 80 | grep -Eq '^127\\.0\\.0\\.1:' || { printf 'PLANE_STATUS_FAIL proxy=not-loopback\\n' >&2; exit 1; }\n"
-            "printf 'PLANE_STATUS_PASS services=11 proxy_loopback=true\\n'\n"
+            "proxy_port=$(docker port \"$proxy\" 80 | sed -n 's/^127\\.0\\.0\\.1:\\([0-9][0-9]*\\)$/\\1/p')\n"
+            "[[ \"$proxy_port\" =~ ^[0-9]+$ ]] || { printf 'PLANE_STATUS_FAIL proxy=not-loopback\\n' >&2; exit 1; }\n"
+            "printf 'PLANE_STATUS_PASS services=11 proxy_loopback=true proxy_port=%s\\n' \"$proxy_port\"\n"
         ),
     },
     "n8n_upgrade_preflight": {

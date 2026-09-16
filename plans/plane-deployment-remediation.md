@@ -57,9 +57,9 @@ workspaces, credentials, firewall rules, ports, or public access.
 
 The T480 `plane_status` operation passed on 2026-09-15: 11 required services
 were present and the proxy was loopback-only. Focused adapter tests passed.
-The remaining gap is the previously observed T16 adapter PowerShell request
-failure; it is outside Plane runtime health and needs its own bounded repair
-plan before changes are made.
+The T16 Plane web path now also passes through a loopback-only, governed relay;
+`web-status` returns HTTP 200. The remaining `list-projects` API-client failure
+is separately classified and does not change the healthy Plane runtime result.
 
 ## Context and Orientation
 

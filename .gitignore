@@ -37,6 +37,7 @@ plane/plane.env
 plane/plane-access.local.env
 plane/backups/
 plane/evidence/
+.plane-t16-relay.local.json
 
 # Editor and OS files
 .DS_Store

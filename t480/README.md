@@ -45,7 +45,7 @@ This MVP adopts the Autonomous Framework's adapter and tool-registry conventions
 - `lab_services_start` — start the existing private PostgreSQL and n8n services plus the status-only dashboard; requires explicit approval.
 - `lab_health` — read-only check of Docker, required service health, PostgreSQL query and pgvector extension, n8n and health-dashboard endpoints, optional running Ollama, and capacity.
 - `lab_runtime_diagnostics` — inspect container status, available memory, and recent private runtime logs.
-- `plane_status` — verify the private Plane service set, dependency health checks, and loopback-only proxy without changing services.
+- `plane_status` — verify the private Plane service set, dependency health checks, loopback-only proxy, and relay-only proxy port without changing services.
 - `m2_latest_evidence_manifest` — reverify the newest M2 evidence bundle and return its fingerprint.
 - `repository_update` — fast-forward a clean existing T480 checkout to `origin/main`; requires explicit approval.
 - `repository_status` — show the fixed T480 lab checkout file status and local/fetched revisions without changing it.

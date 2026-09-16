@@ -442,7 +442,7 @@
     },
     {
       "id": "plane_status",
-      "purpose": "Verify the fixed private Plane services are running, stateful dependency health checks pass, and the proxy remains loopback-only without changing the T480.",
+      "purpose": "Verify the fixed private Plane services are running, stateful dependency health checks pass, and the proxy remains loopback-only while returning its port only for the governed T16 relay, without changing the T480.",
       "approval_required": false,
       "execution": "adapter_owned"
     },
