@@ -447,6 +447,12 @@
       "execution": "adapter_owned"
     },
     {
+      "id": "plane_canonical_url_loopback",
+      "purpose": "Set Plane's canonical web URL and CORS origin to the approved T16 loopback relay, retain one owner-only rollback copy, recreate only Plane API, workers, web, and proxy, and wait for them to run; requires explicit approval.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
       "id": "n8n_upgrade_preflight",
       "purpose": "Capture non-secret installed n8n image and version, reviewed target image, private binding, health, and capacity before an approved n8n upgrade.",
       "approval_required": false,

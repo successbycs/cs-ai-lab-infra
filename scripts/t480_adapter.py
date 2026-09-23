@@ -1052,6 +1052,40 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "printf 'PLANE_STATUS_PASS services=11 proxy_loopback=true proxy_port=%s\\n' \"$proxy_port\"\n"
         ),
     },
+    "plane_canonical_url_loopback": {
+        "approval_required": True,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "cd /home/chris/projects/cs-ai-lab-infra\n"
+            "config='plane/plane.env'\n"
+            "backup='plane/plane.env.pre-loopback-url'\n"
+            "[[ -f \"$config\" && ! -L \"$config\" ]] || { printf 'Plane config is missing or unsafe.\\n' >&2; exit 4; }\n"
+            "[[ ! -e \"$backup\" ]] || { printf 'Plane canonical URL backup already exists; refusing to overwrite it.\\n' >&2; exit 4; }\n"
+            "cp -p \"$config\" \"$backup\"\n"
+            "temporary=$(mktemp plane/.plane.env.loopback.XXXXXX)\n"
+            "chmod 600 \"$temporary\"\n"
+            "trap 'rm -f \"$temporary\"' EXIT\n"
+            "awk -F= '\n"
+            "  $1 == \"WEB_URL\" { print \"WEB_URL=http://127.0.0.1:18090\"; web=1; next }\n"
+            "  $1 == \"CORS_ALLOWED_ORIGINS\" { print \"CORS_ALLOWED_ORIGINS=http://127.0.0.1:18090\"; cors=1; next }\n"
+            "  { print }\n"
+            "  END { if (!web || !cors) exit 3 }\n"
+            "' \"$config\" > \"$temporary\" || { printf 'Plane config is missing required canonical URL settings.\\n' >&2; exit 4; }\n"
+            "mv \"$temporary\" \"$config\"\n"
+            "trap - EXIT\n"
+            "docker compose config --quiet\n"
+            "docker compose up -d --force-recreate --no-deps api worker beat-worker web proxy </dev/null\n"
+            "for attempt in $(seq 1 30); do\n"
+            "  api=$(docker compose ps -q api); web=$(docker compose ps -q web); proxy=$(docker compose ps -q proxy)\n"
+            "  if [[ -n \"$api\" && -n \"$web\" && -n \"$proxy\" ]]; then\n"
+            "    state=$(docker inspect --format '{{.State.Status}}' \"$api\" \"$web\" \"$proxy\" | sort -u | tr '\\n' ' ')\n"
+            "    [[ \"$state\" == 'running ' ]] && { printf 'PLANE_CANONICAL_URL_LOOPBACK_APPLIED services=api,web,proxy\\n'; exit 0; }\n"
+            "  fi\n"
+            "  sleep 2\n"
+            "done\n"
+            "printf 'Plane services did not return to running state.\\n' >&2; exit 4\n"
+        ),
+    },
     "n8n_upgrade_preflight": {
         "approval_required": False,
         "wsl_script": (

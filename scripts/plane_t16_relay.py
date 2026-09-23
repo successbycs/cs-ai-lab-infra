@@ -78,6 +78,28 @@ def ssh_bridge_command(target: str, remote_port: int) -> list[str]:
     return build_ssh_command(target, _remote_bridge_powershell(remote_port), TRANSPORT_SETTINGS)
 
 
+
+def ssh_forward_command(target: str, local_port: int, remote_port: int) -> list[str]:
+    """Build the fixed Windows OpenSSH forward used by the Forex T16 client."""
+    if not 1 <= local_port <= 65535 or not 1 <= remote_port <= 65535:
+        raise RelayError("Plane relay port is invalid")
+    safe_target = resolve_ssh_target(TRANSPORT_SETTINGS, [LOCAL_CONFIG_PATH])
+    if safe_target != target:
+        raise RelayError("Plane relay SSH target changed during setup")
+    encoded_target = base64.b64encode(target.encode("utf-8")).decode("ascii")
+    return [
+        "powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
+        (
+            "$target=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('" + encoded_target
+            + "')); $sshArguments=@('-N','-T','-o','BatchMode=yes','-o','StrictHostKeyChecking=yes','-o',"
+            "'ExitOnForwardFailure=yes','-o','ConnectTimeout=" + str(TRANSPORT_SETTINGS.connect_timeout_seconds)
+            + "','-o','ConnectionAttempts=" + str(TRANSPORT_SETTINGS.connection_attempts)
+            + "','-o','ServerAliveInterval=15','-o','ServerAliveCountMax=3','-L','127.0.0.1:"
+            + str(local_port) + ":127.0.0.1:" + str(remote_port)
+            + "',$target); & ssh.exe @sshArguments; exit $LASTEXITCODE"
+        ),
+    ]
+
 def _remote_proxy_port() -> int:
     result = subprocess.run(
         [sys.executable, str(ROOT / "scripts" / "t480_adapter.py"), "execute", "--operation", "plane_status"],
@@ -178,7 +200,7 @@ def _pid_running(pid: object) -> bool:
 
 def status() -> dict[str, object]:
     state = _state()
-    return {"status": "PASS" if state and _pid_running(state.get("pid")) else "NOT_RUNNING", "origin": state.get("origin") if state else None}
+    return {"status": "PASS" if state and _pid_running(state.get("pid")) else "NOT_RUNNING", "origin": state.get("origin") if state else None, "transport": state.get("transport") if state else None}
 
 
 def serve() -> int:
@@ -200,17 +222,30 @@ def serve() -> int:
 
 
 def start() -> dict[str, object]:
-    _validate_settings()
+    target, local_port, remote_port, origin = _validate_settings()
     current = status()
     if current["status"] == "PASS":
         return current
     STATE_PATH.unlink(missing_ok=True)
-    subprocess.Popen([sys.executable, str(Path(__file__).resolve()), "serve"], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+    process = subprocess.Popen(ssh_forward_command(target, local_port, remote_port), stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
     deadline = time.monotonic() + 8
     while time.monotonic() < deadline:
-        if status()["status"] == "PASS":
-            return status()
-        time.sleep(0.1)
+        if process.poll() is not None:
+            break
+        try:
+            verified = plane_adapter.web_status(plane_adapter.load_config())
+        except plane_adapter.PlaneAccessError:
+            time.sleep(0.2)
+            continue
+        STATE_PATH.write_text(json.dumps({"pid": process.pid, "origin": origin, "transport": "windows_openssh_forward"}), encoding="utf-8")
+        STATE_PATH.chmod(0o600)
+        return {"status": "PASS", "origin": origin, "transport": "windows_openssh_forward", "http_status": verified["http_status"]}
+    if process.poll() is None:
+        try:
+            os.killpg(process.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+    STATE_PATH.unlink(missing_ok=True)
     raise RelayError("Plane relay did not start")
 
 
