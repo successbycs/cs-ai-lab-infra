@@ -17,6 +17,22 @@ docker compose exec ollama ollama pull <chosen-model>
 
 This keeps model files in the `ollama_models` named volume and makes the service available to other Compose services at `http://ollama:11434`. It is isolated and portable, but native host operation is the more straightforward initial learning path.
 
+## Private-LAN MVP URL
+
+The Compose service is loopback-only by default. The governed
+`ollama_lan_enable` and `ollama_lan_firewall_enable` operations deliberately
+publish raw HTTP on TCP 11434 to clients on the Windows Private-profile local
+subnet. Those clients use `http://<T480-LAN-address>:11434`.
+
+This MVP endpoint has **no TLS or authentication**: every device on the
+permitted local subnet can use models and consume T480 resources. Do not send
+credentials or customer-sensitive prompts, use it from public/untrusted
+networks, create router port forwards, public DNS, or tunnels. Disable the
+firewall rule first with `ollama_lan_firewall_disable`, then restore the
+loopback-only bind with `ollama_lan_disable` when LAN access is no longer
+needed. The authoritative policy and live-evidence requirements are in
+[network exposure](../docs/network-exposure.md).
+
 ## Approved first embedding models
 
 The first local retrieval evaluation uses these two models:

@@ -28,12 +28,12 @@ The T16 is the development workstation. The T480 is a persistent, private runtim
 | --- | --- | --- |
 | PostgreSQL + pgvector | reusable structured data, vector-search, and redacted health-result foundation | `127.0.0.1:5432` on the T480 only |
 | n8n | workflow and orchestration learning platform | `127.0.0.1:5678` only |
-| Ollama (optional profile) | CPU-friendly local inference experimentation | Docker network only |
+| Ollama (optional profile) | CPU-friendly local inference experimentation | loopback-only by default; unauthenticated trusted-private-LAN TCP 11434 only after the governed MVP enablement |
 | Health dashboard | status-only view of redacted Healthcheck results | trusted private LAN on port 8080, subject to host Private-profile policy |
 
 Persistent state is held in named Docker volumes. PostgreSQL and n8n are
-published only to the T480 loopback interface; the dashboard is the sole v1
-LAN publication. See the [network exposure policy](docs/network-exposure.md),
+published only to the T480 loopback interface. The dashboard and the deliberate
+unauthenticated Ollama MVP API are the only LAN publications. See the [network exposure policy](docs/network-exposure.md),
 [architecture](docs/architecture.md), [T480 setup](docs/setup.md),
 [operations](docs/operations.md), and [model strategy](docs/model-strategy.md).
 
@@ -52,7 +52,7 @@ docker compose up -d
 ./scripts/health-check.sh
 ```
 
-Open n8n locally on the T480 at `http://127.0.0.1:5678`. The status-only dashboard is available to devices on the trusted LAN at `http://<T480-LAN-address>:8080` after the first Healthcheck publishes a result. It exposes no controls, logs, credentials, workflow data, or database access. For an optional containerised Ollama runtime, use `docker compose --profile ollama up -d`; the recommended starting approach is documented in [ollama/README.md](ollama/README.md).
+Open n8n locally on the T480 at `http://127.0.0.1:5678`. The status-only dashboard is available to devices on the trusted LAN at `http://<T480-LAN-address>:8080` after the first Healthcheck publishes a result. It exposes no controls, logs, credentials, workflow data, or database access. The optional Ollama MVP API is loopback-only by default; after separate approved enablement, trusted local-subnet clients use `http://<T480-LAN-address>:11434`. It is unauthenticated HTTP, so do not send secrets or customer-sensitive prompts and never port-forward it. See [ollama/README.md](ollama/README.md).
 
 Useful operational commands:
 

@@ -408,6 +408,119 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "[pscustomobject]@{ present = $true; enabled = $rule.Enabled.ToString(); direction = $rule.Direction.ToString(); action = $rule.Action.ToString(); profiles = $rule.Profile.ToString(); protocol = $port.Protocol.ToString(); local_port = $port.LocalPort } | ConvertTo-Json -Compress"
         ),
     },
+    "ollama_lan_status": {
+        "approval_required": False,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "$name = 'CS AI Lab Ollama'; $rule = Get-NetFirewallRule -DisplayName $name -ErrorAction SilentlyContinue; "
+            "$listeners = @(Get-NetTCPConnection -State Listen -LocalPort 11434 -ErrorAction SilentlyContinue); "
+            "if ($null -eq $rule) { [pscustomobject]@{ firewall_present = $false; listener_count = $listeners.Count; listener_addresses = @($listeners | ForEach-Object LocalAddress) } | ConvertTo-Json -Compress } else { "
+            "$port = $rule | Get-NetFirewallPortFilter; $address = $rule | Get-NetFirewallAddressFilter; "
+            "[pscustomobject]@{ firewall_present = $true; enabled = $rule.Enabled.ToString(); direction = $rule.Direction.ToString(); action = $rule.Action.ToString(); profiles = $rule.Profile.ToString(); protocol = $port.Protocol.ToString(); local_port = $port.LocalPort; remote_address = $address.RemoteAddress; listener_count = $listeners.Count; listener_addresses = @($listeners | ForEach-Object LocalAddress) } | ConvertTo-Json -Compress }"
+        ),
+    },
+    "ollama_lan_enable": {
+        "approval_required": True,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "cd /home/chris/projects/cs-ai-lab-infra\n"
+            "test -f .env\n"
+            "backup=$(mktemp .env.ollama-bind.XXXXXX)\n"
+            "chmod 600 \"$backup\"\n"
+            "cp .env \"$backup\"\n"
+            "restore_bind() { mv \"$backup\" .env; }\n"
+            "trap restore_bind ERR\n"
+            "python3 - <<'PY'\n"
+            "from pathlib import Path\n"
+            "path = Path('.env')\n"
+            "values = path.read_text(encoding='utf-8').splitlines()\n"
+            "updates = {'OLLAMA_BIND_ADDRESS': '0.0.0.0', 'OLLAMA_PORT': '11434'}\n"
+            "seen = set()\n"
+            "rendered = []\n"
+            "for line in values:\n"
+            "    key = line.split('=', 1)[0] if '=' in line else None\n"
+            "    if key in updates:\n"
+            "        rendered.append(f'{key}={updates[key]}')\n"
+            "        seen.add(key)\n"
+            "    else:\n"
+            "        rendered.append(line)\n"
+            "rendered.extend(f'{key}={value}' for key, value in updates.items() if key not in seen)\n"
+            "path.write_text('\\n'.join(rendered).rstrip('\\n') + '\\n', encoding='utf-8')\n"
+            "PY\n"
+            "docker compose --profile ollama config --quiet\n"
+            "docker compose --profile ollama up -d --wait --wait-timeout 180 ollama\n"
+            "docker compose --profile ollama ps ollama\n"
+            "rm -f \"$backup\"\n"
+            "trap - ERR\n"
+        ),
+    },
+    "ollama_lan_disable": {
+        "approval_required": True,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            "cd /home/chris/projects/cs-ai-lab-infra\n"
+            "test -f .env\n"
+            "backup=$(mktemp .env.ollama-bind.XXXXXX)\n"
+            "chmod 600 \"$backup\"\n"
+            "cp .env \"$backup\"\n"
+            "restore_bind() { mv \"$backup\" .env; }\n"
+            "trap restore_bind ERR\n"
+            "python3 - <<'PY'\n"
+            "from pathlib import Path\n"
+            "path = Path('.env')\n"
+            "values = path.read_text(encoding='utf-8').splitlines()\n"
+            "updates = {'OLLAMA_BIND_ADDRESS': '127.0.0.1', 'OLLAMA_PORT': '11434'}\n"
+            "seen = set()\n"
+            "rendered = []\n"
+            "for line in values:\n"
+            "    key = line.split('=', 1)[0] if '=' in line else None\n"
+            "    if key in updates:\n"
+            "        rendered.append(f'{key}={updates[key]}')\n"
+            "        seen.add(key)\n"
+            "    else:\n"
+            "        rendered.append(line)\n"
+            "rendered.extend(f'{key}={value}' for key, value in updates.items() if key not in seen)\n"
+            "path.write_text('\\n'.join(rendered).rstrip('\\n') + '\\n', encoding='utf-8')\n"
+            "PY\n"
+            "docker compose --profile ollama config --quiet\n"
+            "docker compose --profile ollama up -d --wait --wait-timeout 180 ollama\n"
+            "docker compose --profile ollama ps ollama\n"
+            "rm -f \"$backup\"\n"
+            "trap - ERR\n"
+        ),
+    },
+    "ollama_lan_firewall_enable": {
+        "approval_required": True,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "$name = 'CS AI Lab Ollama'; $existing = @(Get-NetFirewallRule -DisplayName $name -ErrorAction SilentlyContinue); "
+            "if ($existing.Count -gt 1) { throw 'Refusing firewall change: more than one Ollama rule exists.' }; "
+            "if ($existing.Count -eq 1) { Set-NetFirewallRule -InputObject $existing[0] -Enabled True -Direction Inbound -Action Allow -Profile Private; Set-NetFirewallPortFilter -AssociatedNetFirewallRule $existing[0] -Protocol TCP -LocalPort 11434; Set-NetFirewallAddressFilter -AssociatedNetFirewallRule $existing[0] -RemoteAddress LocalSubnet } else { New-NetFirewallRule -DisplayName $name -Description 'Allows the unauthenticated CS AI Lab Ollama MVP API from the trusted local subnet.' -Direction Inbound -Action Allow -Protocol TCP -LocalPort 11434 -RemoteAddress LocalSubnet -Profile Private | Out-Null }; "
+            "$rule = Get-NetFirewallRule -DisplayName $name; $port = $rule | Get-NetFirewallPortFilter; $address = $rule | Get-NetFirewallAddressFilter; "
+            "[pscustomobject]@{ present = $true; enabled = $rule.Enabled.ToString(); direction = $rule.Direction.ToString(); action = $rule.Action.ToString(); profiles = $rule.Profile.ToString(); protocol = $port.Protocol.ToString(); local_port = $port.LocalPort; remote_address = $address.RemoteAddress } | ConvertTo-Json -Compress"
+        ),
+    },
+    "ollama_lan_firewall_disable": {
+        "approval_required": True,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "$name = 'CS AI Lab Ollama'; $existing = @(Get-NetFirewallRule -DisplayName $name -ErrorAction SilentlyContinue); "
+            "if ($existing.Count -gt 1) { throw 'Refusing firewall change: more than one Ollama rule exists.' }; "
+            "if ($existing.Count -eq 1) { $existing[0] | Remove-NetFirewallRule }; "
+            "[pscustomobject]@{ removed = ($existing.Count -eq 1); rule_present_after = [bool](Get-NetFirewallRule -DisplayName $name -ErrorAction SilentlyContinue) } | ConvertTo-Json -Compress"
+        ),
+    },
+    "ollama_lan_verify": {
+        "approval_required": False,
+        "command": (
+            "$ErrorActionPreference = 'Stop'; "
+            "$name = 'CS AI Lab Ollama'; $rule = Get-NetFirewallRule -DisplayName $name -ErrorAction Stop; $port = $rule | Get-NetFirewallPortFilter; $address = $rule | Get-NetFirewallAddressFilter; "
+            "if ($rule.Enabled.ToString() -ne 'True' -or $rule.Direction.ToString() -ne 'Inbound' -or $rule.Action.ToString() -ne 'Allow' -or $rule.Profile.ToString() -notmatch 'Private' -or $port.Protocol.ToString() -ne 'TCP' -or $port.LocalPort -ne '11434' -or $address.RemoteAddress -notcontains 'LocalSubnet') { throw 'Ollama firewall rule does not match the reviewed Private local-subnet policy.' }; "
+            "$listeners = @(Get-NetTCPConnection -State Listen -LocalPort 11434 -ErrorAction SilentlyContinue); if ($listeners.Count -eq 0) { throw 'Ollama TCP 11434 listener is absent.' }; "
+            "$response = Invoke-WebRequest -UseBasicParsing -TimeoutSec 10 http://127.0.0.1:11434/api/tags; "
+            "[pscustomobject]@{ listener_count = $listeners.Count; local_api_status = $response.StatusCode; firewall_profiles = $rule.Profile.ToString(); remote_address = $address.RemoteAddress } | ConvertTo-Json -Compress"
+        ),
+    },
     "windows_restart": {
         "approval_required": True,
         "command": (

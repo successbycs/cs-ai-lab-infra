@@ -20,8 +20,11 @@ local network. The health dashboard maps port `8080` for trusted private-LAN
 status readers only when the host Private-profile policy permits it. It has no
 database credentials or control actions: Healthcheck writes a redacted result
 into PostgreSQL, renders HTML from those tables on the T480 host, and the
-dashboard container serves that HTML. Ollama has no published port. Host
-networking removes this isolation and is not used. See the [network exposure
+dashboard container serves that HTML. Ollama is loopback-only by default. Its
+MVP private-LAN publication on TCP 11434 is enabled only through the fixed
+governed operation and a Windows Private-profile local-subnet firewall rule;
+it is raw unauthenticated HTTP and must never have public ingress. Host
+networking removes Docker isolation and is not used. See the [network exposure
 policy](network-exposure.md) for the required desired and effective-state
 evidence.
 

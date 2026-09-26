@@ -187,6 +187,89 @@ def test_healthcheck_runs_lab_health_after_a_control_path_pass(monkeypatch):
 def test_healthcheck_command_is_case_insensitive():
     assert t480_adapter.parser().parse_args(["Healthcheck"]).command == "healthcheck"
     assert t480_adapter.parser().parse_args(["Healthreport"]).command == "healthreport"
+    assert t480_adapter.parser().parse_args(["Availability-Attestation"]).command == "availability-attestation"
+
+
+def test_availability_attestation_labels_a_passing_healthcheck_as_point_in_time_only(monkeypatch):
+    health = {
+        "ok": True,
+        "summary": {
+            "overall_status": "PASS",
+            "finished_at": "2026-09-17T08:55:00+00:00",
+            "finished_at_nz": "2026-09-17T20:55:00+12:00",
+        },
+        "checks": {"control_path": {"ok": True}},
+    }
+    monkeypatch.setattr(t480_adapter, "healthcheck", lambda: health)
+
+    result = t480_adapter.availability_attestation()
+
+    assert result["ok"] is True
+    assert result["attestation"]["state"] == "HEALTHY_AT_OBSERVATION"
+    assert "point-in-time" in result["attestation"]["evidence_scope"]
+    assert "continuous availability" in result["attestation"]["evidence_scope"]
+
+
+def test_availability_attestation_never_turns_a_failed_control_path_into_host_diagnosis(monkeypatch):
+    health = {
+        "ok": False,
+        "summary": {"overall_status": "FAIL", "finished_at": "2026-09-17T08:55:00+00:00"},
+        "checks": {"control_path": {"ok": False}},
+    }
+    monkeypatch.setattr(t480_adapter, "healthcheck", lambda: health)
+
+    result = t480_adapter.availability_attestation()
+
+    assert result["ok"] is False
+    assert result["attestation"]["state"] == "CONTROL_PATH_UNAVAILABLE_AT_OBSERVATION"
+    assert "powered off" in result["attestation"]["evidence_scope"]
+
+
+def test_availability_attestation_does_not_call_a_failed_full_healthcheck_available(monkeypatch):
+    health = {
+        "ok": False,
+        "summary": {"overall_status": "FAIL", "finished_at": "2026-09-17T08:55:00+00:00"},
+        "checks": {"control_path": {"ok": True}},
+    }
+    monkeypatch.setattr(t480_adapter, "healthcheck", lambda: health)
+
+    result = t480_adapter.availability_attestation()
+
+    assert result["attestation"]["state"] == "RUNTIME_UNHEALTHY_OR_UNCONFIRMED_AT_OBSERVATION"
+    assert "Do not call the T480 available" in result["attestation"]["evidence_scope"]
+
+
+def test_availability_attestation_separates_runtime_availability_from_release_integrity(monkeypatch):
+    runtime_checks = [
+        {"key": key, "status": "PASS"}
+        for key in (
+            "control_path",
+            "docker",
+            "compose",
+            "postgres",
+            "vector",
+            "n8n",
+            "health_dashboard",
+            "postgres_exposure",
+            "n8n_exposure",
+            "dashboard_exposure",
+        )
+    ]
+    health = {
+        "ok": False,
+        "summary": {
+            "overall_status": "FAIL",
+            "finished_at": "2026-09-17T08:55:00+00:00",
+            "checks": [*runtime_checks, {"key": "revision", "status": "FAIL"}, {"key": "image", "status": "FAIL"}],
+        },
+        "checks": {"control_path": {"ok": True}},
+    }
+    monkeypatch.setattr(t480_adapter, "healthcheck", lambda: health)
+
+    result = t480_adapter.availability_attestation()
+
+    assert result["attestation"]["state"] == "RUNTIME_AVAILABLE_WITH_CONFIGURATION_DRIFT_AT_OBSERVATION"
+    assert "release-integrity checks" in result["attestation"]["allowed_claim"]
 
 
 def test_healthcheck_summary_does_not_copy_raw_command_output():

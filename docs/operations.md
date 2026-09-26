@@ -27,6 +27,37 @@ python3 scripts/t480_adapter.py execute --operation lab_runtime_diagnostics
 
 Run `lab_services_start --approve` only after reviewing the failure; it is deliberately separate from the check routine so monitoring cannot change the machine.
 
+## Optional Ollama private-LAN MVP API
+
+Ollama remains loopback-only unless separately enabled. The MVP LAN endpoint is
+raw, unauthenticated HTTP at `http://<T480-LAN-address>:11434`, available only
+to the Windows Private-profile local subnet. It is not a public or authenticated
+service: do not send credentials or customer-sensitive prompts, and do not add
+a router port forward, public DNS name, or tunnel.
+
+Inspect the state without changing it:
+
+```bash
+python3 scripts/t480_adapter.py execute --operation ollama_lan_status
+python3 scripts/t480_adapter.py execute --operation ollama_lan_verify
+```
+
+After explicit approval for both the service publication and firewall rule,
+enable them in this order and retain redacted before/after evidence:
+
+```bash
+python3 scripts/t480_adapter.py execute --operation ollama_lan_enable --approve
+python3 scripts/t480_adapter.py execute --operation ollama_lan_firewall_enable --approve
+```
+
+To return to Docker-internal/loopback-only access, remove the firewall rule
+before restoring the Compose bind:
+
+```bash
+python3 scripts/t480_adapter.py execute --operation ollama_lan_firewall_disable --approve
+python3 scripts/t480_adapter.py execute --operation ollama_lan_disable --approve
+```
+
 This routine is tracked as M7, [T480 operational health routine proven](../t480/prompts/m7-operational-health.md). M7 is complete only after an actual T16 preflight and `lab_health` run are recorded as local evidence; defining the routine is not proof that the T480 is currently reachable.
 
 `Healthcheck` also writes redacted controller-only history, a latest snapshot, and transition-only event records. They are ignored by Git and retain no raw transport output. Generate the local seven-day report without contacting the T480:

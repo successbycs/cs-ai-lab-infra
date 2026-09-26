@@ -111,6 +111,8 @@ services:
       - ollama_models:/root/.ollama
     networks:
       - internal
+    ports:
+      - "${OLLAMA_BIND_ADDRESS:-127.0.0.1}:${OLLAMA_PORT:-11434}:11434"
     healthcheck:
       test: ["CMD", "ollama", "list"]
       interval: 30s

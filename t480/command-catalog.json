@@ -165,6 +165,42 @@
       "execution": "adapter_owned"
     },
     {
+      "id": "ollama_lan_status",
+      "purpose": "Inspect the fixed Windows Ollama firewall rule and TCP 11434 listener without changing the T480.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "ollama_lan_enable",
+      "purpose": "Publish the optional Ollama Compose service on TCP 11434 and start/verify only that service; requires explicit approval.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "ollama_lan_disable",
+      "purpose": "Restore the optional Ollama Compose service to loopback-only TCP 11434 publication while preserving models; requires explicit approval.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "ollama_lan_firewall_enable",
+      "purpose": "Create or repair the fixed Windows Private-profile local-subnet inbound TCP 11434 rule for the unauthenticated Ollama MVP API; requires explicit approval.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "ollama_lan_firewall_disable",
+      "purpose": "Remove only the fixed Windows Ollama inbound firewall rule; requires explicit approval.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "ollama_lan_verify",
+      "purpose": "Verify the fixed Private-profile local-subnet Ollama firewall policy, TCP 11434 listener, and local API health without changing the T480.",
+      "approval_required": false,
+      "execution": "adapter_owned"
+    },
+    {
       "id": "windows_restart",
       "purpose": "Schedule a controlled T480 Windows restart after explicit operator approval; callers must poll the control path afterward.",
       "approval_required": true,
