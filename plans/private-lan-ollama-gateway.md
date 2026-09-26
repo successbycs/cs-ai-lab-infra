@@ -4,7 +4,7 @@ This ExecPlan is a living document. Maintain it in accordance with
 [`PLANS.md`](../PLANS.md). Keep `Progress`, `Surprises & Discoveries`,
 `Decision Log`, and `Outcomes & Retrospective` current as work proceeds.
 
-Status: active
+Status: blocked
 
 ## Purpose / Big Picture
 
@@ -32,6 +32,10 @@ PostgreSQL, n8n, Docker, SSH, MCP, and other services retain their policies.
 - [x] (2026-09-26 05:05Z) Passed 129 repository tests with the one
   WSL-dependent boot-launcher test deselected; `make quality` exercises the
   same test and remains blocked by the local WSL socket failure.
+- [x] (2026-09-26 05:17Z) Committed and pushed the scoped implementation as
+  `2360218` (`Expose Ollama on trusted private LAN`).
+- [ ] (blocked 2026-09-26 05:17Z) Deploy the pushed revision and execute the
+  approved Ollama bind/firewall rollout after the T16 Windows/WSL bridge works.
 - [ ] (authorized rollout) Apply and verify the one scoped private-LAN exposure
   change on the T480.
 
@@ -50,6 +54,11 @@ PostgreSQL, n8n, Docker, SSH, MCP, and other services retain their policies.
   PowerShell boot-launcher quoting test invokes WSL and receives the same
   `UtilBindVsockAnyPort` socket failure. The remaining 129 tests pass when it
   is deselected.
+- The governed `repository_status` deployment preflight and a direct local
+  `wsl.exe --status` check both fail immediately with
+  `UtilBindVsockAnyPort:307: socket failed 1`. The failure occurs on the T16
+  before an SSH session reaches the T480, so no checkout, service, firewall,
+  or model state has changed.
 
 ## Decision Log
 
@@ -67,11 +76,14 @@ PostgreSQL, n8n, Docker, SSH, MCP, and other services retain their policies.
 
 The repository implementation is complete: Ollama is loopback-only by default,
 with fixed enable/disable and Private-profile/local-subnet firewall operations.
-No T480 port, firewall rule, proxy, model, or service changed. The next safe
-step is review and an explicit live rollout authorization. Resolved Compose
-validation must run from a Docker-capable environment before rollout. The
-full-quality gate also needs the local WSL socket failure resolved or an
-equivalent healthy Windows/WSL validation environment.
+No T480 port, firewall rule, proxy, model, or service changed. The reviewed
+implementation is pushed as `2360218`, but deployment is blocked by the T16
+Windows/WSL bridge before it reaches the T480. Restore local WSL operation,
+then rerun the governed `repository_status`, approval-gated `repository_update`,
+`ollama_lan_enable`, `ollama_lan_firewall_enable`, and `ollama_lan_verify`
+sequence. Resolved Compose validation must run from a Docker-capable environment
+before rollout. The full-quality gate also needs the local WSL socket failure
+resolved or an equivalent healthy Windows/WSL validation environment.
 
 ## Context and Orientation
 
