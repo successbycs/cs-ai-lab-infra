@@ -65,7 +65,7 @@ TRANSCRIBER_LOCAL_EXPORT = Path("/mnt/c/Users/chris/Videos/Transcripts")
 FOREX_ROOT = Path("/home/chris/projects/forex")
 FOREX_REMOTE_ROOT = "/home/chris/projects/forex"
 FOREX_REPOSITORY = "https://github.com/successbycs/forex.git"
-FOREX_REVISION = "62ca5836ba49aad85111e247eaebec25ef185ce8"
+FOREX_REVISION = "8e91f339d1db7bccf1d25a1edfbb5e3bbb3c2aaf"
 FOREX_M1_CAPTURE = FOREX_ROOT / "runs/evidence/M1/20260829T064204Z/capture.stdout.json"
 FOREX_M1_CAPTURE_REMOTE = f"{FOREX_REMOTE_ROOT}/runs/evidence/M1/20260829T064204Z/capture.stdout.json"
 FOREX_M1_CAPTURE_SHA256 = "d3a79f0017fcd51ebd5a918a6094b257be902ebe9933e216462ceef07e4e731b"
@@ -1236,7 +1236,7 @@ OPERATIONS: dict[str, dict[str, Any]] = {
         "wsl_script": (
             "set -euo pipefail\n"
             "cd /home/chris/projects/cs-ai-lab-infra\n"
-            "expected_image='n8nio/n8n:1.123.76@sha256:66b6bfd6716877591d9c21340250f44f842e6b03f97ccaed09b9f95e13cf5331'\n"
+            "expected_image='n8nio/n8n:1.123.80@sha256:9e3dbdab16ef0465958f56557d4dbd41078ce021e724168d14de2e71ac415812'\n"
             "configured_image=\"$(docker compose config --images | grep '^n8nio/n8n:' | head -n 1)\"\n"
             "[[ \"$configured_image\" == \"$expected_image\" ]] || { printf 'Refusing upgrade: reviewed n8n image does not match Compose configuration.\\n' >&2; exit 4; }\n"
             "docker compose pull n8n n8n_files_init </dev/null\n"
@@ -1386,6 +1386,28 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "test -f scripts/build_m2_postgres_import.py\n"
             "mkdir -p /mnt/c/Users/chris/ForexEvidence\n"
             "printf 'FOREX_DEPLOY_OK revision=%s\\n' \"$expected_revision\"\n"
+        ),
+    },
+    "forex_isolated_postgres_tests": {
+        "approval_required": True,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            f"repository_root='{FOREX_REMOTE_ROOT}'\n"
+            "test -d \"$repository_root/.git\"\n"
+            "cd \"$repository_root\"\n"
+            "test -x .venv/bin/python\n"
+            "test -f tests/milestones/test_m20_risk_policy_persistence.py\n"
+            "container=forex-w1-test-$(date +%s)-$$\n"
+            "cleanup(){ docker rm -f \"$container\" >/dev/null 2>&1 || true; }\n"
+            "trap cleanup EXIT\n"
+            "password=$(head -c 32 /dev/urandom | sha256sum | cut -c1-32)\n"
+            "docker run -d --name \"$container\" -e POSTGRES_DB=forex_w1_test -e POSTGRES_USER=forex_w1 -e POSTGRES_PASSWORD=\"$password\" -p 127.0.0.1::5432 postgres:16-alpine >/dev/null\n"
+            "for attempt in $(seq 1 30); do docker exec \"$container\" pg_isready -U forex_w1 -d forex_w1_test >/dev/null && break; sleep 1; done\n"
+            "docker exec \"$container\" pg_isready -U forex_w1 -d forex_w1_test >/dev/null\n"
+            "port=$(docker port \"$container\" 5432/tcp | sed -n 's/.*:\\([0-9][0-9]*\\)$/\\1/p')\n"
+            "test -n \"$port\"\n"
+            "FOREX_W1_TEST_DSN=\"postgresql://forex_w1:$password@127.0.0.1:$port/forex_w1_test?sslmode=disable\" .venv/bin/python -m pytest -q tests/milestones/test_m20_risk_policy_persistence.py::test_reservation_provenance_mismatch_creates_no_attempt tests/milestones/test_m20_risk_policy_persistence.py::test_concurrent_reservations_across_leases_allow_only_one\n"
+            "printf 'FOREX_ISOLATED_POSTGRES_TESTS_OK cleanup=scheduled\\n'\n"
         ),
     },
     "forex_stage_m1_evidence": {
@@ -1816,7 +1838,7 @@ def requirements() -> dict[str, Any]:
         "Ensure the Windows SSH account can run wsl.exe and access the Ubuntu distribution.",
         "Explicitly approve every mutating operation in the operator conversation before execution.",
     ],
-        "commands": ["describe-requirements", "preflight", "healthcheck", "execute", "verify"],
+        "commands": ["describe-requirements", "preflight", "healthcheck", "availability-attestation", "execute", "verify"],
         "operations": [
             {"id": operation_id, "approval_required": details["approval_required"]}
             for operation_id, details in OPERATIONS.items()
@@ -2128,6 +2150,77 @@ def healthreport() -> dict[str, Any]:
     }
 
 
+def classify_availability_evidence(health_result: dict[str, Any]) -> dict[str, str | None]:
+    """State exactly what a fresh governed Healthcheck proves, without inferring continuity."""
+    summary = health_result.get("summary", {})
+    checks = health_result.get("checks", {})
+    control_path = checks.get("control_path", {}) if isinstance(checks, dict) else {}
+    observed_at = summary.get("finished_at") if isinstance(summary, dict) else None
+    observed_at_nz = summary.get("finished_at_nz") if isinstance(summary, dict) else None
+    if health_result.get("ok") and summary.get("overall_status") == "PASS":
+        return {
+            "state": "HEALTHY_AT_OBSERVATION",
+            "allowed_claim": "The governed T480 Healthcheck passed at the recorded observation time.",
+            "evidence_scope": "A point-in-time T16-to-T480 control-path and required-runtime health observation; it does not prove continuous availability.",
+            "observed_at": observed_at,
+            "observed_at_nz": observed_at_nz,
+        }
+    if not control_path.get("ok"):
+        return {
+            "state": "CONTROL_PATH_UNAVAILABLE_AT_OBSERVATION",
+            "allowed_claim": "The governed T16-to-T480 control path did not complete at the recorded observation time.",
+            "evidence_scope": "This does not diagnose the T480 or prove that the physical host is powered off.",
+            "observed_at": observed_at,
+            "observed_at_nz": observed_at_nz,
+        }
+    check_states = {
+        re.sub(r"_\d+$", "", str(check.get("key", ""))): str(check.get("status", "FAIL"))
+        for check in summary.get("checks", [])
+        if isinstance(check, dict)
+    }
+    runtime_checks = {
+        "control_path",
+        "docker",
+        "compose",
+        "postgres",
+        "vector",
+        "n8n",
+        "health_dashboard",
+        "postgres_exposure",
+        "n8n_exposure",
+        "dashboard_exposure",
+    }
+    failed_checks = {key for key, status in check_states.items() if status == "FAIL"}
+    if runtime_checks.issubset(check_states) and all(check_states[key] == "PASS" for key in runtime_checks) and failed_checks <= {"revision", "image"}:
+        return {
+            "state": "RUNTIME_AVAILABLE_WITH_CONFIGURATION_DRIFT_AT_OBSERVATION",
+            "allowed_claim": "The governed T480 control path and core runtime checks passed at the recorded observation time; release-integrity checks did not pass.",
+            "evidence_scope": "A point-in-time availability observation with checkout or image-integrity drift; it does not prove continuous availability or release readiness.",
+            "observed_at": observed_at,
+            "observed_at_nz": observed_at_nz,
+        }
+    return {
+        "state": "RUNTIME_UNHEALTHY_OR_UNCONFIRMED_AT_OBSERVATION",
+        "allowed_claim": "The control path completed, but the full T480 Healthcheck did not pass at the recorded observation time.",
+        "evidence_scope": "Do not call the T480 available; review the named Healthcheck failure before diagnosing or changing services.",
+        "observed_at": observed_at,
+        "observed_at_nz": observed_at_nz,
+    }
+
+
+def availability_attestation() -> dict[str, Any]:
+    """Return a portable, redacted availability statement from one fresh full Healthcheck."""
+    health_result = healthcheck()
+    return {
+        "tool_id": TOOL_ID,
+        "operation": "availability_attestation",
+        "approval_required": False,
+        "approved": False,
+        "attestation": classify_availability_evidence(health_result),
+        "ok": health_result.get("ok", False),
+    }
+
+
 def execute(operation_id: str, approved: bool) -> dict[str, Any]:
     details = OPERATIONS.get(operation_id)
     if details is None:
@@ -2326,7 +2419,7 @@ def parser() -> argparse.ArgumentParser:
     command_parser.add_argument(
         "command",
         type=str.lower,
-        choices=["describe-requirements", "preflight", "healthcheck", "healthreport", "execute", "verify", "submit-transcription-folder", "pull-transcription-outputs", "stage-forex-m1-evidence"],
+        choices=["describe-requirements", "preflight", "healthcheck", "availability-attestation", "healthreport", "execute", "verify", "submit-transcription-folder", "pull-transcription-outputs", "stage-forex-m1-evidence"],
     )
     command_parser.add_argument("--operation", choices=sorted(OPERATIONS), help="Fixed operation identifier.")
     command_parser.add_argument("--source-folder", help="Windows Explorer folder containing direct MP4 files; accepted only by submit-transcription-folder.")
@@ -2343,6 +2436,8 @@ def main(argv: list[str] | None = None) -> int:
         payload = preflight()
     elif args.command == "healthcheck":
         payload = healthcheck()
+    elif args.command == "availability-attestation":
+        payload = availability_attestation()
     elif args.command == "healthreport":
         payload = healthreport()
     elif args.command == "submit-transcription-folder":

@@ -9,6 +9,7 @@ This MVP adopts the Autonomous Framework's adapter and tool-registry conventions
 ## Initial operations
 
 - `health` — Windows hostname, operating system, and installed memory.
+- `availability-attestation` — run the full read-only Healthcheck and emit a redacted, point-in-time availability statement; it distinguishes core-runtime availability from revision/image-integrity drift and must not be inferred from `preflight` alone.
 - `storage` — filesystem capacity and free space.
 - `hardware_and_wsl_storage` — RAM modules, physical disk models, and host-side WSL virtual-disk file sizes.
 - `health_dashboard_firewall_status` — inspect the fixed private-LAN TCP 8080 dashboard firewall rule.
@@ -58,6 +59,7 @@ This MVP adopts the Autonomous Framework's adapter and tool-registry conventions
 - `repository_restore_corrupt_contract_files` — restore only the three known zero-byte adapter-contract files from fetched origin/main, then fast-forward; requires explicit approval.
 - `repository_finalize_corrupt_contract_restore` — align Git metadata after the verified three-file restoration without changing working files; requires explicit approval.
 - `forex_deploy` — deploy the reviewed hash-pinned Forex revision to its fixed T480 checkout; requires explicit approval.
+- `forex_isolated_postgres_tests` — run only the fixed Forex reservation tests against a disposable loopback-only PostgreSQL container and remove it; requires explicit approval and never uses MT5 or shared PostgreSQL.
 - `forex_stage_m1_evidence` — hash-check and stage only the reviewed M1 capture for the fixed M2 import; requires explicit approval.
 - `m3_recovery_proof` — run the isolated M3 synthetic database backup and restore drill; requires explicit approval.
 - `m3_latest_evidence_manifest` — reverify the newest M3 recovery evidence bundle and return its fingerprint.
@@ -116,11 +118,19 @@ When `.env.t480.local` contains `T480_SSH_TARGET`, the environment prefix is unn
 ```bash
 python3 scripts/t480_adapter.py preflight
 python3 scripts/t480_adapter.py Healthcheck
+python3 scripts/t480_adapter.py availability-attestation
 ```
 
 The fourth command changes the T480: it installs Docker and adds the fixed `chris` Ubuntu user to the Docker group. It deliberately uses `wsl.exe -u root` so it never requests, stores, or automates a Linux password. A fresh Ubuntu session is required after installation for the new Docker-group membership to take effect.
 
 The PowerShell process is deliberately non-interactive and its output returns to Codex; it does not open a separate visible terminal window, because Codex cannot reliably control or receive output from a detached GUI window. The adapter is a safety boundary for automation on the T16, not a general hardening boundary for the T480 Windows account. Anyone with interactive access to that Windows account can still run commands directly.
+
+The SSH transport makes two connection-establishment attempts by default. This
+only covers a transient failure before an SSH session is established; it does
+not replay a command after a session has started or after a remote command may
+have run. Strict host-key verification and key-only non-interactive operation
+remain mandatory. A persistent failure is still reported as an unavailable
+control path at that observation, not evidence that the T480 is powered off.
 
 For the current broad bootstrap phase, use the reusable [adapter execution prompt](prompts/adapter-execution.md). It applies the Autonomous Framework's preflight, approval, verification, and evidence model while the execution surface is intentionally wider than the future named-operation adapter.
 

@@ -502,7 +502,7 @@
     },
     {
       "id": "n8n_upgrade",
-      "purpose": "Pull and deploy only the reviewed digest-pinned n8n 1.123.76 image, then report version and private service health.",
+      "purpose": "Pull and deploy only the reviewed digest-pinned n8n 1.123.80 image, then report version and private service health.",
       "approval_required": true,
       "execution": "adapter_owned"
     },
@@ -557,6 +557,12 @@
     {
       "id": "forex_deploy",
       "purpose": "Deploy only the reviewed hash-pinned Forex revision to the fixed private T480 checkout, refusing a dirty or differently-originated checkout.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
+      "id": "forex_isolated_postgres_tests",
+      "purpose": "Run only the two fixed Forex reservation tests against a disposable loopback-only PostgreSQL container, then remove that container; requires explicit approval and never uses the shared database, MT5, or a broker.",
       "approval_required": true,
       "execution": "adapter_owned"
     },
