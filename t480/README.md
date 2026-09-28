@@ -60,6 +60,7 @@ This MVP adopts the Autonomous Framework's adapter and tool-registry conventions
 - `repository_finalize_corrupt_contract_restore` — align Git metadata after the verified three-file restoration without changing working files; requires explicit approval.
 - `forex_deploy` — deploy the reviewed hash-pinned Forex revision to its fixed T480 checkout; requires explicit approval.
 - `forex_isolated_postgres_tests` — run only the fixed Forex reservation tests against a disposable loopback-only PostgreSQL container and remove it; requires explicit approval and never uses MT5 or shared PostgreSQL.
+- `forex_checkout_snapshot_and_update` — archive dirty Forex checkout changes into a local recovery snapshot and update only that checkout to the reviewed revision; requires explicit approval.
 - `forex_stage_m1_evidence` — hash-check and stage only the reviewed M1 capture for the fixed M2 import; requires explicit approval.
 - `m3_recovery_proof` — run the isolated M3 synthetic database backup and restore drill; requires explicit approval.
 - `m3_latest_evidence_manifest` — reverify the newest M3 recovery evidence bundle and return its fingerprint.

@@ -567,6 +567,12 @@
       "execution": "adapter_owned"
     },
     {
+      "id": "forex_checkout_snapshot_and_update",
+      "purpose": "Snapshot every dirty Forex checkout change into a timestamped local recovery bundle, then update only that fixed checkout to the reviewed Forex revision; requires explicit approval.",
+      "approval_required": true,
+      "execution": "adapter_owned"
+    },
+    {
       "id": "forex_stage_m1_evidence",
       "purpose": "Hash-check and stage only the reviewed retained M1 capture from fixed private Windows staging into the fixed Forex checkout.",
       "approval_required": true,

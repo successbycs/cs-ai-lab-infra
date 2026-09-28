@@ -1388,6 +1388,28 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "printf 'FOREX_DEPLOY_OK revision=%s\\n' \"$expected_revision\"\n"
         ),
     },
+    "forex_checkout_snapshot_and_update": {
+        "approval_required": True,
+        "wsl_script": (
+            "set -euo pipefail\n"
+            f"repository_root='{FOREX_REMOTE_ROOT}'\n"
+            f"expected_revision='{FOREX_REVISION}'\n"
+            "test -d \"$repository_root/.git\"\n"
+            "cd \"$repository_root\"\n"
+            "stamp=$(date -u +%Y%m%dT%H%M%SZ)\n"
+            "snapshot=\"/home/chris/ForexCheckoutRecovery/$stamp\"\n"
+            "mkdir -p \"$snapshot\"\n"
+            "git status --porcelain --untracked-files=all > \"$snapshot/status.txt\"\n"
+            "git diff --binary > \"$snapshot/worktree.patch\"\n"
+            "git diff --cached --binary > \"$snapshot/index.patch\"\n"
+            "git ls-files --others --exclude-standard -z | tar --null -T - -czf \"$snapshot/untracked.tar.gz\"\n"
+            "git fetch --depth 1 origin \"$expected_revision\"\n"
+            "git reset --hard \"$expected_revision\"\n"
+            "git clean -fd\n"
+            "git status --porcelain --untracked-files=all | grep -q . && { printf 'Forex checkout remains dirty after recovery.\\n' >&2; exit 5; } || true\n"
+            "printf 'FOREX_CHECKOUT_RECOVERED snapshot=%s revision=%s\\n' \"$stamp\" \"$(git rev-parse HEAD)\"\n"
+        ),
+    },
     "forex_isolated_postgres_tests": {
         "approval_required": True,
         "wsl_script": (
@@ -1395,7 +1417,6 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             f"repository_root='{FOREX_REMOTE_ROOT}'\n"
             "test -d \"$repository_root/.git\"\n"
             "cd \"$repository_root\"\n"
-            "test -x .venv/bin/python\n"
             "test -f tests/milestones/test_m20_risk_policy_persistence.py\n"
             "container=forex-w1-test-$(date +%s)-$$\n"
             "cleanup(){ docker rm -f \"$container\" >/dev/null 2>&1 || true; }\n"
@@ -1406,7 +1427,10 @@ OPERATIONS: dict[str, dict[str, Any]] = {
             "docker exec \"$container\" pg_isready -U forex_w1 -d forex_w1_test >/dev/null\n"
             "port=$(docker port \"$container\" 5432/tcp | sed -n 's/.*:\\([0-9][0-9]*\\)$/\\1/p')\n"
             "test -n \"$port\"\n"
-            "FOREX_W1_TEST_DSN=\"postgresql://forex_w1:$password@127.0.0.1:$port/forex_w1_test?sslmode=disable\" .venv/bin/python -m pytest -q tests/milestones/test_m20_risk_policy_persistence.py::test_reservation_provenance_mismatch_creates_no_attempt tests/milestones/test_m20_risk_policy_persistence.py::test_concurrent_reservations_across_leases_allow_only_one\n"
+            "printf 'FOREX_ISOLATED_POSTGRES_TESTS phase=python-image\\n'\n"
+            "timeout 180 docker pull python:3.12-slim >/dev/null\n"
+            "printf 'FOREX_ISOLATED_POSTGRES_TESTS phase=pytest\\n'\n"
+            "timeout 180 docker run --rm --network host -v \"$repository_root:/work:ro\" -w /work -e FOREX_W1_TEST_DSN=\"postgresql://forex_w1:$password@127.0.0.1:$port/forex_w1_test?sslmode=disable\" python:3.12-slim sh -ec \"pip install --disable-pip-version-check --no-input pytest pyyaml 'psycopg[binary]' >/dev/null; python -m pytest -q -p no:cacheprovider tests/milestones/test_m20_risk_policy_persistence.py::test_reservation_provenance_mismatch_creates_no_attempt tests/milestones/test_m20_risk_policy_persistence.py::test_concurrent_reservations_across_leases_allow_only_one\"\n"
             "printf 'FOREX_ISOLATED_POSTGRES_TESTS_OK cleanup=scheduled\\n'\n"
         ),
     },

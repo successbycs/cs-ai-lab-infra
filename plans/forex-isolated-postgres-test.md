@@ -24,18 +24,28 @@ service, MT5, or a broker.
   documentation, and focused contract tests.
 - [ ] (2026-09-29 11:18Z) Obtain explicit approval to execute the new
   state-changing operation after it is committed and deployed to T480.
+- [x] (2026-09-29 11:41Z) Added bounded phase markers and timeout controls
+  after the first container-based test run returned no usable completion.
+- [x] (2026-09-29 11:41Z) Added the disposable Python test-container fallback
+  because the T480 Forex checkout lacks pytest and Python venv support.
 
 ## Surprises & Discoveries
 
 - The local T16 WSL checkout has no PostgreSQL client, server, Docker command,
   or `FOREX_W1_TEST_DSN`. T480 Docker is healthy, but its shared adapter does
   not currently expose this disposable-test operation.
+- The updated T480 Forex checkout lacks `pytest`, `python3-venv`, and PyYAML.
+  The operation therefore uses a disposable Python image with a read-only
+  checkout mount rather than installing runtime packages on T480.
 
 ## Decision Log
 
 - (2026-09-29) Decision: add a fixed, approval-required operation rather than
   use a generic T480 shell. Rationale: it preserves the shared adapter's
   allowlist and proves the test cannot target the trading or shared database.
+- (2026-09-29) Decision: use a disposable Python test container with bounded
+  pull/test phases. Rationale: it avoids permanent package installation while
+  retaining a reproducible test environment and deterministic timeout.
 
 ## Outcomes & Retrospective
 
